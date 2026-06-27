@@ -51,6 +51,9 @@ public class LyricLine {
     public double reboundAnimation = 0;
     public boolean renderEmphasizes = true;
 
+    public float lineAlpha = .25f;
+    public float auroraGlow = 0f;
+
     /**
      * Opaque per-line animation/layout state owned by the UI layer (e.g. a spring).
      * Kept as Object so the engine-agnostic core does not depend on the renderer.

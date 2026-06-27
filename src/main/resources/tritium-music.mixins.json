@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "tritium.music.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "NowPlayingToastMixin",
+    "ToastManagerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

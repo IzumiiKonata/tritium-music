@@ -62,11 +62,9 @@ public class NCMScreen extends BaseScreen {
     protected void init() {
         alpha = 0f;
         closing = false;
+        this.musicLyricsPanel = null;
 
         this.checkDirty();
-
-        if (this.musicLyricsPanel != null)
-            this.musicLyricsPanel.onInit();
     }
 
     public void markDirty() {
@@ -313,6 +311,11 @@ public class NCMScreen extends BaseScreen {
             else
                 CloudMusic.player.pause();
         }
+    }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return false;
     }
 
     @Override

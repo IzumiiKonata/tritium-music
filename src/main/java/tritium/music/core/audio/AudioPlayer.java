@@ -3,6 +3,8 @@ package tritium.music.core.audio;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import tritium.music.core.MusicState;
+import tritium.music.repackage.processing.sound.FFT;
+import tritium.music.repackage.processing.sound.JSynFFT;
 import tritium.music.repackage.processing.sound.SoundFile;
 
 import java.io.File;
@@ -13,9 +15,27 @@ public class AudioPlayer {
     public Runnable afterPlayed;
 
     /**
-     * Spectrum band magnitudes, updated by the FFT analysis (Phase 2). Empty until enabled.
+     * Spectrum band magnitudes, updated by the FFT analysis. Empty until the first FFT frame.
      */
     public static float[] bandValues = new float[0];
+
+    private static final int BAR_COUNT = 128;
+
+    /**
+     * Gate for the FFT callback so analysis only runs when something consumes the bands
+     * (spectrum widget visible or a lyrics/now-playing surface open). Set by the client.
+     */
+    public static volatile boolean spectrumEnabled = false;
+
+    /** Spectrum visualizer tuning, set by the client from config. */
+    public static volatile float spectrumTilt = 3.0f;
+    public static volatile boolean absoluteVolume = true;
+
+    private static int skipCount = 0;
+
+    @Getter
+    private final FFT fft = new FFT(BAR_COUNT, this::onFFT);
+    private final SpectrumVisualizer visualizer = new SpectrumVisualizer(JSynFFT.FFT_SIZE, BAR_COUNT);
 
     @Getter
     public float volume = 0.25f;
@@ -36,7 +56,27 @@ public class AudioPlayer {
     }
 
     public void setListeners() {
+        fft.removeInput();
+        fft.input(this.player);
         player.setOnFinished(() -> finished = true);
+    }
+
+    private void onFFT(float[] magnitudes) {
+        if (!spectrumEnabled) {
+            return;
+        }
+
+        int skipAmount = 4;
+        if (skipCount < skipAmount) {
+            skipCount++;
+            return;
+        }
+        skipCount = 0;
+
+        visualizer.setVolume(this.volume);
+        visualizer.setSpectrumTilt(spectrumTilt);
+        visualizer.setAbsoluteVolume(absoluteVolume);
+        bandValues = visualizer.processFFT(magnitudes);
     }
 
     public void play() {

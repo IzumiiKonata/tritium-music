@@ -34,11 +34,27 @@ dependencies {
 	include implementation("net.java.dev.jna:jna:${project.jna_version}")
 	include implementation("net.java.dev.jna:jna-platform:${project.jna_version}")
 
-	// HarfBuzz for font kerning (FreeType is already bundled by Minecraft).
+	// HarfBuzz for font kerning (FreeType is already bundled by Minecraft, but without HarfBuzz
+	// symbols, so the standalone HarfBuzz native is required). NOTE: do NOT touch the LWJGL
+	// `OpenType` class — its 3.4.1 binding batch-loads a misspelled symbol
+	// (hb_ot_ot_layout_get_font_extents) that aborts its <clinit>. FontKerning uses default font
+	// funcs instead of hb_ot_font_set_funcs to avoid it.
 	include implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")
 	["natives-windows", "natives-windows-arm64", "natives-linux", "natives-macos", "natives-macos-arm64"].each {
 		include "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it"
 	}
+
+	// The natives jar for the current platform must also be on the dev runtime classpath so
+	// LWJGL's SharedLibraryLoader can extract harfbuzz.dll/.so/.dylib at dev time.
+	def lwjglNatives = {
+		def os = System.getProperty("os.name").toLowerCase()
+		def arch = System.getProperty("os.arch").toLowerCase()
+		def aarch64 = arch.startsWith("aarch64") || arch.startsWith("arm64")
+		if (os.contains("win")) return aarch64 ? "natives-windows-arm64" : "natives-windows"
+		if (os.contains("mac")) return aarch64 ? "natives-macos-arm64" : "natives-macos"
+		return "natives-linux"
+	}()
+	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
 }
 
 processResources {

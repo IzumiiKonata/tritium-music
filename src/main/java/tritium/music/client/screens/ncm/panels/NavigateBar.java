@@ -176,6 +176,13 @@ public class NavigateBar extends NCMPanel {
             this.playlistPanel.addChild(item);
         }
 
+        {
+            PlaylistItem item = new PlaylistItem("L", Color.GRAY::getRGB, () -> "编辑 HUD",
+                    () -> tritium.music.client.screens.WidgetEditorScreen.open());
+            item.setShouldOverrideMouseCursor(true);
+            this.playlistPanel.addChild(item);
+        }
+
         LabelWidget lblPlaylists = new LabelWidget("我的歌单", FontManager.pf14bold);
         lblPlaylists.setBeforeRenderCallback(() -> {
             lblPlaylists.setColor(Color.GRAY);

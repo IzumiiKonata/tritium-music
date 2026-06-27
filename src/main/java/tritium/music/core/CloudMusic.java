@@ -422,6 +422,22 @@ public class CloudMusic {
         Files.write(cookieFile().toPath(), OptionsUtil.getCookie().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
     }
 
+    public static void shutdownPlayback() {
+        doBreak = true;
+        playing.set(false);
+
+        if (playThread != null) {
+            playThread.interrupt();
+        }
+
+        if (player != null) {
+            try {
+                player.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     @Getter
     public enum PlayMode {
         Random("F"),
@@ -573,6 +589,7 @@ public class CloudMusic {
         public PlayThread(List<Music> songs, int startIdx) {
             this.songs = songs;
             this.setName("Play Thread");
+            this.setDaemon(true);
             this.startIdx = startIdx;
         }
 

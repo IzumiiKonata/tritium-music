@@ -61,15 +61,20 @@ public interface SharedRenderingConstants {
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double texX, double texY, double u, double v, double radius) {
-        roundedRectTextured(x, y, width, height, radius, 1f);
+        roundedRectTextured(x, y, width, height, texX, texY, u, v, radius, 1f);
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double texX, double texY, double u, double v, double radius, float alpha) {
-        roundedRectTextured(x, y, width, height, radius, alpha);
+        Identifier texture = RenderSystem.boundTexture();
+        if (texture == null) {
+            return;
+        }
+        Render.roundedTexture(RenderContext.graphics(), texture, (float) x, (float) y, (float) width, (float) height, (float) radius, alpha,
+                (float) texX, (float) texY, (float) u, (float) v);
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double texX, double texY, double u, double v, double radius, double expand, float alpha) {
-        roundedRectTextured(x - expand, y - expand, width + expand * 2, height + expand * 2, radius, alpha);
+        roundedRectTextured(x - expand, y - expand, width + expand * 2, height + expand * 2, texX, texY, u, v, radius, alpha);
     }
 
     default void roundedRectGradientHorizontal(double x, double y, double width, double height, double radius, Color left, Color right) {

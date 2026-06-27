@@ -20,6 +20,9 @@
 		]
 	},
 	"accessWidener": "tritium-music.accesswidener",
+	"mixins": [
+		"tritium-music.mixins.json"
+	],
 	"depends": {
 		"fabricloader": ">=0.19.3",
 		"minecraft": "~26.2",

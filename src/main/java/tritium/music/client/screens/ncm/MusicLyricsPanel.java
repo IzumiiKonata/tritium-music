@@ -388,7 +388,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                 }
             }
 
-            if (alpha * lyric.blurAlpha > 0.004f) {
+            if (Shaders.BLUR_SHADER.isAvailable() && alpha * lyric.blurAlpha > 0.004f) {
                 double by = lyric.posY + scrollOffset;
                 blurRects.add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1, 1, 1, alpha * lyric.blurAlpha)));
             }

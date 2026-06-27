@@ -40,7 +40,6 @@ import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_font_set_ppem;
 import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_font_set_scale;
 import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_language_from_string;
 import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_shape;
-import static org.lwjgl.util.harfbuzz.OpenType.hb_ot_font_set_funcs;
 
 public final class FontKerning {
 
@@ -114,8 +113,6 @@ public final class FontKerning {
 
             hb_font_set_scale(hbFont, 16 * 64, 16 * 64);
             hb_font_set_ppem(hbFont, 16, 16);
-
-            hb_ot_font_set_funcs(hbFont);
 
             hbBuffer = hb_buffer_create();
             if (hbBuffer == NULL || !hb_buffer_allocation_successful(hbBuffer)) {

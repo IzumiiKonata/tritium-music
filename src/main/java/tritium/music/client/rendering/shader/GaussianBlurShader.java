@@ -9,6 +9,15 @@ import java.util.List;
  */
 public class GaussianBlurShader {
 
+    /**
+     * Whether a real backdrop-blur pass is wired up. While false, callers should not
+     * queue blur "mask" rectangles (they would render as opaque shapes rather than
+     * blurring the content behind them).
+     */
+    public boolean isAvailable() {
+        return false;
+    }
+
     public void run(List<Runnable> runnables) {
         for (Runnable runnable : runnables) {
             runnable.run();

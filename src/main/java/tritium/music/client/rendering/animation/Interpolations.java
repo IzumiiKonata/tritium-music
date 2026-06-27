@@ -9,6 +9,8 @@ public class Interpolations {
 
     public static long lastNanoFrame = System.nanoTime();
 
+    private static long lastFrameId = Long.MIN_VALUE;
+
     public static double interpolate(double startValue, double endValue, double fraction) {
         boolean increasing = startValue < endValue;
 
@@ -87,6 +89,12 @@ public class Interpolations {
     }
 
     public static void calcFrameDelta() {
+        long frameId = net.minecraft.client.Minecraft.getInstance().getFrameTimeNs();
+        if (frameId == lastFrameId) {
+            return;
+        }
+        lastFrameId = frameId;
+
         long now = System.nanoTime();
         double value = (now - lastNanoFrame) / 10000000.0;
 
