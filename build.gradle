@@ -33,6 +33,12 @@ dependencies {
 	include implementation("com.google.zxing:core:${project.zxing_version}")
 	include implementation("net.java.dev.jna:jna:${project.jna_version}")
 	include implementation("net.java.dev.jna:jna-platform:${project.jna_version}")
+
+	// HarfBuzz for font kerning (FreeType is already bundled by Minecraft).
+	include implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")
+	["natives-windows", "natives-windows-arm64", "natives-linux", "natives-macos", "natives-macos-arm64"].each {
+		include "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it"
+	}
 }
 
 processResources {

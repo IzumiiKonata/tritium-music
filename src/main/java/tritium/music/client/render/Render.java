@@ -99,6 +99,20 @@ public final class Render {
         submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, x, y, x + w, y + h);
     }
 
+    public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
+                             float u0, float v0, float u1, float v1, int color) {
+        AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(atlas);
+        TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), tex.getSampler());
+
+        List<MeshElement.Vertex> verts = new ArrayList<>(4);
+        verts.add(new MeshElement.Vertex(x, y, u0, v0, color));
+        verts.add(new MeshElement.Vertex(x, y + h, u0, v1, color));
+        verts.add(new MeshElement.Vertex(x + w, y + h, u1, v1, color));
+        verts.add(new MeshElement.Vertex(x + w, y, u1, v0, color));
+
+        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, x, y, x + w, y + h);
+    }
+
     public static void roundedTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha) {
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), tex.getSampler());

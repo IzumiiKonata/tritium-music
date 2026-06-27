@@ -30,4 +30,22 @@ public class Textures {
     public void loadTextureAsync(TextureHandle handle, BufferedImage image) {
         loadTexture(handle, image);
     }
+
+    public void downloadTextureAndLoadAsync(String url, TextureHandle handle) {
+        if (Platform.hasTexture(handle)) {
+            return;
+        }
+        AsyncUtil.runAsync(() -> {
+            try (InputStream stream = HttpUtils.downloadStream(url)) {
+                if (stream != null) {
+                    BufferedImage image = decode(stream);
+                    if (image != null) {
+                        loadTexture(handle, image);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
 }

@@ -12,6 +12,11 @@ public class AudioPlayer {
     public SoundFile player;
     public Runnable afterPlayed;
 
+    /**
+     * Spectrum band magnitudes, updated by the FFT analysis (Phase 2). Empty until enabled.
+     */
+    public static float[] bandValues = new float[0];
+
     @Getter
     public float volume = 0.25f;
 

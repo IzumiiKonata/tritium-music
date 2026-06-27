@@ -42,6 +42,21 @@ public class LyricLine {
     public double targetOffsetX = 0;
     public double offsetY = Double.MIN_VALUE;
 
+    // Rendering state (engine-agnostic numeric values; written by the UI layer).
+    public double posY = 0;
+    public double height = 0;
+    public float alpha = .4f;
+    public float hoveringAlpha = 0f;
+    public float blurAlpha = 0f;
+    public double reboundAnimation = 0;
+    public boolean renderEmphasizes = true;
+
+    /**
+     * Opaque per-line animation/layout state owned by the UI layer (e.g. a spring).
+     * Kept as Object so the engine-agnostic core does not depend on the renderer.
+     */
+    public Object spring;
+
     public final List<Word> words = new CopyOnWriteArrayList<>();
 
     public static class Word {

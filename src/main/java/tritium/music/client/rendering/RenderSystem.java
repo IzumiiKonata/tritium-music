@@ -103,6 +103,10 @@ public class RenderSystem {
             top = bottom;
             bottom = j;
         }
+        if (StencilClipManager.capturing()) {
+            StencilClipManager.captureRect(left, top, right - left, bottom - top);
+            return;
+        }
         Render.rect(g(), (float) left, (float) top, (float) (right - left), (float) (bottom - top), color);
     }
 
