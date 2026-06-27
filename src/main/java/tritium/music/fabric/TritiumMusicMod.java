@@ -62,9 +62,9 @@ public class TritiumMusicMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 
-        registerWidget("music_info", musicInfo);
-        registerWidget("music_lyrics", musicLyrics);
         registerWidget("music_spectrum", musicSpectrum);
+        registerWidget("music_lyrics", musicLyrics);
+        registerWidget("music_info", musicInfo);
     }
 
     private void registerWidget(String id, HudWidget widget) {
