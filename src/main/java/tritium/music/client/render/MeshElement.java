@@ -21,9 +21,13 @@ public record MeshElement(
         @Nullable ScreenRectangle bounds
 ) implements GuiElementRenderState {
 
-    public record Vertex(float x, float y, float u, float v, int color, float aa) {
+    public record Vertex(float x, float y, float u, float v, int color, float nx, float ny, float nz) {
         public Vertex(float x, float y, float u, float v, int color) {
-            this(x, y, u, v, color, 0f);
+            this(x, y, u, v, color, 0f, 0f, 0f);
+        }
+
+        public Vertex(float x, float y, float u, float v, int color, float aa) {
+            this(x, y, u, v, color, aa, 0f, 0f);
         }
     }
 
@@ -49,7 +53,7 @@ public record MeshElement(
                     .setUv(vertex.u(), vertex.v())
                     .setColor(vertex.color());
             if (writeNormal) {
-                vc.setNormal(vertex.aa(), 0f, 0f);
+                vc.setNormal(vertex.nx(), vertex.ny(), vertex.nz());
             }
         }
     }

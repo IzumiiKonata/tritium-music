@@ -7,6 +7,9 @@ layout(std140) uniform DynamicTransforms {
     mat4 TextureMat;
 };
 
+uniform sampler2D Sampler0;
+
+in vec2 texCoord;
 in vec2 cornerCoord;
 in float aaWidth;
 in vec4 vertexColor;
@@ -19,7 +22,8 @@ void main() {
 
     float coverage = clamp((1.0 - d) / aa + 0.5, 0.0, 1.0);
 
-    vec4 color = vertexColor * ColorModulator;
+    vec4 texColor = texture(Sampler0, texCoord);
+    vec4 color = vertexColor * ColorModulator * texColor;
     color.a *= coverage;
 
     if (color.a <= 0.0) {

@@ -95,14 +95,14 @@ public final class Render {
 
         float aa = Math.min(1f, 1f / r);
 
+        cornerQuad(verts, x, y, x + r, y + r, x + r, y + r, r, aa, color);
+        cornerQuad(verts, x1, y, x1 - r, y + r, x1 - r, y + r, r, aa, color);
+        cornerQuad(verts, x1, y1, x1 - r, y1 - r, x1 - r, y1 - r, r, aa, color);
+        cornerQuad(verts, x, y1, x + r, y1 - r, x + r, y1 - r, r, aa, color);
+
         sdfQuad(verts, x + r, y, x1 - r, y1, color);
         sdfQuad(verts, x, y + r, x + r, y1 - r, color);
         sdfQuad(verts, x1 - r, y + r, x1, y1 - r, color);
-
-        cornerQuad(verts, x, y, x + r, y + r, x + r, y + r, r, aa, color);
-        cornerQuad(verts, x1 - r, y, x1, y + r, x1 - r, y + r, r, aa, color);
-        cornerQuad(verts, x1 - r, y1 - r, x1, y1, x1 - r, y1 - r, r, aa, color);
-        cornerQuad(verts, x, y1 - r, x + r, y1, x + r, y1 - r, r, aa, color);
 
         submit(g, RoundedPipeline.SOLID, TextureSetup.noTexture(), verts, true, x, y, x1, y1);
     }
@@ -222,15 +222,18 @@ public final class Render {
             return;
         }
 
-        texQuad(verts, x + r, y, x1 - r, y1, uv, color);
-        texQuad(verts, x, y + r, x + r, y1 - r, uv, color);
-        texQuad(verts, x1 - r, y + r, x1, y1 - r, uv, color);
-        texCorner(verts, x + r, y + r, r, uv, color, 180, 270);
-        texCorner(verts, x1 - r, y + r, r, uv, color, 270, 360);
-        texCorner(verts, x1 - r, y1 - r, r, uv, color, 0, 90);
-        texCorner(verts, x + r, y1 - r, r, uv, color, 90, 180);
+        float aa = Math.min(1f, 1f / r);
 
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, x, y, x1, y1);
+        sdfTexCorner(verts, x, y, x + r, y + r, x + r, y + r, r, aa, uv, color);
+        sdfTexCorner(verts, x1, y, x1 - r, y + r, x1 - r, y + r, r, aa, uv, color);
+        sdfTexCorner(verts, x1, y1, x1 - r, y1 - r, x1 - r, y1 - r, r, aa, uv, color);
+        sdfTexCorner(verts, x, y1, x + r, y1 - r, x + r, y1 - r, r, aa, uv, color);
+
+        sdfTexQuad(verts, x + r, y, x1 - r, y1, uv, color);
+        sdfTexQuad(verts, x, y + r, x + r, y1 - r, uv, color);
+        sdfTexQuad(verts, x1 - r, y + r, x1, y1 - r, uv, color);
+
+        submit(g, RoundedPipeline.TEXTURED, setup, verts, true, x, y, x1, y1);
     }
 
     private record UV(float ox, float oy, float w, float h, float uOff, float vOff, float uScale, float vScale) {
@@ -247,27 +250,23 @@ public final class Render {
         verts.add(new MeshElement.Vertex(px, py, uv.u(px), uv.v(py), color));
     }
 
-    private static void texQuad(List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1, UV uv, int color) {
-        texVertex(verts, x0, y0, uv, color);
-        texVertex(verts, x0, y1, uv, color);
-        texVertex(verts, x1, y1, uv, color);
-        texVertex(verts, x1, y0, uv, color);
+    private static void sdfTexQuad(List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1, UV uv, int color) {
+        verts.add(new MeshElement.Vertex(x0, y0, uv.u(x0), uv.v(y0), color, 0f, 0f, 1f));
+        verts.add(new MeshElement.Vertex(x0, y1, uv.u(x0), uv.v(y1), color, 0f, 0f, 1f));
+        verts.add(new MeshElement.Vertex(x1, y1, uv.u(x1), uv.v(y1), color, 0f, 0f, 1f));
+        verts.add(new MeshElement.Vertex(x1, y0, uv.u(x1), uv.v(y0), color, 0f, 0f, 1f));
     }
 
-    private static void texCorner(List<MeshElement.Vertex> verts, float cx, float cy, float r, UV uv, int color, float startDeg, float endDeg) {
-        int segments = Math.max(8, (int) (r * 2f));
-        float step = (float) Math.toRadians((endDeg - startDeg) / segments);
-        float start = (float) Math.toRadians(startDeg);
-        for (int i = 0; i < segments; i++) {
-            float a0 = start + step * i;
-            float a1 = start + step * (i + 1);
-            float p0x = cx + (float) Math.cos(a0) * r, p0y = cy + (float) Math.sin(a0) * r;
-            float p1x = cx + (float) Math.cos(a1) * r, p1y = cy + (float) Math.sin(a1) * r;
-            texVertex(verts, cx, cy, uv, color);
-            texVertex(verts, p1x, p1y, uv, color);
-            texVertex(verts, p0x, p0y, uv, color);
-            texVertex(verts, p0x, p0y, uv, color);
-        }
+    private static void sdfTexCorner(List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1,
+                                      float cx, float cy, float r, float aa, UV uv, int color) {
+        float su0 = (x0 - cx) / r, sv0 = (y0 - cy) / r;
+        float su1 = (x0 - cx) / r, sv1 = (y1 - cy) / r;
+        float su2 = (x1 - cx) / r, sv2 = (y1 - cy) / r;
+        float su3 = (x1 - cx) / r, sv3 = (y0 - cy) / r;
+        verts.add(new MeshElement.Vertex(x0, y0, uv.u(x0), uv.v(y0), color, su0, sv0, aa));
+        verts.add(new MeshElement.Vertex(x0, y1, uv.u(x0), uv.v(y1), color, su1, sv1, aa));
+        verts.add(new MeshElement.Vertex(x1, y1, uv.u(x1), uv.v(y1), color, su2, sv2, aa));
+        verts.add(new MeshElement.Vertex(x1, y0, uv.u(x1), uv.v(y0), color, su3, sv3, aa));
     }
 
     private static void quad(List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1, int color) {
@@ -288,6 +287,6 @@ public final class Render {
     }
 
     private static float clamp01(float v) {
-        return v < 0f ? 0f : (v > 1f ? 1f : v);
+        return v < 0f ? 0f : (Math.min(v, 1f));
     }
 }
