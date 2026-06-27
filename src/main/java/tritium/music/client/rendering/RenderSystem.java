@@ -110,6 +110,10 @@ public class RenderSystem {
         Render.rect(g(), (float) left, (float) top, (float) (right - left), (float) (bottom - top), color);
     }
 
+    public static void drawLine(double x0, double y0, double x1, double y1, double thickness, int color) {
+        Render.line(g(), (float) x0, (float) y0, (float) x1, (float) y1, (float) thickness, color);
+    }
+
     public static void drawGradientRectLeftToRight(double left, double top, double right, double bottom, int startColor, int endColor) {
         Render.gradientH(g(), (float) left, (float) top, (float) (right - left), (float) (bottom - top), startColor, endColor);
     }

@@ -33,6 +33,21 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         super(Component.empty());
     }
 
+    /** Screen-wide fade alpha (1 = fully open). Subclasses with an open/close animation override this. */
+    protected float screenAlpha() {
+        return 1f;
+    }
+
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        // Skip vanilla's panorama/menu background (the screen draws its own dark overlay) and
+        // fade the backdrop blur with the screen alpha — vanilla's blur is binary, so it drops
+        // out partway through the close animation rather than snapping at the very end.
+        if (screenAlpha() > 0.5f && minecraft.options.getMenuBackgroundBlurriness() >= 1.0f) {
+            graphics.blurBeforeThisStratum();
+        }
+    }
+
     public void drawScreen(double mouseX, double mouseY) {
     }
 

@@ -51,12 +51,16 @@ public class MusicLyricsWidget extends HudWidget {
         return RGBA.color(cfg().glowColor & 0xFFFFFF, alpha);
     }
 
+    private static LyricLine currentLyric() {
+        return CloudMusic.currentLyricNoEarlyJump != null ? CloudMusic.currentLyricNoEarlyJump : CloudMusic.currentLyric;
+    }
+
     public static void resetProgress(float progress) {
         if (CloudMusic.lyrics.isEmpty()) return;
 
         try {
             CloudMusic.setLyricsProgress(progress);
-            scrollOffset = (CloudMusic.lyrics.indexOf(CloudMusic.currentLyric)) * getLyricHeight();
+            scrollOffset = (CloudMusic.lyrics.indexOf(currentLyric())) * getLyricHeight();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -104,7 +108,7 @@ public class MusicLyricsWidget extends HudWidget {
         StencilClipManager.endClip();
 
         if (ClientSettings.DEBUG_MODE.getValue()) {
-            LyricLine currentLine = CloudMusic.currentLyric;
+            LyricLine currentLine = currentLyric();
             if (currentLine != null && !CloudMusic.haveNoWords) {
                 WordInfo wordInfo = calculateCurrentWordInfo(currentLine, songProgress);
 
@@ -131,10 +135,10 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private void updateScrollOffset(boolean shouldNotDisplayOtherLyrics) {
-        int indexOf = CloudMusic.lyrics.indexOf(CloudMusic.currentLyric);
+        int indexOf = CloudMusic.lyrics.indexOf(currentLyric());
 
         if (!shouldNotDisplayOtherLyrics) {
-            if (CloudMusic.currentLyric == null) {
+            if (currentLyric() == null) {
                 scrollOffset = 0;
             } else {
                 scrollOffset = Interpolations.interpolate(scrollOffset, indexOf * lyricH, 0.2f);
@@ -144,7 +148,7 @@ public class MusicLyricsWidget extends HudWidget {
 
     private void renderAllLyrics(boolean shouldNotDisplayOtherLyrics, float songProgress) {
         double offsetY = this.getY() + this.getHeight() / 2.0 - fontH / 2.0 - scrollOffset;
-        int indexOf = CloudMusic.lyrics.indexOf(CloudMusic.currentLyric);
+        int indexOf = CloudMusic.lyrics.indexOf(currentLyric());
 
         double pivotX = alignPivotX(cfg().alignMode);
 
@@ -179,12 +183,12 @@ public class MusicLyricsWidget extends HudWidget {
                 scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, scale);
 
                 if (cfg().scrollEffect == ScrollEffects.Aurora && !line.words.isEmpty()) {
-                    updateAuroraLinger(line, renderInfo, line == CloudMusic.currentLyric);
+                    updateAuroraLinger(line, renderInfo, line == currentLyric());
                 }
 
                 renderLyricText(line, renderInfo, i, indexOf);
 
-                if (line == CloudMusic.currentLyric && !line.words.isEmpty()) {
+                if (line == currentLyric() && !line.words.isEmpty()) {
                     handleScrollEffects(line, renderInfo, songProgress);
                 }
 

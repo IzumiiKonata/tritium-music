@@ -704,7 +704,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             double bgSize = Math.max(width, height);
 
             this.musicBgAlpha = Interpolations.interpolate(this.musicBgAlpha, 1.0f, 0.15f);
-            Image.draw(musicCoverBlurred, posX + width * .5 - bgSize * .5, posY + height * .5 - bgSize * .5, bgSize, bgSize, Image.Type.NoColor);
+            Image.draw(musicCoverBlurred, posX + width * .5 - bgSize * .5, posY + height * .5 - bgSize * .5, bgSize, bgSize, Image.Type.NoColor, this.musicBgAlpha * alpha);
 
             RenderContext.graphics().pose().popMatrix();
         }

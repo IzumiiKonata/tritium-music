@@ -16,11 +16,15 @@ public record MeshElement(
         TextureSetup textureSetup,
         Matrix3x2fc pose,
         List<Vertex> vertices,
+        boolean writeNormal,
         @Nullable ScreenRectangle scissorArea,
         @Nullable ScreenRectangle bounds
 ) implements GuiElementRenderState {
 
-    public record Vertex(float x, float y, float u, float v, int color) {
+    public record Vertex(float x, float y, float u, float v, int color, float aa) {
+        public Vertex(float x, float y, float u, float v, int color) {
+            this(x, y, u, v, color, 0f);
+        }
     }
 
     public MeshElement(
@@ -28,21 +32,25 @@ public record MeshElement(
             TextureSetup textureSetup,
             Matrix3x2fc pose,
             List<Vertex> vertices,
+            boolean writeNormal,
             float x0,
             float y0,
             float x1,
             float y1,
             @Nullable ScreenRectangle scissorArea
     ) {
-        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, scissorArea, computeBounds(x0, y0, x1, y1, pose, scissorArea));
+        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, writeNormal, scissorArea, computeBounds(x0, y0, x1, y1, pose, scissorArea));
     }
 
     @Override
     public void buildVertices(final VertexConsumer consumer) {
         for (Vertex vertex : vertices) {
-            consumer.addVertexWith2DPose(this.pose, vertex.x(), vertex.y())
+            VertexConsumer vc = consumer.addVertexWith2DPose(this.pose, vertex.x(), vertex.y())
                     .setUv(vertex.u(), vertex.v())
                     .setColor(vertex.color());
+            if (writeNormal) {
+                vc.setNormal(vertex.aa(), 0f, 0f);
+            }
         }
     }
 

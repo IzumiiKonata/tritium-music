@@ -17,6 +17,8 @@ public class MusicSpectrumWidget extends HudWidget {
 
     public enum Style {
         Rect,
+        Waveform,
+        Oscilloscope,
         Line
     }
 
@@ -43,15 +45,36 @@ public class MusicSpectrumWidget extends HudWidget {
 
             boolean rect = style == Style.Rect;
             boolean line = style == Style.Line;
+            boolean waveform = style == Style.Waveform;
+            boolean oscilloscope = style == Style.Oscilloscope;
 
-            if (compatMode) {
+            if (compatMode || waveform || oscilloscope) {
+                this.setWidth(200);
+                this.setHeight(80);
+            }
+
+            AudioPlayer.waveMode = waveform ? AudioPlayer.WaveMode.Waveform
+                    : oscilloscope ? AudioPlayer.WaveMode.Oscilloscope
+                    : AudioPlayer.WaveMode.None;
+            AudioPlayer.windowTime = (float) cfg().windowTime;
+            AudioPlayer.stereo = cfg().stereo;
+            AudioPlayer.waveRegionWidth = this.getWidth();
+            AudioPlayer.waveRegionHeight = this.getHeight();
+
+            if (compatMode || waveform || oscilloscope) {
                 this.roundedRect(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 6, 0, 0, 0, 0.4f);
             }
 
-            this.updateSpectrum();
+            if (rect || line) {
+                this.updateSpectrum();
+            }
 
             if (rect) {
                 this.drawBars(compatMode);
+            }
+
+            if (waveform || oscilloscope) {
+                this.drawWaveform();
             }
 
             if (line) {
@@ -61,11 +84,70 @@ public class MusicSpectrumWidget extends HudWidget {
             if (rect) {
                 this.setWidth(-1);
             }
+        }
+    }
 
-            if (compatMode) {
-                this.setWidth(200);
-                this.setHeight(80);
+    private static long lastDbg = 0;
+
+    private void drawWaveform() {
+        CloudMusic.player.doDetections();
+
+        if (System.currentTimeMillis() - lastDbg > 1000) {
+            lastDbg = System.currentTimeMillis();
+            AudioPlayer p = CloudMusic.player;
+            float vmax = 0;
+            if (p.waveVertexes != null) {
+                for (int i = 1; i < p.waveVertexes.length; i += 2) vmax = Math.max(vmax, Math.abs(p.waveVertexes[i]));
             }
+            System.out.println("[WAVE] enabled=" + AudioPlayer.spectrumEnabled + " mode=" + AudioPlayer.waveMode
+                    + " pausing=" + p.isPausing() + " Lfilled=" + p.spectrumDataLFilled
+                    + " vlen=" + (p.waveVertexes == null ? -1 : p.waveVertexes.length) + " vmaxY=" + vmax
+                    + " region=" + AudioPlayer.waveRegionWidth + "x" + AudioPlayer.waveRegionHeight
+                    + " pos=" + this.getX() + "," + this.getY());
+        }
+
+        boolean stereo = cfg().stereo;
+        double pWidgetHeight = stereo ? this.getHeight() * 0.5 : this.getHeight();
+
+        AudioPlayer player = CloudMusic.player;
+
+        if (player.spectrumDataLFilled && player.lockL.tryLock()) {
+            try {
+                drawWaveSub(pWidgetHeight, false, player.waveVertexes, player.waveVertexes.length / 2);
+            } finally {
+                player.lockL.unlock();
+            }
+        }
+
+        if (stereo && player.spectrumDataRFilled && player.lockR.tryLock()) {
+            try {
+                Rect.draw(this.getX() + 4, this.getY() + pWidgetHeight - 0.25, this.getWidth() - 8, 0.5,
+                        RGBA.color(255, 255, 255, 160));
+                drawWaveSub(pWidgetHeight, true, player.waveRightVertexes, player.waveRightVertexes.length / 2);
+            } finally {
+                player.lockR.unlock();
+            }
+        }
+    }
+
+    private void drawWaveSub(double pWidgetHeight, boolean secondHalf, float[] vertexes, int vertCount) {
+        if (vertexes == null || vertCount < 2) {
+            return;
+        }
+
+        double startX = this.getX() + 4;
+        double startY = this.getY() + pWidgetHeight * 0.5 + (secondHalf ? pWidgetHeight : 0);
+
+        int color = RGBA.color(0.92f, 0.98f, 1.0f, 0.95f);
+
+        for (int i = 0; i < vertCount - 1; i++) {
+            int a = i * 2;
+            int b = (i + 1) * 2;
+            double x0 = startX + vertexes[a];
+            double y0 = startY + vertexes[a + 1];
+            double x1 = startX + vertexes[b];
+            double y1 = startY + vertexes[b + 1];
+            RenderSystem.drawLine(x0, y0, x1, y1, 1.4, color);
         }
     }
 
@@ -209,10 +291,7 @@ public class MusicSpectrumWidget extends HudWidget {
             double x0 = regionX + i * pitch;
             double x1 = regionX + (i + 1) * pitch;
 
-            double top = Math.min(baseY - h0, baseY - h1);
-            double bottom = Math.max(baseY - h0, baseY - h1) + lineThickness;
-
-            Rect.draw(x0, top, x1 - x0, Math.max(lineThickness, bottom - top), RGBA.white((int) (0.9f * 255)));
+            RenderSystem.drawLine(x0, baseY - h0, x1, baseY - h1, lineThickness, RGBA.white((int) (0.9f * 255)));
         }
     }
 }

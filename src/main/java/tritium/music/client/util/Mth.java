@@ -36,6 +36,10 @@ public class Mth {
         return Math.max(min, Math.min(max, value));
     }
 
+    public static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     public static float lerp(final float f, final float g, final float h) {
         return g + f * (h - g);
     }

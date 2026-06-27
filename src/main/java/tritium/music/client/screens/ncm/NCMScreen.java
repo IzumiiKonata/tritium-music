@@ -32,6 +32,11 @@ public class NCMScreen extends BaseScreen {
     float alpha = 0f;
     boolean closing = false;
 
+    @Override
+    protected float screenAlpha() {
+        return alpha;
+    }
+
     Panel basePanel = new Panel();
 
     @Getter

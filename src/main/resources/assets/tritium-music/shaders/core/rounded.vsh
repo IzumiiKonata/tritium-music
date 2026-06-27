@@ -13,13 +13,16 @@ layout(std140) uniform Projection {
 in vec3 Position;
 in vec2 UV0;
 in vec4 Color;
+in vec3 Normal;
 
 out vec2 cornerCoord;
+out float aaWidth;
 out vec4 vertexColor;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
     cornerCoord = UV0;
+    aaWidth = Normal.x;
     vertexColor = Color;
 }

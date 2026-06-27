@@ -1,260 +1,315 @@
 package tritium.music.client.screens;
 
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.RGBA;
-import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.screens.widget.ColorPickerWidget;
-import tritium.music.client.util.Mth;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BooleanSupplier;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
-import java.util.function.Supplier;
 
-public class WidgetSettingsScreen extends BaseScreen {
+public class WidgetSettingsScreen extends Screen {
 
-    private final List<Row> rows = new ArrayList<>();
+    private enum Tab {
+        LYRICS("歌词"),
+        SPECTRUM("频谱");
+
+        final String title;
+
+        Tab(String title) {
+            this.title = title;
+        }
+    }
+
+    private static final int ROW_W = 200;
+    private static final int ROW_H = 20;
+    private static final int PITCH = 24;
+    private static final int COL_GAP = 16;
+
+    private final Screen parent;
+
+    private Tab tab = Tab.LYRICS;
+
     private ColorPickerWidget glowPicker;
     private ColorPickerWidget rectPicker;
+    private double pickerX, pickerY, pickerW, pickerH;
+    private String pickerLabel;
 
-    private double panelX, panelY, panelW, panelH;
+    public WidgetSettingsScreen() {
+        this(null);
+    }
+
+    public WidgetSettingsScreen(Screen parent) {
+        super(Component.literal("Widget Settings"));
+        this.parent = parent;
+    }
 
     public static void open() {
         Minecraft.getInstance().setScreenAndShow(new WidgetSettingsScreen());
     }
 
-    @Override
-    protected void init() {
-        WidgetConfig.Lyrics lyrics = WidgetConfig.get().lyrics;
-        WidgetConfig.Spectrum spectrum = WidgetConfig.get().spectrum;
-
-        rows.clear();
-
-        rows.add(Row.header("歌词 Lyrics"));
-        rows.add(Row.cycle("滚动效果", () -> lyrics.scrollEffect.name(),
-                () -> lyrics.scrollEffect = next(lyrics.scrollEffect)));
-        rows.add(Row.cycle("对齐", () -> lyrics.alignMode.name(),
-                () -> lyrics.alignMode = next(lyrics.alignMode)));
-        rows.add(Row.toggle("阴影", () -> lyrics.shadow, () -> lyrics.shadow = !lyrics.shadow));
-        rows.add(Row.toggle("单行模式", () -> lyrics.singleLine, () -> lyrics.singleLine = !lyrics.singleLine));
-        rows.add(Row.toggle("优雅滚动", () -> lyrics.graceScroll, () -> lyrics.graceScroll = !lyrics.graceScroll));
-        rows.add(Row.toggle("显示翻译", () -> lyrics.showTranslation, () -> {
-            lyrics.showTranslation = !lyrics.showTranslation;
-            WidgetConfig.get().applyToState();
-        }));
-        rows.add(Row.toggle("罗马音", () -> lyrics.showRoman, () -> {
-            lyrics.showRoman = !lyrics.showRoman;
-            WidgetConfig.get().applyToState();
-        }));
-        rows.add(Row.toggle("极光-泛光", () -> lyrics.auroraBloom, () -> lyrics.auroraBloom = !lyrics.auroraBloom));
-        rows.add(Row.toggle("极光-火花", () -> lyrics.auroraSpark, () -> lyrics.auroraSpark = !lyrics.auroraSpark));
-        rows.add(Row.toggle("音频反应", () -> lyrics.audioReactive, () -> lyrics.audioReactive = !lyrics.audioReactive));
-        rows.add(Row.slider("行高", 14, 50, () -> lyrics.lyricHeight, v -> lyrics.lyricHeight = v));
-        rows.add(Row.slider("宽度", 225, 900, () -> lyrics.width, v -> lyrics.width = (int) v));
-        rows.add(Row.slider("高度", 60, 480, () -> lyrics.height, v -> lyrics.height = (int) v));
-
-        rows.add(Row.header("频谱 Spectrum"));
-        rows.add(Row.cycle("样式", () -> spectrum.style.name(), () -> spectrum.style = next(spectrum.style)));
-        rows.add(Row.toggle("紧凑模式", () -> spectrum.compatMode, () -> spectrum.compatMode = !spectrum.compatMode));
-        rows.add(Row.toggle("峰值指示", () -> spectrum.indicator, () -> spectrum.indicator = !spectrum.indicator));
-        rows.add(Row.toggle("绝对音量", () -> spectrum.absVol, () -> spectrum.absVol = !spectrum.absVol));
-        rows.add(Row.slider("倍率", 0.1, 3.0, () -> spectrum.multiplier, v -> spectrum.multiplier = v));
-        rows.add(Row.slider("平滑", 0.0, 0.95, () -> spectrum.smoothing, v -> spectrum.smoothing = v));
-        rows.add(Row.slider("频谱倾斜", 0.0, 6.0, () -> spectrum.spectrumTilt, v -> spectrum.spectrumTilt = v));
-
-        glowPicker = new ColorPickerWidget(() -> lyrics.glowColor, c -> lyrics.glowColor = c, false);
-        rectPicker = new ColorPickerWidget(() -> spectrum.rectColor, c -> spectrum.rectColor = c, true);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Enum<T>> T next(T value) {
-        T[] all = (T[]) value.getClass().getEnumConstants();
-        return all[(value.ordinal() + 1) % all.length];
-    }
-
-    @Override
-    public void drawScreen(double mouseX, double mouseY) {
-        double screenW = RenderSystem.getWidth(), screenH = RenderSystem.getHeight();
-        Rect.draw(0, 0, screenW, screenH, RGBA.color(0, 0, 0, 160));
-
-        panelW = Math.min(520, screenW - 40);
-        panelH = Math.min(screenH - 40, rows.size() * 18 + 160);
-        panelX = (screenW - panelW) / 2.0;
-        panelY = (screenH - panelH) / 2.0;
-
-        roundedRect(panelX, panelY, panelW, panelH, 8, RGBA.color(24, 24, 28, 245));
-        FontManager.pf20bold.drawString("Widget 设置", panelX + 14, panelY + 12, -1);
-
-        double rowX = panelX + 14;
-        double rowW = panelW - 28;
-        double ry = panelY + 40;
-
-        for (Row row : rows) {
-            row.bounds(rowX, ry, rowW);
-            row.render(mouseX, mouseY);
-            ry += row.isHeader ? 20 : 18;
-        }
-
-        double pickerY = ry + 6;
-        double pickerH = 70;
-        double pickerW = (rowW - 16) / 2.0;
-
-        FontManager.pf14bold.drawString("歌词辉光色", rowX, pickerY - 12, RGBA.color(200, 200, 200, 255));
-        FontManager.pf14bold.drawString("频谱颜色", rowX + pickerW + 16, pickerY - 12, RGBA.color(200, 200, 200, 255));
-        glowPicker.setBounds(rowX, pickerY, pickerW, pickerH);
-        rectPicker.setBounds(rowX + pickerW + 16, pickerY, pickerW, pickerH);
-        glowPicker.render(mouseX, mouseY);
-        rectPicker.render(mouseX, mouseY);
-
-        FontManager.pf14bold.drawCenteredString("ESC 保存返回", screenW / 2.0, panelY + panelH - 16, RGBA.color(200, 200, 200, 255));
-    }
-
-    @Override
-    public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
-        if (glowPicker.mouseClicked(mouseX, mouseY) || rectPicker.mouseClicked(mouseX, mouseY)) {
-            return;
-        }
-        for (Row row : rows) {
-            if (row.mouseClicked(mouseX, mouseY)) {
-                return;
-            }
-        }
-    }
-
-    @Override
-    public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
-        glowPicker.mouseReleased();
-        rectPicker.mouseReleased();
-        for (Row row : rows) {
-            row.dragging = false;
-        }
-    }
-
-    @Override
-    public void onKeyTyped(char typedChar, int keyCode) {
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            WidgetConfig.get().save();
+    private void back() {
+        WidgetConfig.get().save();
+        if (parent != null) {
+            Minecraft.getInstance().setScreenAndShow(parent);
+        } else {
             WidgetEditorScreen.open();
         }
     }
 
-    @Override
-    public boolean shouldCloseOnEsc() {
-        return false;
+    private void selectTab(Tab next) {
+        this.tab = next;
+        this.rebuildWidgets();
     }
 
     @Override
-    public void removed() {
-        WidgetConfig.get().save();
-        super.removed();
+    protected void init() {
+        glowPicker = null;
+        rectPicker = null;
+        pickerLabel = null;
+
+        int tabY = 16;
+        int tabW = 70;
+        int tabGap = 6;
+        int tabsTotal = Tab.values().length * tabW + (Tab.values().length - 1) * tabGap;
+        int tabX = (this.width - tabsTotal) / 2;
+        for (Tab t : Tab.values()) {
+            Button button = Button.builder(Component.literal(t.title), b -> selectTab(t))
+                    .bounds(tabX, tabY, tabW, ROW_H)
+                    .build();
+            button.active = t != this.tab;
+            addRenderableWidget(button);
+            tabX += tabW + tabGap;
+        }
+
+        int contentTop = tabY + ROW_H + 16;
+        int colX = (this.width - ROW_W) / 2;
+
+        if (tab == Tab.LYRICS) {
+            buildLyrics(colX, contentTop);
+        } else {
+            buildSpectrum(colX, contentTop);
+        }
+
+        int doneW = 80;
+        addRenderableWidget(Button.builder(Component.literal("完成"), b -> back())
+                .bounds(this.width - doneW - 12, this.height - ROW_H - 12, doneW, ROW_H)
+                .build());
     }
 
-    private static final class Row {
-        String label;
-        boolean isHeader;
+    private void buildLyrics(int x, int top) {
+        WidgetConfig.Lyrics lyrics = WidgetConfig.get().lyrics;
 
-        Supplier<String> valueText;
-        Runnable onClick;
+        int twoColX2 = x + ROW_W + COL_GAP;
+        boolean wide = (twoColX2 + ROW_W) <= (this.width - 12);
+        int leftX = wide ? (this.width - (ROW_W * 2 + COL_GAP)) / 2 : x;
+        int rightX = leftX + ROW_W + COL_GAP;
 
-        boolean isSlider;
-        double min, max;
-        DoubleSupplier sliderGet;
-        DoubleConsumer sliderSet;
-        boolean dragging;
+        int yL = top;
+        int yR = top;
 
-        double x, y, w;
+        addRenderableWidget(enumButton(leftX, yL, "滚动效果", lyrics.scrollEffect,
+                v -> lyrics.scrollEffect = v));
+        yL += PITCH;
+        addRenderableWidget(enumButton(leftX, yL, "对齐", lyrics.alignMode,
+                v -> lyrics.alignMode = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "阴影", lyrics.shadow, v -> lyrics.shadow = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "单行模式", lyrics.singleLine, v -> lyrics.singleLine = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "优雅滚动", lyrics.graceScroll, v -> lyrics.graceScroll = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "显示翻译", lyrics.showTranslation, v -> {
+            lyrics.showTranslation = v;
+            WidgetConfig.get().applyToState();
+        }));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "罗马音", lyrics.showRoman, v -> {
+            lyrics.showRoman = v;
+            WidgetConfig.get().applyToState();
+        }));
+        yL += PITCH;
 
-        static Row header(String label) {
-            Row r = new Row();
-            r.label = label;
-            r.isHeader = true;
-            return r;
-        }
+        int rightColX = wide ? rightX : leftX;
+        if (!wide) yR = yL;
 
-        static Row toggle(String label, BooleanSupplier get, Runnable toggle) {
-            Row r = new Row();
-            r.label = label;
-            r.valueText = () -> get.getAsBoolean() ? "开" : "关";
-            r.onClick = toggle;
-            return r;
-        }
+        addRenderableWidget(onOff(rightColX, yR, "极光-泛光", lyrics.auroraBloom, v -> lyrics.auroraBloom = v));
+        yR += PITCH;
+        addRenderableWidget(onOff(rightColX, yR, "极光-火花", lyrics.auroraSpark, v -> lyrics.auroraSpark = v));
+        yR += PITCH;
+        addRenderableWidget(onOff(rightColX, yR, "音频反应", lyrics.audioReactive, v -> lyrics.audioReactive = v));
+        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "行高", 14, 50, false,
+                () -> lyrics.lyricHeight, v -> lyrics.lyricHeight = v));
+        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "宽度", 225, 900, true,
+                () -> lyrics.width, v -> lyrics.width = (int) Math.round(v)));
+        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "高度", 60, 480, true,
+                () -> lyrics.height, v -> lyrics.height = (int) Math.round(v)));
+        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "极光未唱不透明度", 0, 1, false,
+                () -> lyrics.auroraUnsungOpacity, v -> lyrics.auroraUnsungOpacity = v));
+        yR += PITCH;
 
-        static Row cycle(String label, Supplier<String> value, Runnable advance) {
-            Row r = new Row();
-            r.label = label;
-            r.valueText = value;
-            r.onClick = advance;
-            return r;
-        }
+        glowPicker = new ColorPickerWidget(() -> lyrics.glowColor, c -> lyrics.glowColor = c, false);
+        pickerLabel = "歌词辉光色";
+        layoutPicker(rightColX, Math.max(yL, yR) + 16);
+    }
 
-        static Row slider(String label, double min, double max, DoubleSupplier get, DoubleConsumer set) {
-            Row r = new Row();
-            r.label = label;
-            r.isSlider = true;
-            r.min = min;
-            r.max = max;
-            r.sliderGet = get;
-            r.sliderSet = set;
-            return r;
-        }
+    private void buildSpectrum(int x, int top) {
+        WidgetConfig.Spectrum spectrum = WidgetConfig.get().spectrum;
 
-        void bounds(double x, double y, double w) {
-            this.x = x;
-            this.y = y;
-            this.w = w;
-        }
+        boolean wide = ((this.width - (ROW_W * 2 + COL_GAP)) / 2 + ROW_W * 2 + COL_GAP) <= (this.width - 12);
+        int leftX = wide ? (this.width - (ROW_W * 2 + COL_GAP)) / 2 : x;
+        int rightX = leftX + ROW_W + COL_GAP;
 
-        void render(double mouseX, double mouseY) {
-            if (isHeader) {
-                FontManager.pf16bold.drawString(label, x, y, RGBA.color(120, 200, 255, 255));
-                return;
+        int yL = top;
+        int yR = top;
+
+        addRenderableWidget(enumButton(leftX, yL, "样式", spectrum.style, v -> spectrum.style = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "紧凑模式", spectrum.compatMode, v -> spectrum.compatMode = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "峰值指示", spectrum.indicator, v -> spectrum.indicator = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "绝对音量", spectrum.absVol, v -> spectrum.absVol = v));
+        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "立体声", spectrum.stereo, v -> spectrum.stereo = v));
+        yL += PITCH;
+
+        int rightColX = wide ? rightX : leftX;
+        if (!wide) yR = yL;
+
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "倍率", 0.1, 3.0, false,
+                () -> spectrum.multiplier, v -> spectrum.multiplier = v));
+        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "平滑", 0.0, 0.95, false,
+                () -> spectrum.smoothing, v -> spectrum.smoothing = v));
+        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "频谱倾斜", 0.0, 6.0, false,
+                () -> spectrum.spectrumTilt, v -> spectrum.spectrumTilt = v));
+        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "窗口时间(ms)", 4, 256, false,
+                () -> spectrum.windowTime, v -> spectrum.windowTime = v));
+        yR += PITCH;
+
+        rectPicker = new ColorPickerWidget(() -> spectrum.rectColor, c -> spectrum.rectColor = c, true);
+        pickerLabel = "频谱颜色";
+        layoutPicker(rightColX, Math.max(yL, yR) + 16);
+    }
+
+    private void layoutPicker(int x, int y) {
+        pickerX = x;
+        pickerY = y + 12;
+        pickerW = 140;
+        pickerH = 90;
+    }
+
+    private CycleButton<Boolean> onOff(int x, int y, String label, boolean initial, java.util.function.Consumer<Boolean> set) {
+        return CycleButton.onOffBuilder(initial)
+                .create(x, y, ROW_W, ROW_H, Component.literal(label), (btn, val) -> set.accept(val));
+    }
+
+    private <E extends Enum<E>> CycleButton<E> enumButton(int x, int y, String label, E initial, java.util.function.Consumer<E> set) {
+        @SuppressWarnings("unchecked")
+        E[] values = (E[]) initial.getClass().getEnumConstants();
+        return CycleButton.<E>builder(e -> Component.literal(e.name()), initial)
+                .withValues(values)
+                .create(x, y, ROW_W, ROW_H, Component.literal(label), (btn, val) -> set.accept(val));
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+
+        ColorPickerWidget picker = activePicker();
+        String label = pickerLabel;
+        double px = pickerX, py = pickerY, pw = pickerW, ph = pickerH;
+        double mx = RenderSystem.getMouseX();
+        double my = RenderSystem.getMouseY();
+
+        HudWidget.renderInFrame(graphics, partialTick, () -> {
+            FontManager.pf20bold.drawCenteredString("Widget 设置", RenderSystem.getWidth() / 2.0, 4, -1);
+            if (picker != null) {
+                FontManager.pf14bold.drawString(label, px, py - 12, RGBA.color(200, 200, 200, 255));
+                picker.setBounds(px, py, pw, ph);
+                picker.render(mx, my);
             }
+        });
+    }
 
-            FontManager.pf14bold.drawString(label, x, y, -1);
+    private ColorPickerWidget activePicker() {
+        return tab == Tab.LYRICS ? glowPicker : rectPicker;
+    }
 
-            if (isSlider) {
-                if (dragging) {
-                    double t = Mth.limit((mouseX - sliderTrackX()) / sliderTrackW(), 0, 1);
-                    sliderSet.accept(min + t * (max - min));
-                }
-                double tx = sliderTrackX(), tw = sliderTrackW();
-                double frac = (sliderGet.getAsDouble() - min) / (max - min);
-                Rect.draw(tx, y + 4, tw, 2, RGBA.color(255, 255, 255, 60));
-                Rect.draw(tx, y + 4, tw * frac, 2, RGBA.color(120, 200, 255, 255));
-                Rect.draw(tx + tw * frac - 1.5, y + 1, 3, 8, RGBA.color(255, 255, 255, 255));
-                FontManager.pf12.drawString(String.format("%.2f", sliderGet.getAsDouble()), x + w - 34, y, RGBA.color(200, 200, 200, 255));
-            } else {
-                String v = valueText.get();
-                FontManager.pf14bold.drawString(v, x + w - FontManager.pf14bold.getStringWidthD(v), y, RGBA.color(180, 220, 255, 255));
-            }
-        }
-
-        private double sliderTrackX() {
-            return x + w * 0.45;
-        }
-
-        private double sliderTrackW() {
-            return w * 0.42;
-        }
-
-        boolean mouseClicked(double mouseX, double mouseY) {
-            if (isHeader) return false;
-            if (mouseX < x || mouseX > x + w || mouseY < y - 2 || mouseY > y + 12) return false;
-
-            if (isSlider) {
-                dragging = true;
-                double t = Mth.limit((mouseX - sliderTrackX()) / sliderTrackW(), 0, 1);
-                sliderSet.accept(min + t * (max - min));
-            } else if (onClick != null) {
-                onClick.run();
-            }
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        ColorPickerWidget picker = activePicker();
+        if (picker != null && picker.mouseClicked(RenderSystem.getMouseX(), RenderSystem.getMouseY())) {
             return true;
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (glowPicker != null) glowPicker.mouseReleased();
+        if (rectPicker != null) rectPicker.mouseReleased();
+        return super.mouseReleased(event);
+    }
+
+    @Override
+    public void onClose() {
+        back();
+    }
+
+    private static final class SettingSlider extends AbstractSliderButton {
+
+        private final String label;
+        private final double min;
+        private final double max;
+        private final boolean integer;
+        private final DoubleConsumer set;
+
+        SettingSlider(int x, int y, int width, int height, String label, double min, double max,
+                      boolean integer, DoubleSupplier get, DoubleConsumer set) {
+            super(x, y, width, height, Component.empty(), (get.getAsDouble() - min) / (max - min));
+            this.label = label;
+            this.min = min;
+            this.max = max;
+            this.integer = integer;
+            this.set = set;
+            updateMessage();
+        }
+
+        private double actual() {
+            return min + value * (max - min);
+        }
+
+        @Override
+        protected void updateMessage() {
+            double v = actual();
+            String text = integer
+                    ? label + ": " + (int) Math.round(v)
+                    : label + ": " + String.format("%.2f", v);
+            setMessage(Component.literal(text));
+        }
+
+        @Override
+        protected void applyValue() {
+            set.accept(actual());
         }
     }
 }

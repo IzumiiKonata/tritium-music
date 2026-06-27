@@ -3,7 +3,7 @@
 	"id": "tritium-music",
 	"version": "${version}",
 	"name": "Tritium Music",
-	"description": "NetEase Cloud Music player ported from the Tritium 1.8.9 client.",
+	"description": "NetEase Cloud Music player",
 	"authors": [
 		"IzumiiKonata"
 	],
@@ -17,6 +17,9 @@
 	"entrypoints": {
 		"client": [
 			"tritium.music.fabric.TritiumMusicMod"
+		],
+		"modmenu": [
+			"tritium.music.fabric.TritiumModMenu"
 		]
 	},
 	"accessWidener": "tritium-music.accesswidener",
@@ -27,6 +30,7 @@
 		"fabricloader": ">=0.19.3",
 		"minecraft": "~26.2",
 		"java": ">=25",
-		"fabric-api": "*"
+		"fabric-api": "*",
+		"modmenu": "*"
 	}
 }

@@ -73,6 +73,8 @@ public class WidgetConfig {
         public double smoothing = 0.55;
         public double spectrumTilt = 3.0;
         public boolean absVol = true;
+        public double windowTime = 16.0;
+        public boolean stereo = false;
         public int rectColor = new Color(125, 125, 125, 200).getRGB();
     }
 

@@ -75,6 +75,7 @@ public class CloudMusic {
 
     public static final List<LyricLine> lyrics = new CopyOnWriteArrayList<>();
     public static LyricLine currentLyric = null;
+    public static LyricLine currentLyricNoEarlyJump = null;
     public static boolean hasTransLyrics = false;
     public static boolean hasRomanization = false;
     public static boolean haveNoWords = false;
@@ -209,6 +210,7 @@ public class CloudMusic {
     public static void updateCurrentLyric(float songProgress) {
         LyricLine previousLyric = currentLyric;
         currentLyric = findCurrentLyric(songProgress);
+        currentLyricNoEarlyJump = findCurrentLyric(songProgress, false);
 
         if (previousLyric != currentLyric) {
             resetLyricPositionUpdate();
@@ -228,11 +230,16 @@ public class CloudMusic {
     }
 
     public static LyricLine findCurrentLyric(double songProgress) {
+        return findCurrentLyric(songProgress, true);
+    }
+
+    public static LyricLine findCurrentLyric(double songProgress, boolean allowEarlyJump) {
         for (int i = 0; i < lyrics.size(); i++) {
             LyricLine lyric = lyrics.get(i);
             LyricLine prev = i > 0 ? lyrics.get(i - 1) : null;
 
-            if (!haveNoWords
+            if (allowEarlyJump
+                    && !haveNoWords
                     && !lyric.isBreakLine
                     && lyric.getTimestamp() > songProgress
                     && lyric.getTimestamp() - songProgress <= JUMP_TO_NEXT_MILLIS

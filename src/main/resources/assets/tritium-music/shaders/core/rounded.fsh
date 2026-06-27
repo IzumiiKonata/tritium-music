@@ -8,16 +8,16 @@ layout(std140) uniform DynamicTransforms {
 };
 
 in vec2 cornerCoord;
+in float aaWidth;
 in vec4 vertexColor;
 
 out vec4 fragColor;
 
 void main() {
-    // cornerCoord is the position inside a corner quad, where the arc centre is at
-    // the origin and the radius is 1.0. Body quads pass (0,0) so the SDF is fully inside.
     float d = length(cornerCoord);
-    float aa = max(fwidth(d), 1e-4);
-    float coverage = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, d);
+    float aa = 0.35;
+
+    float coverage = clamp((1.0 - d) / aa + 0.5, 0.0, 1.0);
 
     vec4 color = vertexColor * ColorModulator;
     color.a *= coverage;

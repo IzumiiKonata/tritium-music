@@ -3,7 +3,8 @@ package tritium.music.client.screens.ncm;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
-import tritium.music.client.rendering.Image;
+import tritium.music.client.render.Render;
+import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
@@ -18,6 +19,7 @@ import tritium.music.core.model.Music;
 import tritium.music.core.model.PlayList;
 import tritium.music.core.util.AsyncUtil;
 import tritium.music.core.util.Textures;
+import tritium.music.fabric.ui.Identifiers;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
@@ -30,12 +32,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 /**
- * A horizontal cover carousel grouped by album. The original used a real 3D
- * perspective projection (gluPerspective + Y-axis rotations); 26.2's GUI render
- * path is 2D only, so this is a 2D scaled-cover carousel preserving the same
- * navigation, search and play behaviour.
+ * A 3D Cover Flow grouped by album. Covers are transformed in 3D (carousel
+ * X-offset + Y-axis rotation) and projected through a perspective matrix on the
+ * CPU, then submitted as textured quads with the four projected screen corners,
+ * reproducing the original gluPerspective view on 26.2's 2D GUI pipeline.
  */
 public class CoverflowOverlay extends BaseScreen {
+
+    private static final double FOVY = 45.0;
+    private static final double NEAR_TRANSLATE_Z = 200.0;
 
     @Getter
     private static final CoverflowOverlay instance = new CoverflowOverlay();
@@ -51,9 +56,23 @@ public class CoverflowOverlay extends BaseScreen {
 
     boolean reloadOnClosed = false;
 
+    @Override
+    protected float screenAlpha() {
+        return alpha;
+    }
+
     private static class AlbumRenderingData {
         public boolean coverLoaded;
+        public float rotateDeg = 0f;
         public double scale = .75;
+    }
+
+    private static double[] project(double x, double y, double z, double f, double aspect, double screenW, double screenH) {
+        double mz = z - NEAR_TRANSLATE_Z;
+        double my = -y;
+        double ndcX = (x * f / aspect) / -mz;
+        double ndcY = (my * f) / -mz;
+        return new double[]{(ndcX * 0.5 + 0.5) * screenW, (ndcY * 0.5 + 0.5) * screenH};
     }
 
     public void display() {
@@ -165,10 +184,9 @@ public class CoverflowOverlay extends BaseScreen {
 
         textBox.drawTextBox((int) mouseX, (int) mouseY);
 
-        double coverSize = 160;
-        double spacing = 28;
-        double centerX = screenW * 0.5;
-        double centerY = screenH * 0.5;
+        double coverSize = 96;
+        double spacing = 24;
+        float rotDegTarget = 45;
 
         int dWheel = consumeWheel();
 
@@ -182,29 +200,38 @@ public class CoverflowOverlay extends BaseScreen {
 
         scrollOffset = Interpolations.interpolate(scrollOffset, index * (coverSize * 0.5 + spacing), 0.2f);
 
-        for (int i = 0; i < renderList.size(); i++) {
-            if (Math.abs(i - index) > 7) continue;
+        double offsetX = -coverSize * 0.5 - scrollOffset;
+        for (int i = 0; i < index; i++) {
+            if (index - i <= 7) {
+                this.renderCover(renderList.get(i), offsetX, coverSize, rotDegTarget, i, true, mouseX, mouseY);
+            }
+            offsetX += coverSize * 0.5 + spacing;
+        }
 
-            Album al = renderList.get(i);
-            double slot = i * (coverSize * 0.5 + spacing) - scrollOffset;
-            this.renderCover(al, centerX + slot, centerY, coverSize, i == index, mouseX, mouseY);
+        offsetX = -coverSize * 0.5 + ((coverSize * 0.5 + spacing) * (renderList.size() - 1)) - scrollOffset;
+        for (int i = renderList.size() - 1; i >= index; i--) {
+            if (i - index <= 7) {
+                this.renderCover(renderList.get(i), offsetX, coverSize, rotDegTarget, i, false, mouseX, mouseY);
+            }
+            offsetX -= coverSize * 0.5 + spacing;
         }
 
         if (!renderList.isEmpty()) {
             Album al = renderList.get(index);
-            CFontRenderer fr = FontManager.pf40bold;
-            double titleY = centerY + coverSize * 0.5 + 12;
-            fr.drawCenteredStringWithShadow(al.getName(), centerX, titleY, RGBA.white(alpha));
+            CFontRenderer fr = FontManager.pf50bold;
+            double titleX = screenW * 0.5;
+            double titleY = screenH * 0.5 + coverSize * 0.95;
+            fr.drawCenteredStringWithShadow(al.getName(), titleX, titleY, RGBA.white(alpha));
 
             List<String> translatedNames = al.getTranslatedName();
             if (translatedNames != null && !translatedNames.isEmpty()) {
                 CFontRenderer subtitle = FontManager.pf25;
-                subtitle.drawCenteredString(translatedNames.get(0), centerX, titleY + fr.getHeight() + 3, RGBA.color(185, 185, 192, (int) (190 * alpha)));
+                subtitle.drawCenteredString(translatedNames.get(0), titleX, titleY + fr.getHeight() + 3, RGBA.color(185, 185, 192, (int) (190 * alpha)));
             }
         }
     }
 
-    private void renderCover(Album al, double cx, double cy, double coverSize, boolean isCenter, double mouseX, double mouseY) {
+    private void renderCover(Album al, double offsetX, double coverSize, float rotDegTarget, int i, boolean left, double mouseX, double mouseY) {
         AlbumRenderingData data = albumRenderingData.computeIfAbsent(al, k -> new AlbumRenderingData());
 
         TextureHandle coverLoc = al.getCoverLocation();
@@ -214,23 +241,68 @@ public class CoverflowOverlay extends BaseScreen {
             Textures.downloadTextureAndLoadAsync(al.getPicUrl() + "?param=" + cSize + "y" + cSize, coverLoc);
         }
 
-        data.scale = Interpolations.interpolate(data.scale, isCenter ? 1.0 : 0.7, 0.2f);
-
-        double size = coverSize * data.scale;
-        double x = cx - size * 0.5;
-        double y = cy - size * 0.5;
-
-        Rect.draw(x - 1, y - 1, size + 2, size + 2, RGBA.black(alpha * 0.5f));
-
-        if (Platform.hasTexture(coverLoc)) {
-            Image.draw(coverLoc, x, y, size, size, Image.Type.NoColor);
+        if (index != i) {
+            data.rotateDeg = Interpolations.interpolate(data.rotateDeg, rotDegTarget * (left ? 1 : -1), 0.2f);
+            data.scale = Interpolations.interpolate(data.scale, 0.75, 0.2f);
         } else {
-            Rect.draw(x, y, size, size, RGBA.color(40, 40, 40, (int) (alpha * 255)));
+            data.rotateDeg = Interpolations.interpolate(data.rotateDeg, 0f, 0.2f);
+            data.scale = Interpolations.interpolate(data.scale, 1.0, 0.2f);
         }
 
-        boolean hovering = RenderSystem.isHovered(mouseX, mouseY, x, y, size, size);
-        if (hovering && !isCenter) {
-            Rect.draw(x, y, size, size, RGBA.white(alpha * 0.12f));
+        double screenW = RenderSystem.getWidth();
+        double screenH = RenderSystem.getHeight();
+        double aspect = screenW / screenH;
+        double f = 1.0 / Math.tan(Math.toRadians(FOVY) / 2.0);
+
+        double cx = offsetX + coverSize * 0.5;
+        double cy = 0;
+
+        double half = coverSize * 0.5 * data.scale;
+        double rad = Math.toRadians(data.rotateDeg);
+        double cosR = Math.cos(rad), sinR = Math.sin(rad);
+
+        double[][] local = {{-half, -half}, {-half, half}, {half, half}, {half, -half}};
+        double[][] screen = new double[4][];
+        for (int c = 0; c < 4; c++) {
+            double lx = local[c][0];
+            double ly = local[c][1];
+            double wx = cx + lx * cosR;
+            double wz = lx * sinR;
+            double wy = cy + ly;
+
+            screen[c] = project(wx, wy, wz, f, aspect, screenW, screenH);
+        }
+
+        boolean center = index == i;
+
+        int shade = RGBA.color(255, 255, 255, (int) (22 * alpha));
+        Render.colorQuad(RenderContext.graphics(),
+                (float) screen[0][0], (float) screen[0][1],
+                (float) screen[1][0], (float) screen[1][1],
+                (float) screen[2][0], (float) screen[2][1],
+                (float) screen[3][0], (float) screen[3][1], shade);
+
+        if (Platform.hasTexture(coverLoc)) {
+            Render.texturedQuad(RenderContext.graphics(), Identifiers.of(coverLoc),
+                    (float) screen[0][0], (float) screen[0][1],
+                    (float) screen[1][0], (float) screen[1][1],
+                    (float) screen[2][0], (float) screen[2][1],
+                    (float) screen[3][0], (float) screen[3][1], false, alpha);
+        }
+
+        if (center) {
+            double minX = Math.min(Math.min(screen[0][0], screen[1][0]), Math.min(screen[2][0], screen[3][0]));
+            double minY = Math.min(Math.min(screen[0][1], screen[1][1]), Math.min(screen[2][1], screen[3][1]));
+            double maxX = Math.max(Math.max(screen[0][0], screen[1][0]), Math.max(screen[2][0], screen[3][0]));
+            double maxY = Math.max(Math.max(screen[0][1], screen[1][1]), Math.max(screen[2][1], screen[3][1]));
+            boolean hovering = RenderSystem.isHovered(mouseX, mouseY, minX, minY, maxX - minX, maxY - minY);
+            if (hovering) {
+                Render.colorQuad(RenderContext.graphics(),
+                        (float) screen[0][0], (float) screen[0][1],
+                        (float) screen[1][0], (float) screen[1][1],
+                        (float) screen[2][0], (float) screen[2][1],
+                        (float) screen[3][0], (float) screen[3][1], RGBA.white(alpha * 0.12f));
+            }
         }
     }
 

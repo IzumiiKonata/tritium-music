@@ -17,7 +17,7 @@ public final class RoundedPipeline {
             .withBindGroupLayout(BindGroupLayouts.GLOBALS)
             .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .build();
 
