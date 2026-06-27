@@ -3,25 +3,22 @@
 	"id": "tritium-music",
 	"version": "${version}",
 	"name": "Tritium Music",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "NetEase Cloud Music player ported from the Tritium 1.8.9 client.",
 	"authors": [
-		"Me!"
+		"IzumiiKonata"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/IzumiiKonata"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/tritium-music/icon.png",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
-		"main": [
-			"tritium.music.TritiumMusic"
+		"client": [
+			"tritium.music.fabric.TritiumMusicMod"
 		]
 	},
-	"mixins": [
-		"tritium-music.mixins.json"
-	],
 	"depends": {
 		"fabricloader": ">=0.19.3",
 		"minecraft": "~26.2",

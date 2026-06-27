@@ -21,6 +21,14 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
+	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
+
+	implementation "com.google.code.gson:gson:${project.gson_version}"
+	include implementation("com.google.zxing:core:${project.zxing_version}")
+	include implementation("net.java.dev.jna:jna:${project.jna_version}")
+	include implementation("net.java.dev.jna:jna-platform:${project.jna_version}")
 }
 
 processResources {
