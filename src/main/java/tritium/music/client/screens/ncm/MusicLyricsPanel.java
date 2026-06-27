@@ -338,8 +338,6 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                         }
 
                         if (shouldClip) {
-                            // Replaces the original framebuffer + STENCIL gradient composite with a
-                            // horizontal scissor wipe over the sung portion of the word.
                             double sungWidth = stringWidthD * progress;
                             double clipX = renderX;
                             double clipY = renderY - FontManager.pf65bold.getHeight();

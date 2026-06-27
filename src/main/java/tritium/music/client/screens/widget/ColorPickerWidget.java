@@ -78,7 +78,6 @@ public class ColorPickerWidget implements SharedRenderingConstants {
 
         double sbW = sbW();
 
-        // SB square: white→hue horizontally, then black overlay vertically.
         int hueColor = RGBA.opaque(Color.HSBtoRGB(hue, 1f, 1f));
         RenderSystem.drawGradientRectLeftToRight(x, y, x + sbW, y + height, RGBA.color(255, 255, 255, 255), hueColor);
         RenderSystem.drawGradientRectTopToBottom(x, y, x + sbW, y + height, RGBA.color(0, 0, 0, 0), RGBA.color(0, 0, 0, 255));
@@ -87,7 +86,6 @@ public class ColorPickerWidget implements SharedRenderingConstants {
         double sy = y + (1f - brightness) * height;
         ring(sx, sy);
 
-        // Hue strip.
         double hx = hueX();
         int segments = 24;
         for (int i = 0; i < segments; i++) {
@@ -100,7 +98,6 @@ public class ColorPickerWidget implements SharedRenderingConstants {
         }
         marker(hx, y + hue * height, HUE_W);
 
-        // Alpha strip.
         if (withAlpha) {
             double ax = alphaX();
             int solid = RGBA.opaque(Color.HSBtoRGB(hue, saturation, brightness));

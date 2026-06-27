@@ -73,14 +73,10 @@ public final class Render {
         List<MeshElement.Vertex> verts = new ArrayList<>();
         float x1 = x + w, y1 = y + h;
 
-        // Body: three straight rects (UV0 = 0 so the SDF coverage is fully inside).
         sdfQuad(verts, x + r, y, x1 - r, y1, 0, 0, 0, 0, color);
         sdfQuad(verts, x, y + r, x + r, y1 - r, 0, 0, 0, 0, color);
         sdfQuad(verts, x1 - r, y + r, x1, y1 - r, 0, 0, 0, 0, color);
 
-        // Corners: each is one r×r quad whose UV0 is the offset from the arc centre
-        // divided by r, so length(UV0) <= 1 inside the arc. The fragment shader
-        // anti-aliases the arc edge with fwidth, replacing per-corner tessellation.
         cornerQuad(verts, x, y, x + r, y + r, x + r, y + r, r, color);
         cornerQuad(verts, x1 - r, y, x1, y + r, x1 - r, y + r, r, color);
         cornerQuad(verts, x1 - r, y1 - r, x1, y1, x1 - r, y1 - r, r, color);

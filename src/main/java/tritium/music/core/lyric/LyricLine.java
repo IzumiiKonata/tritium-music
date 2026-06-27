@@ -42,7 +42,6 @@ public class LyricLine {
     public double targetOffsetX = 0;
     public double offsetY = Double.MIN_VALUE;
 
-    // Rendering state (engine-agnostic numeric values; written by the UI layer).
     public double posY = 0;
     public double height = 0;
     public float alpha = .4f;
