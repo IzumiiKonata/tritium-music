@@ -171,14 +171,17 @@ public class AudioPlayer {
         player.setOnFinished(() -> finished = true);
     }
 
-    @SneakyThrows
     public void doDetections() {
-        if (!spectrumEnabled || this.isPausing()) {
+        if (this.isPausing()) {
             return;
         }
 
         WaveMode mode = waveMode;
         if (mode == WaveMode.None) {
+            return;
+        }
+
+        if (mode != WaveMode.Oscilloscope && !spectrumEnabled) {
             return;
         }
 
@@ -207,14 +210,14 @@ public class AudioPlayer {
         int offset = Math.max(0, input.length - display);
 
         double spacing = (waveRegionWidth - 8) / (double) display;
-        double height = (stereo ? (waveRegionHeight - 17) * 0.5 : (waveRegionHeight - 17)) - 4;
-        double volumeScale = absoluteVolume ? (volume * 2) : .5 + (volume * 1.75);
+        double oscHeight = (stereo ? (waveRegionHeight - 17) * 0.5 : (waveRegionHeight - 17)) - 4;
+        float volumeScale = absoluteVolume ? volume : (.5f + volume * 1.75f);
 
         for (int i = 0; i < display; i++) {
             float v = input[offset + i];
             int outputIdx = i * 2;
             output[outputIdx] = (float) (spacing * i);
-            output[outputIdx + 1] = (float) (height * v / volumeScale);
+            output[outputIdx + 1] = (float) (oscHeight * v / volumeScale);
         }
     }
 
@@ -323,13 +326,13 @@ public class AudioPlayer {
         }
 
         double spacing = (waveRegionWidth - 8) / (double) display;
-        double height = (stereo ? (waveRegionHeight - 17) * 0.5 : (waveRegionHeight - 17)) - 4;
-        float volumeScale = (float) (absoluteVolume ? (volume * 2) : (.5f + (volume * 1.75f)));
+        double oscHeight = (stereo ? (waveRegionHeight - 17) * 0.5 : (waveRegionHeight - 17)) - 4;
+        float volumeScale = absoluteVolume ? volume : (.5f + volume * 1.75f);
 
         for (int j = 0; j < display; j++) {
             int vi = j * 2;
             vertexes[vi] = (float) (spacing * j);
-            vertexes[vi + 1] = (float) (height * output[j] / volumeScale);
+            vertexes[vi + 1] = (float) (oscHeight * output[j] / volumeScale);
         }
     }
 

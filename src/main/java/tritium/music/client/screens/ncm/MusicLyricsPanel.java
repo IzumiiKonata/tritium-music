@@ -695,7 +695,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             if (!Double.isFinite(fftScale)) fftScale = 0;
             if (!Float.isFinite(lowFreqEnergy) || lowFreqEnergy <= 0.01f) lowFreqEnergy = 0;
 
-            float scaledEnergy = (float) Math.log1p(lowFreqEnergy * 10) * 0.05f;
+            float scaledEnergy = (float) Math.log1p(lowFreqEnergy * 10) * 0.025f;
             float damping = lowFreqEnergy > fftScale ? 0.3f : 0.6f;
             fftScale = Interpolations.interpolate(fftScale, scaledEnergy, damping);
 

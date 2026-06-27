@@ -4,6 +4,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -67,7 +68,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     }
 
     private void registerWidget(String id, HudWidget widget) {
-        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, id), (graphics, deltaTracker) -> {
+        HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Identifier.fromNamespaceAndPath(MOD_ID, id), (graphics, deltaTracker) -> {
             AudioPlayer.spectrumEnabled = musicSpectrum.isEnabled() || musicLyrics.isEnabled();
             WidgetConfig.Spectrum spectrum = WidgetConfig.get().spectrum;
             AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;

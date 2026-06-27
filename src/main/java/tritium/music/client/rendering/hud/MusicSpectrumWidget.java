@@ -1,5 +1,7 @@
 package tritium.music.client.rendering.hud;
 
+import tritium.music.client.render.Render;
+import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
@@ -62,36 +64,23 @@ public class MusicSpectrumWidget extends HudWidget {
             if (rect) {
                 this.updateSpectrum();
                 this.drawBars(compatMode);
-            }
 
-            if (oscilloscope) {
+                if (!compatMode) {
+                    this.setWidth(RenderSystem.getWidth());
+                    this.setHeight(RenderSystem.getHeight() * 0.33);
+                }
+            } else if (oscilloscope) {
                 this.drawWaveform();
-            }
-
-            if (rect) {
-                this.setWidth(-1);
             }
         }
     }
 
-    private static long lastDbg = 0;
-
     private void drawWaveform() {
-        CloudMusic.player.doDetections();
-
-        if (System.currentTimeMillis() - lastDbg > 1000) {
-            lastDbg = System.currentTimeMillis();
-            AudioPlayer p = CloudMusic.player;
-            float vmax = 0;
-            if (p.waveVertexes != null) {
-                for (int i = 1; i < p.waveVertexes.length; i += 2) vmax = Math.max(vmax, Math.abs(p.waveVertexes[i]));
-            }
-        }
+        AudioPlayer player = CloudMusic.player;
+        player.doDetections();
 
         boolean stereo = cfg().stereo;
         double pWidgetHeight = stereo ? this.getHeight() * 0.5 : this.getHeight();
-
-        AudioPlayer player = CloudMusic.player;
 
         if (player.spectrumDataLFilled && player.lockL.tryLock()) {
             try {
@@ -118,19 +107,33 @@ public class MusicSpectrumWidget extends HudWidget {
         }
 
         double startX = this.getX() + 4;
-        double startY = this.getY() + pWidgetHeight * 0.5 + (secondHalf ? pWidgetHeight : 0);
+        double topMargin = 17;
+        double bottomMargin = 4;
+        double oscHeight = pWidgetHeight - topMargin - bottomMargin;
+        double centerY = this.getY() + topMargin + oscHeight * 0.5
+                + (secondHalf ? pWidgetHeight : 0);
+
+        float peak = 0f;
+        for (int i = 1; i < vertCount * 2; i += 2) {
+            peak = Math.max(peak, Math.abs(vertexes[i]));
+        }
+
+        float gain = peak > 1e-6f ? (float) (oscHeight * 0.5 / peak) : 1f;
 
         int color = RGBA.color(0.92f, 0.98f, 1.0f, 0.95f);
 
-        for (int i = 0; i < vertCount - 1; i++) {
+//        float[] points = new float[vertCount * 2];
+        for (int i = 0; i < vertCount; i++) {
             int a = i * 2;
-            int b = (i + 1) * 2;
-            double x0 = startX + vertexes[a];
-            double y0 = startY + vertexes[a + 1];
-            double x1 = startX + vertexes[b];
-            double y1 = startY + vertexes[b + 1];
-            RenderSystem.drawLine(x0, y0, x1, y1, 1.4, color);
+//            points[a] = (float) (startX + vertexes[a]);
+//            points[a + 1] = (float) (centerY + vertexes[a + 1] * gain);
+
+            float x = (float) (startX + vertexes[a]);
+            float y = (float) (centerY + vertexes[a + 1] * gain);
+//            RenderSystem.drawLine(0, 0, x, y, 2, -1);
         }
+
+//        RenderSystem.drawLineStrip(points, vertCount, color);
     }
 
     private void updateSpectrum() {
@@ -196,7 +199,7 @@ public class MusicSpectrumWidget extends HudWidget {
 
         double mult = cfg().multiplier;
         double pitch = regionW / n;
-        double barW = compact ? Math.max(1.0, pitch * 0.82) : pitch;
+        double barW = /*compact ? Math.max(1.0, pitch * 0.82) : */pitch;
 
         int rectColor = cfg().rectColor;
         int rgb = rectColor & 0xFFFFFF;

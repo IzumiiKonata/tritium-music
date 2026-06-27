@@ -16,6 +16,7 @@ public record MeshElement(
         TextureSetup textureSetup,
         Matrix3x2fc pose,
         List<Vertex> vertices,
+        boolean writeUv,
         boolean writeNormal,
         @Nullable ScreenRectangle scissorArea,
         @Nullable ScreenRectangle bounds
@@ -36,6 +37,7 @@ public record MeshElement(
             TextureSetup textureSetup,
             Matrix3x2fc pose,
             List<Vertex> vertices,
+            boolean writeUv,
             boolean writeNormal,
             float x0,
             float y0,
@@ -43,17 +45,24 @@ public record MeshElement(
             float y1,
             @Nullable ScreenRectangle scissorArea
     ) {
-        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, writeNormal, scissorArea, computeBounds(x0, y0, x1, y1, pose, scissorArea));
+        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, writeUv, writeNormal, scissorArea, computeBounds(x0, y0, x1, y1, pose, scissorArea));
     }
 
     @Override
     public void buildVertices(final VertexConsumer consumer) {
-        for (Vertex vertex : vertices) {
-            VertexConsumer vc = consumer.addVertexWith2DPose(this.pose, vertex.x(), vertex.y())
-                    .setUv(vertex.u(), vertex.v())
-                    .setColor(vertex.color());
-            if (writeNormal) {
-                vc.setNormal(vertex.nx(), vertex.ny(), vertex.nz());
+        if (writeUv) {
+            for (Vertex vertex : vertices) {
+                VertexConsumer vc = consumer.addVertexWith2DPose(this.pose, vertex.x(), vertex.y())
+                        .setUv(vertex.u(), vertex.v())
+                        .setColor(vertex.color());
+                if (writeNormal) {
+                    vc.setNormal(vertex.nx(), vertex.ny(), vertex.nz());
+                }
+            }
+        } else {
+            for (Vertex vertex : vertices) {
+                consumer.addVertexWith2DPose(this.pose, vertex.x(), vertex.y())
+                        .setColor(vertex.color());
             }
         }
     }

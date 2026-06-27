@@ -47,8 +47,8 @@ public class WidgetEditorScreen extends BaseScreen {
             }
 
             double wx = widget.getX(), wy = widget.getY();
-            double ww = Math.max(widget.editorWidth(), 80);
-            double wh = Math.max(widget.editorHeight(), 30);
+            double ww = widget.editorWidth();
+            double wh = widget.editorHeight();
 
             boolean over = mouseX >= wx && mouseX <= wx + ww && mouseY >= wy && mouseY <= wy + wh;
             if (over && dragging == null) {

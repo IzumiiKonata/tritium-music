@@ -45,26 +45,6 @@ public final class Render {
         submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
     }
 
-    public static void line(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, float thickness, int color) {
-        float dx = x1 - x0, dy = y1 - y0;
-        float len = (float) Math.sqrt(dx * dx + dy * dy);
-        if (len < 1.0e-4f) {
-            return;
-        }
-        float nx = -dy / len * thickness * 0.5f;
-        float ny = dx / len * thickness * 0.5f;
-
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(x0 + nx, y0 + ny, 0, 0, color));
-        verts.add(new MeshElement.Vertex(x0 - nx, y0 - ny, 0, 0, color));
-        verts.add(new MeshElement.Vertex(x1 - nx, y1 - ny, 0, 0, color));
-        verts.add(new MeshElement.Vertex(x1 + nx, y1 + ny, 0, 0, color));
-
-        float minX = Math.min(x0, x1) - thickness, minY = Math.min(y0, y1) - thickness;
-        float maxX = Math.max(x0, x1) + thickness, maxY = Math.max(y0, y1) + thickness;
-        submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, minX, minY, maxX, maxY);
-    }
-
     public static void gradientV(GuiGraphicsExtractor g, float x, float y, float w, float h, int top, int bottom) {
         List<MeshElement.Vertex> verts = new ArrayList<>(4);
         verts.add(new MeshElement.Vertex(x, y, 0, 0, top));
@@ -104,7 +84,7 @@ public final class Render {
         sdfQuad(verts, x, y + r, x + r, y1 - r, color);
         sdfQuad(verts, x1 - r, y + r, x1, y1 - r, color);
 
-        submit(g, RoundedPipeline.SOLID, TextureSetup.noTexture(), verts, true, x, y, x1, y1);
+        submit(g, RoundedPipeline.SOLID, TextureSetup.noTexture(), verts, true, true, x, y, x1, y1);
     }
 
     private static void sdfQuad(List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1, int color) {
@@ -140,7 +120,7 @@ public final class Render {
         verts.add(new MeshElement.Vertex(x + w, y + h, u1, v1, color));
         verts.add(new MeshElement.Vertex(x + w, y, u1, v0, color));
 
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, x, y, x + w, y + h);
+        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, x, y, x + w, y + h);
     }
 
     public static void texturedQuad(GuiGraphicsExtractor g, Identifier id,
@@ -163,7 +143,7 @@ public final class Render {
         float minY = Math.min(Math.min(tly, bly), Math.min(bry, trY));
         float maxX = Math.max(Math.max(tlx, blx), Math.max(brx, trx));
         float maxY = Math.max(Math.max(tly, bly), Math.max(bry, trY));
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, minX, minY, maxX, maxY);
+        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, minX, minY, maxX, maxY);
     }
 
     public static void colorQuad(GuiGraphicsExtractor g,
@@ -193,7 +173,7 @@ public final class Render {
         verts.add(new MeshElement.Vertex(x + w, y + h, u1, v1, color));
         verts.add(new MeshElement.Vertex(x + w, y, u1, v0, color));
 
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, x, y, x + w, y + h);
+        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, x, y, x + w, y + h);
     }
 
     public static void roundedTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha) {
@@ -218,7 +198,7 @@ public final class Render {
             texVertex(verts, x, y1, uv, color);
             texVertex(verts, x1, y1, uv, color);
             texVertex(verts, x1, y, uv, color);
-            submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, x, y, x1, y1);
+            submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, x, y, x1, y1);
             return;
         }
 
@@ -233,7 +213,7 @@ public final class Render {
         sdfTexQuad(verts, x, y + r, x + r, y1 - r, uv, color);
         sdfTexQuad(verts, x1 - r, y + r, x1, y1 - r, uv, color);
 
-        submit(g, RoundedPipeline.TEXTURED, setup, verts, true, x, y, x1, y1);
+        submit(g, RoundedPipeline.TEXTURED, setup, verts, true, true, x, y, x1, y1);
     }
 
     private record UV(float ox, float oy, float w, float h, float uOff, float vOff, float uScale, float vScale) {
@@ -278,12 +258,18 @@ public final class Render {
 
     private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
                                List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1) {
-        submit(g, pipeline, setup, verts, false, x0, y0, x1, y1);
+        submit(g, pipeline, setup, verts, false, false, x0, y0, x1, y1);
     }
 
     private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
-                               List<MeshElement.Vertex> verts, boolean writeNormal, float x0, float y0, float x1, float y1) {
-        state(g).addGuiElement(new MeshElement(pipeline, setup, pose(g), verts, writeNormal, x0, y0, x1, y1, scissor(g)));
+                               List<MeshElement.Vertex> verts, boolean writeUv, float x0, float y0, float x1, float y1) {
+        submit(g, pipeline, setup, verts, writeUv, false, x0, y0, x1, y1);
+    }
+
+    private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
+                               List<MeshElement.Vertex> verts, boolean writeUv, boolean writeNormal,
+                               float x0, float y0, float x1, float y1) {
+        state(g).addGuiElement(new MeshElement(pipeline, setup, pose(g), verts, writeUv, writeNormal, x0, y0, x1, y1, scissor(g)));
     }
 
     private static float clamp01(float v) {
