@@ -12,7 +12,6 @@ import tritium.music.client.rendering.ui.widgets.RoundedButtonWidget;
 import tritium.music.client.rendering.ui.widgets.RoundedImageWidget;
 import tritium.music.client.rendering.ui.widgets.RoundedRectWidget;
 import tritium.music.client.rendering.ui.widgets.TextFieldWidget;
-import tritium.music.client.screens.ncm.CoverflowOverlay;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.CloudMusic;
@@ -102,24 +101,6 @@ public class PlaylistPanel extends NCMPanel {
                 return true;
             });
 
-            RoundedButtonWidget btnCoverflow = new RoundedButtonWidget("Coverflow", FontManager.pf16bold);
-            this.addChild(btnCoverflow);
-
-            btnCoverflow.setBeforeRenderCallback(() -> {
-                btnCoverflow.setBounds(57, 17);
-                btnCoverflow.setPosition(cover.getRelativeX() + cover.getWidth() + 12 + btnPlay.getWidth() + 8 + btnPlayRandomOrder.getWidth() + 8, cover.getRelativeY() + cover.getHeight() - btnCoverflow.getHeight());
-                btnCoverflow.setRadius(3);
-                btnCoverflow.setColor(0xFFd60017);
-                btnCoverflow.setTextColor(NCMScreen.getColor(NCMScreen.ColorType.PRIMARY_TEXT));
-            });
-
-            btnCoverflow.setOnClickCallback((relativeX, relativeY, mouseButton) -> {
-                if (mouseButton == 0) {
-                    Minecraft.getInstance().setScreenAndShow(CoverflowOverlay.byPlaylist(playList));
-                }
-                return true;
-            });
-
             RoundedRectWidget searchBar = new RoundedRectWidget();
             this.addChild(searchBar);
 
@@ -142,9 +123,9 @@ public class PlaylistPanel extends NCMPanel {
                                 .setAlpha(1f)
                                 .setColor(0xFF5E5E5E)
                                 .setWidth(tfOpenAnimation)
-                                .setHeight(btnCoverflow.getHeight())
+                                .setHeight(btnPlayRandomOrder.getHeight())
                                 .setRadius(7)
-                                .setPosition(btnCoverflow.getRelativeX() + btnCoverflow.getWidth() + 8, btnCoverflow.getRelativeY());
+                                .setPosition(btnPlayRandomOrder.getRelativeX() + btnPlayRandomOrder.getWidth() + 8, btnPlayRandomOrder.getRelativeY());
                     });
 
             RoundedRectWidget searchBarBg = new RoundedRectWidget();

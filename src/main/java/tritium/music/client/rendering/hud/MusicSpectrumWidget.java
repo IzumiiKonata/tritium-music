@@ -17,9 +17,7 @@ public class MusicSpectrumWidget extends HudWidget {
 
     public enum Style {
         Rect,
-        Waveform,
-        Oscilloscope,
-        Line
+        Oscilloscope
     }
 
     public MusicSpectrumWidget() {
@@ -44,41 +42,30 @@ public class MusicSpectrumWidget extends HudWidget {
         if (CloudMusic.player != null) {
 
             boolean rect = style == Style.Rect;
-            boolean line = style == Style.Line;
-            boolean waveform = style == Style.Waveform;
             boolean oscilloscope = style == Style.Oscilloscope;
 
-            if (compatMode || waveform || oscilloscope) {
+            if (compatMode || oscilloscope) {
                 this.setWidth(200);
                 this.setHeight(80);
             }
 
-            AudioPlayer.waveMode = waveform ? AudioPlayer.WaveMode.Waveform
-                    : oscilloscope ? AudioPlayer.WaveMode.Oscilloscope
-                    : AudioPlayer.WaveMode.None;
+            AudioPlayer.waveMode = oscilloscope ? AudioPlayer.WaveMode.Oscilloscope : AudioPlayer.WaveMode.None;
             AudioPlayer.windowTime = (float) cfg().windowTime;
             AudioPlayer.stereo = cfg().stereo;
             AudioPlayer.waveRegionWidth = this.getWidth();
             AudioPlayer.waveRegionHeight = this.getHeight();
 
-            if (compatMode || waveform || oscilloscope) {
+            if (compatMode || oscilloscope) {
                 this.roundedRect(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 6, 0, 0, 0, 0.4f);
             }
 
-            if (rect || line) {
-                this.updateSpectrum();
-            }
-
             if (rect) {
+                this.updateSpectrum();
                 this.drawBars(compatMode);
             }
 
-            if (waveform || oscilloscope) {
+            if (oscilloscope) {
                 this.drawWaveform();
-            }
-
-            if (line) {
-                this.drawLine(compatMode);
             }
 
             if (rect) {
@@ -99,11 +86,6 @@ public class MusicSpectrumWidget extends HudWidget {
             if (p.waveVertexes != null) {
                 for (int i = 1; i < p.waveVertexes.length; i += 2) vmax = Math.max(vmax, Math.abs(p.waveVertexes[i]));
             }
-            System.out.println("[WAVE] enabled=" + AudioPlayer.spectrumEnabled + " mode=" + AudioPlayer.waveMode
-                    + " pausing=" + p.isPausing() + " Lfilled=" + p.spectrumDataLFilled
-                    + " vlen=" + (p.waveVertexes == null ? -1 : p.waveVertexes.length) + " vmaxY=" + vmax
-                    + " region=" + AudioPlayer.waveRegionWidth + "x" + AudioPlayer.waveRegionHeight
-                    + " pos=" + this.getX() + "," + this.getY());
         }
 
         boolean stereo = cfg().stereo;
@@ -251,47 +233,4 @@ public class MusicSpectrumWidget extends HudWidget {
         }
     }
 
-    private void drawLine(boolean compact) {
-        int n = renderSpectrum.length;
-        if (n < 2) {
-            return;
-        }
-
-        double pad = 4;
-        double regionX, regionW, baseY, maxH;
-
-        if (compact) {
-            regionX = this.getX() + pad;
-            regionW = this.getWidth() - pad * 2;
-            baseY = this.getY() + this.getHeight() - pad;
-            maxH = this.getHeight() - pad * 2;
-        } else {
-            regionX = 0;
-            regionW = RenderSystem.getWidth();
-            baseY = RenderSystem.getHeight();
-            maxH = RenderSystem.getHeight() * 0.33;
-        }
-
-        double mult = cfg().multiplier;
-        double pitch = regionW / (n - 1);
-
-        for (int i = 0; i < n; i++) {
-            double h = Math.min(maxH, renderSpectrum[i] * maxH * mult);
-            double x = regionX + i * pitch;
-
-            RenderSystem.drawGradientRectTopToBottom(x, baseY - h, x + Math.max(1.0, pitch), baseY,
-                    RGBA.white((int) (0.34f * 255)), RGBA.white((int) (0.16f * 255)));
-        }
-
-        double lineThickness = compact ? 1.0 : 1.5;
-
-        for (int i = 0; i < n - 1; i++) {
-            double h0 = Math.min(maxH, renderSpectrum[i] * maxH * mult);
-            double h1 = Math.min(maxH, renderSpectrum[i + 1] * maxH * mult);
-            double x0 = regionX + i * pitch;
-            double x1 = regionX + (i + 1) * pitch;
-
-            RenderSystem.drawLine(x0, baseY - h0, x1, baseY - h1, lineThickness, RGBA.white((int) (0.9f * 255)));
-        }
-    }
 }
