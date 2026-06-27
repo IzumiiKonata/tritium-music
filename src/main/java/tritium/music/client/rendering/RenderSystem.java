@@ -17,6 +17,9 @@ public class RenderSystem {
     public static final Object ASYNC_LOCK = new Object();
     public static final float DIVIDE_BY_255 = 0.003921568627451F;
     public static final Minecraft mc = Minecraft.getInstance();
+    private static final double TARGET_GUI_SCALE = 2.0;
+    private static final double REFERENCE_WIDTH = 1920.0;
+    private static final double REFERENCE_HEIGHT = 1013.0;
 
     @Getter
     @Setter
@@ -36,12 +39,16 @@ public class RenderSystem {
                 : (double) window().getWidth() / window().getGuiScaledWidth();
     }
 
+    public static double getScaleNormalizer() {
+        return window().getGuiScaledWidth() / getWidth();
+    }
+
     public static double getWidth() {
-        return window().getGuiScaledWidth();
+        return REFERENCE_WIDTH / TARGET_GUI_SCALE;
     }
 
     public static double getHeight() {
-        return window().getGuiScaledHeight();
+        return REFERENCE_HEIGHT / TARGET_GUI_SCALE;
     }
 
     public static double getFixedWidth() {
@@ -53,11 +60,11 @@ public class RenderSystem {
     }
 
     public static double getMouseX() {
-        return mc.mouseHandler.xpos() * window().getGuiScaledWidth() / Math.max(1, window().getScreenWidth());
+        return mc.mouseHandler.xpos() * getWidth() / window().getWidth();
     }
 
     public static double getMouseY() {
-        return mc.mouseHandler.ypos() * window().getGuiScaledHeight() / Math.max(1, window().getScreenHeight());
+        return mc.mouseHandler.ypos() * getHeight() / window().getHeight();
     }
 
     public static void color(int color) {
@@ -165,7 +172,8 @@ public class RenderSystem {
         if (forceDisableScissor) {
             return;
         }
-        g().enableScissor(x, y, x + width, y + height);
+        double n = getScaleNormalizer();
+        g().enableScissor((int) (x * n), (int) (y * n), (int) ((x + width) * n), (int) ((y + height) * n));
     }
 
     public static void endScissor() {

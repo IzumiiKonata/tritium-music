@@ -16,7 +16,14 @@ public abstract class HudWidget implements SharedRenderingConstants {
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
         try {
-            render.run();
+            graphics.pose().pushMatrix();
+            try {
+                double normalizer = RenderSystem.getScaleNormalizer();
+                graphics.pose().scale((float) normalizer, (float) normalizer);
+                render.run();
+            } finally {
+                graphics.pose().popMatrix();
+            }
         } finally {
             RenderContext.end();
         }

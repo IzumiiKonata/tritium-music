@@ -82,24 +82,32 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         try {
             RenderSystem.resetColor();
 
-            double mx = RenderSystem.getMouseX();
-            double my = RenderSystem.getMouseY();
+            graphics.pose().pushMatrix();
+            try {
+                double normalizer = RenderSystem.getScaleNormalizer();
+                graphics.pose().scale((float) normalizer, (float) normalizer);
 
-            boolean lmb = isButtonDown(GLFW.GLFW_MOUSE_BUTTON_LEFT);
-            boolean rmb = isButtonDown(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+                double mx = RenderSystem.getMouseX();
+                double my = RenderSystem.getMouseY();
 
-            if (lmb || rmb) {
-                if (clickMoveTicks > 1) {
-                    this.mouseClickMove(mx, my, lmb ? 0 : 1, System.currentTimeMillis() - lastClick);
+                boolean lmb = isButtonDown(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+                boolean rmb = isButtonDown(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+
+                if (lmb || rmb) {
+                    if (clickMoveTicks > 1) {
+                        this.mouseClickMove(mx, my, lmb ? 0 : 1, System.currentTimeMillis() - lastClick);
+                    }
+                    clickMoveTicks++;
                 }
-                clickMoveTicks++;
+
+                if (!lmb && lmbPressed) lmbPressed = false;
+                if (!rmb && rmbPressed) rmbPressed = false;
+
+                this.drawScreen(mx, my);
+                this.renderLast(mx, my);
+            } finally {
+                graphics.pose().popMatrix();
             }
-
-            if (!lmb && lmbPressed) lmbPressed = false;
-            if (!rmb && rmbPressed) rmbPressed = false;
-
-            this.drawScreen(mx, my);
-            this.renderLast(mx, my);
         } finally {
             CursorUtils.applyOverride();
             RenderContext.end();
