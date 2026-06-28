@@ -3,6 +3,7 @@ package tritium.music.client.screens.ncm;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
+import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Easing;
@@ -353,7 +354,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             double sungW = progress * (stringWidthD + gradientWidth) * scale;
                             double gradW = gradientWidth * scale;
 
-                            LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
+//                            Render.gradientH(RenderContext.graphics(), );
+//                            LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
 
                             int prog = (int) (progress * charArray.length);
 
