@@ -1,10 +1,13 @@
 package tritium.music.fabric;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -30,8 +33,14 @@ public class TritiumMusicMod implements ClientModInitializer {
     public static final String MOD_ID = "tritium-music";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    private static final int OPEN_KEY = GLFW.GLFW_KEY_M;
-    private boolean openKeyWasDown = false;
+    public static final KeyMapping.Category KEY_CATEGORY =
+            KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "ncm"));
+
+    public static final KeyMapping openNcmScreen = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.tritium-music.open",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_M,
+            KEY_CATEGORY));
 
     private final MusicInfoWidget musicInfo = new MusicInfoWidget();
     private final MusicLyricsWidget musicLyrics = new MusicLyricsWidget();
@@ -86,14 +95,11 @@ public class TritiumMusicMod implements ClientModInitializer {
 
     private void onClientTick(Minecraft client) {
         if (client.gui.screen() != null) {
-            openKeyWasDown = false;
             return;
         }
 
-        boolean down = GLFW.glfwGetKey(client.getWindow().handle(), OPEN_KEY) == GLFW.GLFW_PRESS;
-        if (down && !openKeyWasDown) {
+        if (openNcmScreen.consumeClick()) {
             NCMScreen.open();
         }
-        openKeyWasDown = down;
     }
 }
