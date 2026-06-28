@@ -354,8 +354,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             double sungW = progress * (stringWidthD + gradientWidth) * scale;
                             double gradW = gradientWidth * scale;
 
-//                            Render.gradientH(RenderContext.graphics(), );
-//                            LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
+                            LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
 
                             int prog = (int) (progress * charArray.length);
 
