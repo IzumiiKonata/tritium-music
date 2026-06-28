@@ -1,5 +1,6 @@
 package tritium.music.client.rendering.font;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import lombok.SneakyThrows;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.joml.Matrix3x2fStack;
@@ -91,6 +92,35 @@ public class CFontRenderer implements Closeable {
         float a = ((color >> 24) & 0xff) * RGBA.DIVIDE_BY_255;
         drawString(s, x, y, r, g, b, a);
         return (float) getStringWidthD(s);
+    }
+
+    public float drawCharGradient(char c, double x, double y, int color, float leftAlphaMul, float rightAlphaMul) {
+        float r = ((color >> 16) & 0xff) * RGBA.DIVIDE_BY_255;
+        float g = ((color >> 8) & 0xff) * RGBA.DIVIDE_BY_255;
+        float b = ((color) & 0xff) * RGBA.DIVIDE_BY_255;
+        float baseA = ((color >> 24) & 0xff) * RGBA.DIVIDE_BY_255;
+
+        GuiGraphicsExtractor graphics = RenderContext.graphics();
+        Matrix3x2fStack pose = graphics.pose();
+
+        y -= 2.0f;
+
+        pose.pushMatrix();
+        pose.translate((float) x, (float) y);
+        pose.scale(0.5f, 0.5f);
+
+        Glyph glyph = locateGlyph(c);
+        if (glyph != null && glyph.uploaded) {
+            int leftColor = packColor(r, g, b, baseA * leftAlphaMul);
+            int rightColor = packColor(r, g, b, baseA * rightAlphaMul);
+            Render.glyph(graphics, atlas.identifier(), 0, 0, glyph.width, glyph.height,
+                    glyph.u0, glyph.v0, glyph.u1, glyph.v1, leftColor, rightColor);
+            pose.popMatrix();
+            return glyph.width * 0.5f;
+        }
+
+        pose.popMatrix();
+        return 0f;
     }
 
     public int drawStringWithShadow(String text, double x, double y, int color) {
@@ -330,6 +360,18 @@ public class CFontRenderer implements Closeable {
 
     public int getHeight() {
         return (int) this.getFontHeight();
+    }
+
+    public net.minecraft.resources.Identifier getAtlasId() {
+        return atlas.identifier();
+    }
+
+    public Glyph[] getAllGlyphs() {
+        return allGlyphs;
+    }
+
+    public NativeImage getAtlasImage() {
+        return atlas.getImage();
     }
 
     public double getFontHeight() {

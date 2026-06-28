@@ -164,14 +164,19 @@ public final class Render {
 
     public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
                              float u0, float v0, float u1, float v1, int color) {
+        glyph(g, atlas, x, y, w, h, u0, v0, u1, v1, color, color);
+    }
+
+    public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
+                             float u0, float v0, float u1, float v1, int leftColor, int rightColor) {
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(atlas);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
 
         List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(x, y, u0, v0, color));
-        verts.add(new MeshElement.Vertex(x, y + h, u0, v1, color));
-        verts.add(new MeshElement.Vertex(x + w, y + h, u1, v1, color));
-        verts.add(new MeshElement.Vertex(x + w, y, u1, v0, color));
+        verts.add(new MeshElement.Vertex(x, y, u0, v0, leftColor));
+        verts.add(new MeshElement.Vertex(x, y + h, u0, v1, leftColor));
+        verts.add(new MeshElement.Vertex(x + w, y + h, u1, v1, rightColor));
+        verts.add(new MeshElement.Vertex(x + w, y, u1, v0, rightColor));
 
         submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, x, y, x + w, y + h);
     }

@@ -44,6 +44,10 @@ public class TextureAtlas {
         return identifier;
     }
 
+    public NativeImage getImage() {
+        return image;
+    }
+
     public AtlasRegion upload(BufferedImage glyph) {
         int width = glyph.getWidth();
         int height = glyph.getHeight();

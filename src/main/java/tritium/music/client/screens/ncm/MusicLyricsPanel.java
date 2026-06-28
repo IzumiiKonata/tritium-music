@@ -1,21 +1,17 @@
 package tritium.music.client.screens.ncm;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
-import tritium.music.client.rendering.Image;
-import tritium.music.client.rendering.RGBA;
-import tritium.music.client.rendering.Rect;
-import tritium.music.client.rendering.RenderSystem;
-import tritium.music.client.rendering.ScrollText;
-import tritium.music.client.rendering.SharedRenderingConstants;
-import tritium.music.client.rendering.StencilClipManager;
+import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Easing;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.animation.spring.SpringAnimation;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.shader.BloomShader;
 import tritium.music.client.rendering.shader.Shaders;
+import tritium.music.client.rendering.shader.StencilShader;
 import tritium.music.client.rendering.ui.widgets.IconWidget;
 import tritium.music.client.util.CursorUtils;
 import tritium.music.client.util.MouseUtil;
@@ -201,6 +197,24 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS;
     }
 
+    LuminRenderTarget rt = null;
+    LuminRenderTarget baseRt = null;
+    LuminRenderTarget stencilRt = null;
+    StencilShader stencilShader = new StencilShader();
+
+    private void ensureRt(int w, int h) {
+        if (baseRt == null) {
+            baseRt = LuminRenderTarget.create("lyric-base", w, h);
+        } else if (w != baseRt.width() || h != baseRt.height()) {
+            baseRt.resize(w, h);
+        }
+        if (stencilRt == null) {
+            stencilRt = LuminRenderTarget.create("lyric-stencil", w, h);
+        } else if (w != stencilRt.width() || h != stencilRt.height()) {
+            stencilRt.resize(w, h);
+        }
+    }
+
     private void renderLyrics(double mouseX, double mouseY, double posX, double posY, double width, double height, int dWheel, float alpha) {
 
         if (CloudMusic.lyrics.isEmpty()) return;
@@ -322,9 +336,55 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                     if (currentIndex - k <= 1) {
                         double progress = Mth.limit((songProgress - word.timestamp) / (double) (word.duration), 0, 1);
                         double stringWidthD = wordWidth;
-                        boolean shouldClip = progress > 0 && progress < 1;
+                        double gradientWidth = 16;
 
-                        if (progress == 1) {
+                        if (progress > 0.001 && progress < 1.0) {
+                            int scale = 2;
+                            int fbWidth = (int) (stringWidthD * scale);
+                            int fbHeight = (int) ((FontManager.pf65bold.getHeight() + 6) * scale);
+
+                            int allocW = fbWidth;
+                            if (baseRt != null) allocW = Math.max(allocW, baseRt.width());
+                            if (stencilRt != null) allocW = Math.max(allocW, stencilRt.width());
+                            double uMax = fbWidth / (double) allocW;
+
+                            ensureRt(allocW, fbHeight);
+
+                            double sungW = progress * (stringWidthD + gradientWidth) * scale;
+                            double gradW = gradientWidth * scale;
+
+                            LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
+
+                            int prog = (int) (progress * charArray.length);
+
+                            NativeImage atlasImg = FontManager.pf65bold.getAtlasImage();
+                            int atlasW = atlasImg.getWidth();
+                            int atlasH = atlasImg.getHeight();
+                            int baseTextColor = hexColor(1f, 1f, 1f, alpha * lyric.alpha);
+
+                            List<LyricOffscreen.GlyphCmd> baseGlyphs = new ArrayList<>();
+                            double x2x = 0;
+                            for (int j = 0; j < charArray.length; j++) {
+                                char c = charArray[j];
+                                char nextChar = j + 1 < charArray.length ? charArray[j + 1] : '\0';
+
+                                if (j <= prog && lyric.renderEmphasizes) {
+                                    word.emphasizes[j] = Interpolations.interpolate(word.emphasizes[j], emphasizeTarget, emphasizeSpeed);
+                                }
+
+                                int y2x = (int) (-word.emphasizes[j] * 2);
+                                baseGlyphs.add(new LyricOffscreen.GlyphCmd(c, (int) x2x, y2x));
+
+                                x2x += FontManager.pf65bold.getCharWidth(c, nextChar) * 2;
+                            }
+
+                            LyricOffscreen.renderBaseGlyphs(baseRt, allocW, fbHeight,
+                                    FontManager.pf65bold.allGlyphs, baseTextColor,
+                                    atlasImg, atlasW, atlasH, baseGlyphs);
+
+                            stencilShader.draw(baseRt, stencilRt, renderX, renderY - 2, fbWidth * .5, fbHeight * .5, uMax, 1.0);
+
+                        } else if (progress >= 1.0) {
                             double x = renderX;
                             for (int j = 0; j < charArray.length; j++) {
                                 char c = charArray[j];
@@ -332,31 +392,10 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                                 if (lyric.renderEmphasizes)
                                     word.emphasizes[j] = Interpolations.interpolate(word.emphasizes[j], emphasizeTarget, emphasizeSpeed);
 
-                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[j], hexColor(1, 1, 1, alpha * lyric.alpha));
+                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[j],
+                                        hexColor(1f, 1f, 1f, alpha * lyric.alpha));
                                 x += FontManager.pf65bold.getCharWidth(c, j + 1 < charArray.length ? charArray[j + 1] : '\0');
                             }
-                        }
-
-                        if (shouldClip) {
-                            double sungWidth = stringWidthD * progress;
-                            double clipX = renderX;
-                            double clipY = renderY - FontManager.pf65bold.getHeight();
-                            double clipH = FontManager.pf65bold.getHeight() * 2 + 6;
-
-                            StencilClipManager.beginClip(() -> Rect.draw(clipX, clipY, sungWidth, clipH, -1));
-
-                            int prog = (int) (progress * charArray.length);
-                            double x = renderX;
-                            for (int j = 0; j < charArray.length; j++) {
-                                char c = charArray[j];
-                                if (j <= prog && lyric.renderEmphasizes) {
-                                    word.emphasizes[j] = Interpolations.interpolate(word.emphasizes[j], emphasizeTarget, emphasizeSpeed);
-                                }
-                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[j], hexColor(1, 1, 1, alpha * lyric.alpha));
-                                x += FontManager.pf65bold.getCharWidth(c, j + 1 < charArray.length ? charArray[j + 1] : '\0');
-                            }
-
-                            StencilClipManager.endClip();
                         }
                     } else {
                         FontManager.pf65bold.drawString(word.word, renderX, renderY - emphasizeWholeWord, hexColor(1, 1, 1, alpha * lyric.alpha));

@@ -3,13 +3,9 @@ package tritium.music.client.render;
 import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Thin wrapper around a Blaze3D offscreen render target. Reusable foundation
- * for multi-pass effects (blur/bloom). Effects are not yet wired up; this exists
- * so the infrastructure is in place and can be allocated lazily on the render thread.
- */
 public class MusicRenderTarget {
 
     private final String label;
@@ -33,9 +29,16 @@ public class MusicRenderTarget {
         return target;
     }
 
+    public @Nullable GpuTextureView colorTextureView() {
+        return target != null ? target.getColorTextureView() : null;
+    }
+
     public @Nullable TextureTarget target() {
         return target;
     }
+
+    public int width() { return width; }
+    public int height() { return height; }
 
     public void destroy() {
         if (target != null) {
