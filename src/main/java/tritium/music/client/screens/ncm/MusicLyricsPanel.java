@@ -340,7 +340,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                         double gradientWidth = 16;
 
                         if (progress > 0.001 && progress < 1.0) {
-                            int scale = 2;
+                            int scale = 4;
                             int fbWidth = (int) (stringWidthD * scale);
                             int fbHeight = (int) ((FontManager.pf65bold.getHeight() + 6) * scale);
 
@@ -357,6 +357,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
 
                             int prog = (int) (progress * charArray.length);
+                            int glyphBlitScale = scale / 2;
 
                             NativeImage atlasImg = FontManager.pf65bold.getAtlasImage();
                             int atlasW = atlasImg.getWidth();
@@ -364,7 +365,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             int baseTextColor = hexColor(1f, 1f, 1f, alpha * lyric.alpha);
 
                             List<LyricOffscreen.GlyphCmd> baseGlyphs = new ArrayList<>();
-                            double x2x = 0;
+                            float xScaled = 0;
                             for (int j = 0; j < charArray.length; j++) {
                                 char c = charArray[j];
                                 char nextChar = j + 1 < charArray.length ? charArray[j + 1] : '\0';
@@ -373,17 +374,18 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                                     word.emphasizes[j] = Interpolations.interpolate(word.emphasizes[j], emphasizeTarget, emphasizeSpeed);
                                 }
 
-                                int y2x = (int) (-word.emphasizes[j] * 2);
-                                baseGlyphs.add(new LyricOffscreen.GlyphCmd(c, (int) x2x, y2x));
+                                float yScaled = (float) (-word.emphasizes[j] * scale);
+                                baseGlyphs.add(new LyricOffscreen.GlyphCmd(c, xScaled, yScaled));
 
-                                x2x += FontManager.pf65bold.getCharWidth(c, nextChar) * 2;
+                                xScaled += FontManager.pf65bold.getCharWidth(c, nextChar) * scale;
                             }
 
                             LyricOffscreen.renderBaseGlyphs(baseRt, allocW, fbHeight,
                                     FontManager.pf65bold.allGlyphs, baseTextColor,
-                                    atlasImg, atlasW, atlasH, baseGlyphs);
+                                    atlasImg, atlasW, atlasH, baseGlyphs, glyphBlitScale);
 
-                            stencilShader.draw(baseRt, stencilRt, renderX, renderY - 2, fbWidth * .5, fbHeight * .5, uMax, 1.0);
+                            double invScale = 1.0 / scale;
+                            stencilShader.draw(baseRt, stencilRt, renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0);
 
                         } else if (progress >= 1.0) {
                             double x = renderX;

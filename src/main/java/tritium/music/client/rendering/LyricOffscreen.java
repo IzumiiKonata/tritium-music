@@ -39,7 +39,7 @@ public final class LyricOffscreen {
     public static void renderBaseGlyphs(LuminRenderTarget rt, int w, int h,
                                         Glyph[] glyphTable, int baseColor,
                                         NativeImage atlas, int atlasW, int atlasH,
-                                        List<GlyphCmd> glyphs) {
+                                        List<GlyphCmd> glyphs, int blitScale) {
         int colorA = (baseColor >> 24) & 0xFF;
         float colorAf = colorA / 255f;
 
@@ -54,25 +54,34 @@ public final class LyricOffscreen {
             int srcW = g.width;
             int srcH = g.height;
 
-            int dstX = cmd.x;
-            int dstY = cmd.y;
+            int dstX = Math.round(cmd.x);
+            int dstY = Math.round(cmd.y);
 
             for (int py = 0; py < srcH; py++) {
                 int sy = srcY + py;
-                int dy = dstY + py;
-                if (dy < 0 || dy >= h) continue;
+                int dyBase = dstY + py * blitScale;
+                if (dyBase + blitScale - 1 < 0 || dyBase >= h) continue;
 
                 for (int px = 0; px < srcW; px++) {
                     int sx = srcX + px;
-                    int dx = dstX + px;
-                    if (dx < 0 || dx >= w) continue;
+                    int dxBase = dstX + px * blitScale;
+                    if (dxBase + blitScale - 1 < 0 || dxBase >= w) continue;
 
                     int argb = atlas.getPixel(sx, sy);
                     int glyphA = (argb >> 24) & 0xFF;
                     int outA = (int) (glyphA * colorAf);
                     int outBgr = (argb & 0xFF00FF00) | ((argb & 0xFF) << 16) | ((argb >> 16) & 0xFF);
+                    int outPixel = (outA << 24) | outBgr;
 
-                    img.setPixelABGR(dx, dy, (outA << 24) | outBgr);
+                    for (int by = 0; by < blitScale; by++) {
+                        int dy = dyBase + by;
+                        if (dy < 0 || dy >= h) continue;
+                        for (int bx = 0; bx < blitScale; bx++) {
+                            int dx = dxBase + bx;
+                            if (dx < 0 || dx >= w) continue;
+                            img.setPixelABGR(dx, dy, outPixel);
+                        }
+                    }
                 }
             }
         }
@@ -86,10 +95,10 @@ public final class LyricOffscreen {
 
     public static final class GlyphCmd {
         public final char ch;
-        public final int x;
-        public final int y;
+        public final float x;
+        public final float y;
 
-        public GlyphCmd(char ch, int x, int y) {
+        public GlyphCmd(char ch, float x, float y) {
             this.ch = ch;
             this.x = x;
             this.y = y;
