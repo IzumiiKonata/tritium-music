@@ -362,7 +362,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             NativeImage atlasImg = FontManager.pf65bold.getAtlasImage();
                             int atlasW = atlasImg.getWidth();
                             int atlasH = atlasImg.getHeight();
-                            int baseTextColor = hexColor(1f, 1f, 1f, alpha * lyric.alpha);
+                            int baseTextColor = hexColor(1f, 1f, 1f, lyric.alpha);
 
                             List<LyricOffscreen.GlyphCmd> baseGlyphs = new ArrayList<>();
                             float xScaled = 0;
@@ -385,7 +385,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                                     atlasImg, atlasW, atlasH, baseGlyphs, glyphBlitScale);
 
                             double invScale = 1.0 / scale;
-                            stencilShader.draw(baseRt, stencilRt, renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0);
+                            stencilShader.draw(baseRt, stencilRt, renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
 
                         } else if (progress >= 1.0) {
                             double x = renderX;

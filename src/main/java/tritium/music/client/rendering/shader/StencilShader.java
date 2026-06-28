@@ -18,13 +18,16 @@ import java.util.List;
 public class StencilShader {
 
     public void draw(LuminRenderTarget base, LuminRenderTarget stencil,
-                     double x, double y, double width, double height) {
-        draw(base, stencil, x, y, width, height, 1.0, 1.0);
+                     double x, double y, double width, double height,
+                     double uMax, double vMax) {
+        draw(base, stencil, x, y, width, height, uMax, vMax, 1.0f);
     }
 
     public void draw(LuminRenderTarget base, LuminRenderTarget stencil,
                      double x, double y, double width, double height,
-                     double uMax, double vMax) {
+                     double uMax, double vMax, float alpha) {
+        if (alpha <= 0.004f) return;
+
         GpuSampler sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
 
         TextureSetup textureSetup = TextureSetup.doubleTexture(
@@ -36,13 +39,13 @@ public class StencilShader {
         float y1 = (float) (y + height);
         float u1 = (float) uMax;
         float v1 = (float) vMax;
-        int white = 0xFFFFFFFF;
+        int quadColor = (Math.round(alpha * 255f) << 24) | 0x00FFFFFF;
 
         List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex((float) x, (float) y, 0f, 0f, white));
-        verts.add(new MeshElement.Vertex((float) x, y1, 0f, v1, white));
-        verts.add(new MeshElement.Vertex(x1, y1, u1, v1, white));
-        verts.add(new MeshElement.Vertex(x1, (float) y, u1, 0f, white));
+        verts.add(new MeshElement.Vertex((float) x, (float) y, 0f, 0f, quadColor));
+        verts.add(new MeshElement.Vertex((float) x, y1, 0f, v1, quadColor));
+        verts.add(new MeshElement.Vertex(x1, y1, u1, v1, quadColor));
+        verts.add(new MeshElement.Vertex(x1, (float) y, u1, 0f, quadColor));
 
         var g = RenderContext.graphics();
         RenderContext.graphics().guiRenderState.addGuiElement(new MeshElement(
