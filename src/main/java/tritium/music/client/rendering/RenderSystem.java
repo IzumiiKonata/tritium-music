@@ -40,7 +40,17 @@ public class RenderSystem {
     }
 
     public static double getScaleNormalizer() {
-        return window().getGuiScaledWidth() / getWidth();
+        double xRatio = window().getGuiScaledWidth() / getWidth();
+        double yRatio = window().getGuiScaledHeight() / getHeight();
+        return Math.min(xRatio, yRatio);
+    }
+
+    public static double getOffsetX() {
+        return (window().getGuiScaledWidth() - getWidth() * getScaleNormalizer()) / 2.0;
+    }
+
+    public static double getOffsetY() {
+        return (window().getGuiScaledHeight() - getHeight() * getScaleNormalizer()) / 2.0;
     }
 
     public static double getWidth() {
@@ -60,11 +70,13 @@ public class RenderSystem {
     }
 
     public static double getMouseX() {
-        return mc.mouseHandler.xpos() * getWidth() / window().getWidth();
+        double guiX = mc.mouseHandler.xpos() * window().getGuiScaledWidth() / window().getWidth();
+        return (guiX - getOffsetX()) / getScaleNormalizer();
     }
 
     public static double getMouseY() {
-        return mc.mouseHandler.ypos() * getHeight() / window().getHeight();
+        double guiY = mc.mouseHandler.ypos() * window().getGuiScaledHeight() / window().getHeight();
+        return (guiY - getOffsetY()) / getScaleNormalizer();
     }
 
     public static void color(int color) {
@@ -172,8 +184,7 @@ public class RenderSystem {
         if (forceDisableScissor) {
             return;
         }
-        double n = getScaleNormalizer();
-        g().enableScissor((int) (x * n), (int) (y * n), (int) ((x + width) * n), (int) ((y + height) * n));
+        g().enableScissor(x, y, x + width, y + height);
     }
 
     public static void endScissor() {

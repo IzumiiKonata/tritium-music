@@ -19,6 +19,9 @@ public abstract class HudWidget implements SharedRenderingConstants {
             graphics.pose().pushMatrix();
             try {
                 double normalizer = RenderSystem.getScaleNormalizer();
+                double offsetX = RenderSystem.getOffsetX();
+                double offsetY = RenderSystem.getOffsetY();
+                graphics.pose().translate((float) offsetX, (float) offsetY);
                 graphics.pose().scale((float) normalizer, (float) normalizer);
                 render.run();
             } finally {
