@@ -8,31 +8,31 @@ import org.joml.Vector4f;
 
 import java.util.OptionalDouble;
 
-public final class LuminRenderTarget implements AutoCloseable {
+public final class TRenderTarget implements AutoCloseable {
 
-        private LuminTexture colorTexture;
+        private TTexture colorTexture;
         private GpuTexture depthTexture;
         private GpuTextureView depthView;
         private final Identifier identifier;
         private int width;
         private int height;
 
-        private LuminRenderTarget(String name, int width, int height) {
+        private TRenderTarget(String name, int width, int height) {
             this.width = width;
             this.height = height;
             this.identifier = Identifier.fromNamespaceAndPath("tritium", "render-target-" + name);
             createTextures();
         }
 
-        public static LuminRenderTarget create(String name, int width, int height) {
-            return new LuminRenderTarget(name, width, height);
+        public static TRenderTarget create(String name, int width, int height) {
+            return new TRenderTarget(name, width, height);
         }
 
         private void createTextures() {
             var device = com.mojang.blaze3d.systems.RenderSystem.getDevice();
 
             final var colorTexture = device.createTexture(
-                    "lumin-rt-color",
+                    "tritium-rt-color",
                     GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
                     GpuFormat.RGBA8_UNORM,
                     width, height, 1, 1
@@ -40,7 +40,7 @@ public final class LuminRenderTarget implements AutoCloseable {
             final var colorView = device.createTextureView(colorTexture);
 
             depthTexture = device.createTexture(
-                    "lumin-rt-depth",
+                    "tritium-rt-depth",
                     GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
                     GpuFormat.D32_FLOAT,
                     width, height, 1, 1
@@ -53,7 +53,7 @@ public final class LuminRenderTarget implements AutoCloseable {
                     1, OptionalDouble.empty()
             );
 
-            this.colorTexture = new LuminTexture(colorTexture, colorView, sampler);
+            this.colorTexture = new TTexture(colorTexture, colorView, sampler);
 
             Minecraft.getInstance().getTextureManager().register(identifier, getColorTexture());
         }
@@ -101,7 +101,7 @@ public final class LuminRenderTarget implements AutoCloseable {
             return height;
         }
 
-        public LuminTexture getColorTexture() {
+        public TTexture getColorTexture() {
             return colorTexture;
         }
 

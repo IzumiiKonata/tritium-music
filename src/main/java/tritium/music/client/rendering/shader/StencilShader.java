@@ -3,13 +3,11 @@ package tritium.music.client.rendering.shader;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
-import net.minecraft.client.renderer.texture.AbstractTexture;
 import org.joml.Matrix3x2f;
 import tritium.music.client.render.MeshElement;
 import tritium.music.client.render.RenderContext;
-import tritium.music.client.rendering.LuminRenderTarget;
+import tritium.music.client.rendering.TRenderTarget;
 import tritium.music.client.rendering.StencilCompositePipeline;
 
 import java.util.ArrayList;
@@ -17,13 +15,13 @@ import java.util.List;
 
 public class StencilShader {
 
-    public void draw(LuminRenderTarget base, LuminRenderTarget stencil,
+    public void draw(TRenderTarget base, TRenderTarget stencil,
                      double x, double y, double width, double height,
                      double uMax, double vMax) {
         draw(base, stencil, x, y, width, height, uMax, vMax, 1.0f);
     }
 
-    public void draw(LuminRenderTarget base, LuminRenderTarget stencil,
+    public void draw(TRenderTarget base, TRenderTarget stencil,
                      double x, double y, double width, double height,
                      double uMax, double vMax, float alpha) {
         if (alpha <= 0.004f) return;

@@ -11,7 +11,7 @@ public final class LyricOffscreen {
     private LyricOffscreen() {
     }
 
-    public static void renderStencilMask(LuminRenderTarget rt, int w, int h,
+    public static void renderStencilMask(TRenderTarget rt, int w, int h,
                                          double sungW, double gradW) {
         NativeImage img = new NativeImage(w, h, true);
         for (int y = 0; y < h; y++) {
@@ -36,7 +36,7 @@ public final class LyricOffscreen {
         img.close();
     }
 
-    public static void renderBaseGlyphs(LuminRenderTarget rt, int w, int h,
+    public static void renderBaseGlyphs(TRenderTarget rt, int w, int h,
                                         Glyph[] glyphTable, int baseColor,
                                         NativeImage atlas, int atlasW, int atlasH,
                                         List<GlyphCmd> glyphs, int blitScale) {

@@ -3,7 +3,6 @@ package tritium.music.client.screens.ncm;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
-import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Easing;
@@ -198,19 +197,19 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS;
     }
 
-    LuminRenderTarget rt = null;
-    LuminRenderTarget baseRt = null;
-    LuminRenderTarget stencilRt = null;
+    TRenderTarget rt = null;
+    TRenderTarget baseRt = null;
+    TRenderTarget stencilRt = null;
     StencilShader stencilShader = new StencilShader();
 
     private void ensureRt(int w, int h) {
         if (baseRt == null) {
-            baseRt = LuminRenderTarget.create("lyric-base", w, h);
+            baseRt = TRenderTarget.create("lyric-base", w, h);
         } else if (w != baseRt.width() || h != baseRt.height()) {
             baseRt.resize(w, h);
         }
         if (stencilRt == null) {
-            stencilRt = LuminRenderTarget.create("lyric-stencil", w, h);
+            stencilRt = TRenderTarget.create("lyric-stencil", w, h);
         } else if (w != stencilRt.width() || h != stencilRt.height()) {
             stencilRt.resize(w, h);
         }
