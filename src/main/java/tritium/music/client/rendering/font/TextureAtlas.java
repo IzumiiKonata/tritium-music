@@ -8,7 +8,10 @@ import tritium.music.core.util.AsyncUtil;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TextureAtlas {
@@ -16,6 +19,14 @@ public class TextureAtlas {
     private static final int ATLAS_SIZE = 2048;
     private static final int PADDING = 2;
     private static final AtomicInteger COUNTER = new AtomicInteger();
+
+    private static final Set<TextureAtlas> LIVE_ATLASES = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    public static void flushAllDirty() {
+        for (TextureAtlas atlas : LIVE_ATLASES) {
+            atlas.flush();
+        }
+    }
 
     private final Identifier identifier;
     private DynamicTexture texture;
@@ -27,8 +38,12 @@ public class TextureAtlas {
 
     private final List<AtlasRegion> regions = new ArrayList<>();
 
+    private volatile boolean dirty = false;
+    private volatile boolean flushScheduled = false;
+
     public TextureAtlas() {
         this.identifier = Identifier.fromNamespaceAndPath("tritium-music", "font/atlas_" + COUNTER.getAndIncrement());
+        LIVE_ATLASES.add(this);
         this.init();
     }
 
@@ -76,7 +91,7 @@ public class TextureAtlas {
             }
         }
 
-        texture.upload();
+        dirty = true;
 
         float u0 = (float) currentX / ATLAS_SIZE;
         float v0 = (float) currentY / ATLAS_SIZE;
@@ -92,7 +107,23 @@ public class TextureAtlas {
         return region;
     }
 
+    public void scheduleFlush() {
+        if (!flushScheduled) {
+            flushScheduled = true;
+            AsyncUtil.runOnRenderThread(this::flush);
+        }
+    }
+
+    public void flush() {
+        flushScheduled = false;
+        if (dirty && texture != null) {
+            dirty = false;
+            texture.upload();
+        }
+    }
+
     public void destroy() {
+        LIVE_ATLASES.remove(this);
         AsyncUtil.runOnRenderThread(() -> {
             Minecraft.getInstance().getTextureManager().release(identifier);
             texture = null;

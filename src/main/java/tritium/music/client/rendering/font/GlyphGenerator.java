@@ -110,6 +110,7 @@ public class GlyphGenerator {
                 if (region != null) {
                     glyph.setAtlasRegion(region);
                 }
+                atlas.scheduleFlush();
                 bi.flush();
             });
         });

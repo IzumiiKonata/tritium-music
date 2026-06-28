@@ -554,12 +554,11 @@ public class CloudMusic {
         startNewPlayThread(safeSongList, startIdx);
     }
 
-    private static void stopExistingPlayThread() throws InterruptedException {
+    private static void stopExistingPlayThread() {
         if (playThread != null) {
             doBreak = true;
             playing.set(false);
             playThread.interrupt();
-            playThread.join();
         }
     }
 

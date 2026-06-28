@@ -28,6 +28,7 @@ public abstract class HudWidget implements SharedRenderingConstants {
                 graphics.pose().popMatrix();
             }
         } finally {
+            tritium.music.client.rendering.font.TextureAtlas.flushAllDirty();
             RenderContext.end();
         }
     }

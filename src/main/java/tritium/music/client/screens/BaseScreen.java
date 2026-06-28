@@ -113,6 +113,7 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
             }
         } finally {
             CursorUtils.applyOverride();
+            tritium.music.client.rendering.font.TextureAtlas.flushAllDirty();
             RenderContext.end();
         }
     }

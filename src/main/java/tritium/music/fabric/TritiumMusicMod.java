@@ -67,6 +67,20 @@ public class TritiumMusicMod implements ClientModInitializer {
                 Minecraft mc = Minecraft.getInstance();
                 mc.execute(() -> mc.gui.toastManager().showNowPlayingToast());
             }
+
+            @Override
+            public void onLyricsLoaded(Music music) {
+                AsyncUtil.runAsync(() -> {
+                    synchronized (CloudMusic.lyrics) {
+                        for (tritium.music.core.lyric.LyricLine line : CloudMusic.lyrics) {
+                            FontManager.prewarmGlyphs(line.lyric);
+                            if (line.translationText != null) {
+                                FontManager.prewarmGlyphs(line.translationText);
+                            }
+                        }
+                    }
+                });
+            }
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);

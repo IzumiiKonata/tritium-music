@@ -9,12 +9,9 @@ import net.minecraft.resources.Identifier;
 import tritium.music.platform.MusicPlatform;
 import tritium.music.platform.TextureHandle;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -25,6 +22,8 @@ public class FabricMusicPlatform implements MusicPlatform {
 
     private final java.util.concurrent.ExecutorService executor;
     private final Set<TextureHandle> uploaded = ConcurrentHashMap.newKeySet();
+    private final Map<Identifier, DynamicTexture> textureCache = new ConcurrentHashMap<>();
+    private final Map<Identifier, NativeImage> imageCache = new ConcurrentHashMap<>();
 
     public FabricMusicPlatform() {
         AtomicInteger counter = new AtomicInteger();
@@ -76,8 +75,26 @@ public class FabricMusicPlatform implements MusicPlatform {
 
         Identifier id = toIdentifier(handle);
         TextureManager textureManager = mc().getTextureManager();
-        textureManager.release(id);
-        textureManager.register(id, new DynamicTexture(id::toString, nativeImage));
+
+        DynamicTexture existing = textureCache.get(id);
+        NativeImage existingImage = imageCache.get(id);
+
+        if (existing != null && existingImage != null
+                && existingImage.getWidth() == nativeImage.getWidth()
+                && existingImage.getHeight() == nativeImage.getHeight()) {
+            copyPixels(nativeImage, existingImage);
+            nativeImage.close();
+            existing.upload();
+        } else {
+            if (existing != null) {
+                textureManager.release(id);
+            }
+            DynamicTexture dt = new DynamicTexture(id::toString, nativeImage);
+            textureManager.register(id, dt);
+            textureCache.put(id, dt);
+            imageCache.put(id, nativeImage);
+        }
+
         uploaded.add(handle);
     }
 
@@ -88,7 +105,10 @@ public class FabricMusicPlatform implements MusicPlatform {
 
     @Override
     public void deleteTexture(TextureHandle handle) {
-        mc().getTextureManager().release(toIdentifier(handle));
+        Identifier id = toIdentifier(handle);
+        mc().getTextureManager().release(id);
+        textureCache.remove(id);
+        imageCache.remove(id);
         uploaded.remove(handle);
     }
 
@@ -106,14 +126,28 @@ public class FabricMusicPlatform implements MusicPlatform {
         TritiumMusicMod.LOGGER.info(stripFormatting(message));
     }
 
-    private static NativeImage toNativeImage(BufferedImage image) {
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            ImageIO.write(image, "png", out);
-            return NativeImage.read(new ByteArrayInputStream(out.toByteArray()));
-        } catch (IOException e) {
-            return null;
+    private static void copyPixels(NativeImage src, NativeImage dst) {
+        int w = Math.min(src.getWidth(), dst.getWidth());
+        int h = Math.min(src.getHeight(), dst.getHeight());
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                dst.setPixelABGR(x, y, src.getPixel(x, y));
+            }
         }
+    }
+
+    private static NativeImage toNativeImage(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        NativeImage ni = new NativeImage(w, h, true);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int argb = image.getRGB(x, y);
+                int abgr = (argb & 0xFF00FF00) | ((argb & 0xFF) << 16) | ((argb >> 16) & 0xFF);
+                ni.setPixelABGR(x, y, abgr);
+            }
+        }
+        return ni;
     }
 
     private static String stripFormatting(String message) {

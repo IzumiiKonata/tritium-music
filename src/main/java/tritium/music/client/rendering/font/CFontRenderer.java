@@ -85,6 +85,19 @@ public class CFontRenderer implements Closeable {
         return null;
     }
 
+    public void prewarm(String text) {
+        if (text == null) return;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\n' || c == '\r' || c == '\t' || c == ' ') continue;
+            if (c == '\247' && i + 1 < text.length()) { i++; continue; }
+            if (c == '（') c = '(';
+            if (c == '）') c = ')';
+            if (c == '・') c = '·';
+            locateGlyph(c);
+        }
+    }
+
     public float drawString(String s, double x, double y, int color) {
         float r = ((color >> 16) & 0xff) * RGBA.DIVIDE_BY_255;
         float g = ((color >> 8) & 0xff) * RGBA.DIVIDE_BY_255;
