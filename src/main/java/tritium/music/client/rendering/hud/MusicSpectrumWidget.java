@@ -111,7 +111,7 @@ public class MusicSpectrumWidget extends HudWidget {
         double bottomMargin = 4;
         double oscHeight = pWidgetHeight - topMargin - bottomMargin;
         double centerY = this.getY() + topMargin + oscHeight * 0.5
-                + (secondHalf ? pWidgetHeight : 0);
+                + (secondHalf ? pWidgetHeight : 0) - 6;
 
         float peak = 0f;
         for (int i = 1; i < vertCount * 2; i += 2) {
@@ -122,18 +122,28 @@ public class MusicSpectrumWidget extends HudWidget {
 
         int color = RGBA.color(0.92f, 0.98f, 1.0f, 0.95f);
 
-//        float[] points = new float[vertCount * 2];
-        for (int i = 0; i < vertCount; i++) {
+        double prevX = startX + vertexes[0];
+        double prevY = centerY + vertexes[1] * gain;
+
+        for (int i = 1; i < vertCount; i++) {
             int a = i * 2;
-//            points[a] = (float) (startX + vertexes[a]);
-//            points[a + 1] = (float) (centerY + vertexes[a + 1] * gain);
+            double x = startX + vertexes[a];
+            double y = centerY + vertexes[a + 1] * gain;
 
-            float x = (float) (startX + vertexes[a]);
-            float y = (float) (centerY + vertexes[a + 1] * gain);
-//            RenderSystem.drawLine(0, 0, x, y, 2, -1);
+            double left = Math.min(prevX, x);
+            double top = Math.min(prevY, y);
+            double dx = Math.abs(x - prevX);
+            double dy = Math.abs(y - prevY);
+
+            if (dx >= dy) {
+                Rect.draw(left, (prevY + y) * 0.5 - 0.5, Math.max(1.0, dx), 1.0, color);
+            } else {
+                Rect.draw((prevX + x) * 0.5 - 0.5, top, 1.0, Math.max(1.0, dy), color);
+            }
+
+            prevX = x;
+            prevY = y;
         }
-
-//        RenderSystem.drawLineStrip(points, vertCount, color);
     }
 
     private void updateSpectrum() {

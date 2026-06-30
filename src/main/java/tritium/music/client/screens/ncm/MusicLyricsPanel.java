@@ -3,6 +3,7 @@ package tritium.music.client.screens.ncm;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
+import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Easing;
@@ -53,6 +54,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     double progressBarProgressOverride = 0;
     double progressBarHeight = 8, volumeBarHeight = 8;
     double progressThumbAlpha = 0, volumeThumbAlpha = 0;
+
+    boolean volumeBarDragging = false;
 
     boolean prevMouse = false;
 
@@ -254,6 +257,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         RenderSystem.drawGradientRectTopToBottom(dividerX, posY + height * 0.16, dividerX + 1, dividerMidY, hexColor(1f, 1f, 1f, 0f), hexColor(1f, 1f, 1f, alpha * 0.06f));
         RenderSystem.drawGradientRectTopToBottom(dividerX, dividerMidY, dividerX + 1, posY + height * 0.84, hexColor(1f, 1f, 1f, alpha * 0.06f), hexColor(1f, 1f, 1f, 0f));
 
+        StencilClipManager.beginClip(() -> Rect.draw(posX + 2.5, posY + 2.5, width - 4.5, height, -1));
+
         LyricLine currentLyric = progressBarDragging ? CloudMusic.findCurrentLyric(overridePlaybackProgress) : CloudMusic.currentLyric;
         int currentIndex = CloudMusic.lyrics.indexOf(currentLyric);
 
@@ -432,6 +437,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                 blurRects.add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1, 1, 1, alpha * lyric.blurAlpha)));
             }
         }
+
+        StencilClipManager.endClip();
 
         RenderContext.graphics().pose().pushMatrix();
         this.scaleAtPos(lyricRenderOffsetX, RenderSystem.getHeight() * .5, 1 / (1.1 - (alpha * 0.1)));
@@ -622,11 +629,18 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         this.volumeThumbAlpha = Interpolations.interpolate(this.volumeThumbAlpha, hoveringVolumeBar ? 1.0 : 0.0, 0.25f);
 
         if (hoveringVolumeBar && lmbDown) {
+            volumeBarDragging = true;
+
             double xDelta = Math.max(0, Math.min(volumeBarWidth, (mouseX - (volumeBarXOffset))));
             double percent = xDelta / volumeBarWidth;
 
             MusicState.get().setVolume((float) percent);
             if (player != null) player.setVolume((float) percent);
+        } else if (volumeBarDragging) {
+            volumeBarDragging = false;
+
+            WidgetConfig.get().volume = MusicState.get().getVolume();
+            WidgetConfig.get().save();
         }
 
         if (hoveringProgressBar || hoveringVolumeBar) {

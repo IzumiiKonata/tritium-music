@@ -178,14 +178,14 @@ public class WidgetSettingsScreen extends Screen {
         int yL = top;
         int yR = top;
 
-//        addRenderableWidget(enumButton(leftX, yL, "样式", spectrum.style, v -> spectrum.style = v));
-//        yL += PITCH;
+        addRenderableWidget(enumButton(leftX, yL, "样式", spectrum.style, v -> spectrum.style = v));
+        yL += PITCH;
         addRenderableWidget(onOff(leftX, yL, "紧凑模式", spectrum.compatMode, v -> spectrum.compatMode = v));
         yL += PITCH;
         addRenderableWidget(onOff(leftX, yL, "峰值指示", spectrum.indicator, v -> spectrum.indicator = v));
         yL += PITCH;
-//        addRenderableWidget(onOff(leftX, yL, "立体声", spectrum.stereo, v -> spectrum.stereo = v));
-//        yL += PITCH;
+        addRenderableWidget(onOff(leftX, yL, "立体声", spectrum.stereo, v -> spectrum.stereo = v));
+        yL += PITCH;
 
         int rightColX = wide ? rightX : leftX;
         if (!wide) yR = yL;
@@ -199,9 +199,9 @@ public class WidgetSettingsScreen extends Screen {
         addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "频谱倾斜", 0.0, 6.0, false,
                 () -> spectrum.spectrumTilt, v -> spectrum.spectrumTilt = v));
         yR += PITCH;
-//        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "窗口时间(ms)", 4, 256, false,
-//                () -> spectrum.windowTime, v -> spectrum.windowTime = v));
-//        yR += PITCH;
+        addRenderableWidget(new SettingSlider(rightColX, yR, ROW_W, ROW_H, "窗口时间(ms)", 4, 256, false,
+                () -> spectrum.windowTime, v -> spectrum.windowTime = v));
+        yR += PITCH;
 
         rectPicker = new ColorPickerWidget(() -> spectrum.rectColor, c -> spectrum.rectColor = c, true);
         pickerLabel = "频谱颜色";

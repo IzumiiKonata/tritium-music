@@ -29,6 +29,8 @@ public class WidgetConfig {
     public Lyrics lyrics = new Lyrics();
     public Spectrum spectrum = new Spectrum();
 
+    public double volume = 0.25;
+
     public static class WidgetSettings {
         public double x;
         public double y;
@@ -125,5 +127,6 @@ public class WidgetConfig {
         MusicState state = MusicState.get();
         state.setShowTranslation(lyrics.showTranslation);
         state.setShowRoman(lyrics.showRoman);
+        state.setVolume((float) volume);
     }
 }
