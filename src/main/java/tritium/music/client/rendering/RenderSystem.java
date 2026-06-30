@@ -53,6 +53,22 @@ public class RenderSystem {
         return (window().getGuiScaledHeight() - getHeight() * getScaleNormalizer()) / 2.0;
     }
 
+    public static double getFullBleedX() {
+        return -getOffsetX() / getScaleNormalizer();
+    }
+
+    public static double getFullBleedY() {
+        return -getOffsetY() / getScaleNormalizer();
+    }
+
+    public static double getFullBleedWidth() {
+        return window().getGuiScaledWidth() / getScaleNormalizer();
+    }
+
+    public static double getFullBleedHeight() {
+        return window().getGuiScaledHeight() / getScaleNormalizer();
+    }
+
     public static double getWidth() {
         return REFERENCE_WIDTH / TARGET_GUI_SCALE;
     }

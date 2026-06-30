@@ -729,6 +729,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         }
 
         if (hasBg) {
+            StencilClipManager.beginClip(() -> Rect.draw(posX + 2.5, posY + 2.5, width - 4.5, height, -1));
             RenderContext.graphics().pose().pushMatrix();
 
             float lowFreqEnergy = calculateLowFrequencyEnergy();
@@ -748,17 +749,21 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             Image.draw(musicCoverBlurred, posX + width * .5 - bgSize * .5, posY + height * .5 - bgSize * .5, bgSize, bgSize, Image.Type.NoColor, this.musicBgAlpha * alpha);
 
             RenderContext.graphics().pose().popMatrix();
+            StencilClipManager.endClip();
         }
 
         Rect.draw(posX, posY, width, height, hexColor(0f, 0f, 0f, alpha * .42f));
 
-        double fadeH = height * 0.22;
-        RenderSystem.drawGradientRectTopToBottom(posX, posY, posX + width, posY + fadeH, hexColor(0f, 0f, 0f, alpha * .5f), hexColor(0f, 0f, 0f, 0f));
-        RenderSystem.drawGradientRectTopToBottom(posX, posY + height - fadeH, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .55f));
+//        double fadeH = height * 0.22;
+//        RenderSystem.drawGradientRectTopToBottom(posX, posY, posX + width, posY + fadeH, hexColor(0f, 0f, 0f, alpha * .5f), hexColor(0f, 0f, 0f, 0f));
+//        RenderSystem.drawGradientRectTopToBottom(posX, posY + height - fadeH, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .55f));
 
-        double sideW = width * 0.16;
-        RenderSystem.drawGradientRectLeftToRight(posX, posY, posX + sideW, posY + height, hexColor(0f, 0f, 0f, alpha * .35f), hexColor(0f, 0f, 0f, 0f));
-        RenderSystem.drawGradientRectLeftToRight(posX + width - sideW, posY, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .35f));
+//        double sideW = width * 0.16;
+//        RenderSystem.drawGradientRectLeftToRight(posX, posY, posX + sideW, posY + height, hexColor(0f, 0f, 0f, alpha * .35f), hexColor(0f, 0f, 0f, 0f));
+//        RenderSystem.drawGradientRectLeftToRight(posX + width - sideW, posY, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .35f));
+
+//        Rect.draw(posX, posY, width, height, -1);
+
     }
 
     private float calculateLowFrequencyEnergy() {

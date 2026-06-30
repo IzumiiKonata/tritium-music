@@ -131,11 +131,13 @@ public class NCMScreen extends BaseScreen {
 
         int dWheel = consumeWheel();
 
-        double screenW = RenderSystem.getWidth(), screenH = RenderSystem.getHeight();
-        Rect.draw(0, 0, screenW, screenH, hexColor(0f, 0f, 0f, alpha * 0.55f));
+        double bleedX = RenderSystem.getFullBleedX(), bleedY = RenderSystem.getFullBleedY();
+        double bleedW = RenderSystem.getFullBleedWidth(), bleedH = RenderSystem.getFullBleedHeight();
+        double screenH = RenderSystem.getHeight();
+        Rect.draw(bleedX, bleedY, bleedW, bleedH, hexColor(0f, 0f, 0f, alpha * 0.55f));
         double vignetteH = screenH * 0.35;
-        RenderSystem.drawGradientRectTopToBottom(0, 0, screenW, vignetteH, hexColor(0f, 0f, 0f, alpha * 0.28f), hexColor(0f, 0f, 0f, 0f));
-        RenderSystem.drawGradientRectTopToBottom(0, screenH - vignetteH, screenW, screenH, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * 0.32f));
+        RenderSystem.drawGradientRectTopToBottom(bleedX, bleedY, bleedX + bleedW, vignetteH, hexColor(0f, 0f, 0f, alpha * 0.28f), hexColor(0f, 0f, 0f, 0f));
+        RenderSystem.drawGradientRectTopToBottom(bleedX, screenH - vignetteH, bleedX + bleedW, bleedY + bleedH, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * 0.32f));
 
         RenderContext.graphics().pose().pushMatrix();
         this.scaleAtPos(RenderSystem.getWidth() * .5, RenderSystem.getHeight() * .5, 0.9 + (alpha * 0.1));

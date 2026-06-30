@@ -1,6 +1,7 @@
 package tritium.music.client.rendering;
 
 import net.minecraft.client.gui.navigation.ScreenRectangle;
+import org.joml.Matrix3x2fc;
 import tritium.music.client.render.RenderContext;
 
 import java.util.ArrayDeque;
@@ -35,11 +36,16 @@ public class StencilClipManager {
     }
 
     public static void beginClip(double x, double y, double width, double height) {
-        double slack = 1.0 / RenderSystem.getScaleNormalizer();
-        int x0 = (int) Math.floor(x - slack);
-        int y0 = (int) Math.floor(y - slack);
-        int x1 = (int) Math.ceil(x + width + slack);
-        int y1 = (int) Math.ceil(y + height + slack);
+        Matrix3x2fc pose = RenderContext.graphics().pose();
+        double scaleX = Math.sqrt((double) pose.m00() * pose.m00() + (double) pose.m01() * pose.m01());
+        double scaleY = Math.sqrt((double) pose.m10() * pose.m10() + (double) pose.m11() * pose.m11());
+        double slackX = 1.0 / Math.max(scaleX, 1e-6);
+        double slackY = 1.0 / Math.max(scaleY, 1e-6);
+
+        int x0 = (int) Math.floor(x - slackX);
+        int y0 = (int) Math.floor(y - slackY);
+        int x1 = (int) Math.ceil(x + width + slackX);
+        int y1 = (int) Math.ceil(y + height + slackY);
 
         stack.push(new ScreenRectangle(x0, y0, x1 - x0, y1 - y0));
         RenderContext.graphics().enableScissor(x0, y0, x1, y1);
@@ -59,8 +65,8 @@ public class StencilClipManager {
     public static void endClip() {
         if (!stack.isEmpty()) {
             stack.pop();
+            RenderContext.graphics().disableScissor();
         }
-        RenderContext.graphics().disableScissor();
     }
 
     public static void disable() {
