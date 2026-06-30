@@ -35,10 +35,11 @@ public class StencilClipManager {
     }
 
     public static void beginClip(double x, double y, double width, double height) {
-        int x0 = (int) Math.floor(x);
-        int y0 = (int) Math.floor(y);
-        int x1 = (int) Math.ceil(x + width);
-        int y1 = (int) Math.ceil(y + height);
+        double slack = 1.0 / RenderSystem.getScaleNormalizer();
+        int x0 = (int) Math.floor(x - slack);
+        int y0 = (int) Math.floor(y - slack);
+        int x1 = (int) Math.ceil(x + width + slack);
+        int y1 = (int) Math.ceil(y + height + slack);
 
         stack.push(new ScreenRectangle(x0, y0, x1 - x0, y1 - y0));
         RenderContext.graphics().enableScissor(x0, y0, x1, y1);
