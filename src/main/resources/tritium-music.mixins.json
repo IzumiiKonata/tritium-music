@@ -4,6 +4,7 @@
   "package": "tritium.music.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "GuiRendererMixin",
     "NowPlayingToastMixin",
     "ToastManagerMixin"
   ],

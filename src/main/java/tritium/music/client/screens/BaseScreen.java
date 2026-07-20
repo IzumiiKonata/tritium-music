@@ -12,6 +12,7 @@ import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.SharedRenderingConstants;
 import tritium.music.client.rendering.animation.Interpolations;
+import tritium.music.client.rendering.shader.EffectQueue;
 import tritium.music.client.util.CursorUtils;
 
 public class BaseScreen extends Screen implements SharedRenderingConstants {
@@ -75,6 +76,7 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        EffectQueue.beginFrame();
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
         CursorUtils.resetOverride();

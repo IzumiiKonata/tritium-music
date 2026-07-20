@@ -1,11 +1,8 @@
 #version 330
 
-uniform sampler2D Sampler0;
-
-in vec2 texCoord;
 in vec2 localCoord;
 in vec2 localPosition;
-in float alpha;
+in vec4 vertexColor;
 in float radius;
 
 out vec4 fragColor;
@@ -22,13 +19,10 @@ vec2 logicalSize() {
 }
 
 void main() {
-    vec4 textureColor = texture(Sampler0, texCoord);
-    if (textureColor.a == 0.0) {
-        discard;
-    }
     vec2 size = logicalSize();
     vec2 center = localCoord * size - size * 0.5;
     float distance = length(max(abs(center) - (size * 0.5 - radius - 1.0), 0.0)) - radius;
     float coverage = 1.0 - smoothstep(0.0, 1.0, distance);
-    fragColor = vec4(textureColor.rgb, alpha * coverage);
+    float noise = mix(0.5 / 255.0, -0.5 / 255.0, fract(sin(dot(localCoord, vec2(12.9898, 78.233))) * 43758.5453));
+    fragColor = vec4(vertexColor.rgb + vec3(noise), coverage);
 }

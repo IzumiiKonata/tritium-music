@@ -4,3 +4,4 @@ accessible      field   net/minecraft/client/gui/GuiGraphicsExtractor   guiRende
 accessible      field   net/minecraft/client/gui/GuiGraphicsExtractor   scissorStack     Lnet/minecraft/client/gui/GuiGraphicsExtractor$ScissorStack;
 accessible      class   net/minecraft/client/gui/GuiGraphicsExtractor$ScissorStack
 accessible      method  net/minecraft/client/gui/GuiGraphicsExtractor$ScissorStack   peek   ()Lnet/minecraft/client/gui/navigation/ScreenRectangle;
+accessible      method  net/minecraft/client/renderer/RenderPipelines   register   (Lcom/mojang/blaze3d/pipeline/RenderPipeline;)Lcom/mojang/blaze3d/pipeline/RenderPipeline;

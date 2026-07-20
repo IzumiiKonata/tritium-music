@@ -16,6 +16,10 @@ import org.slf4j.LoggerFactory;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.shader.EffectPipelines;
+import tritium.music.client.render.RoundedPipeline;
+import tritium.music.client.render.VerticalFadePipeline;
+import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -48,6 +52,10 @@ public class TritiumMusicMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        EffectPipelines.initialize();
+        RoundedPipeline.initialize();
+        VerticalFadePipeline.initialize();
+        StencilCompositePipeline.initialize();
         Platform.set(new FabricMusicPlatform());
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {

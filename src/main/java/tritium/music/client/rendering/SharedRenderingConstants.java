@@ -35,9 +35,8 @@ public interface SharedRenderingConstants {
     }
 
     default void roundedOutline(double x, double y, double width, double height, double radius, double thickness, Color outline) {
-        int color = outline.getRGB();
-        roundedRect(x, y, width, height, radius, color);
-        roundedRect(x + thickness, y + thickness, width - thickness * 2, height - thickness * 2, Math.max(0, radius - thickness), 0);
+        Render.roundedOutline(RenderContext.graphics(), (float) x, (float) y, (float) width, (float) height,
+                (float) radius, (float) thickness, outline.getRGB());
     }
 
     default void roundedOutline(double x, double y, double width, double height, double radius, double thickness, double expand, Color outline) {
@@ -45,7 +44,8 @@ public interface SharedRenderingConstants {
     }
 
     default void roundedOutlineGradient(double x, double y, double width, double height, double radius, double thickness, Color bottomLeft, Color topLeft, Color bottomRight, Color topRight) {
-        roundedOutline(x, y, width, height, radius, thickness, topLeft);
+        Render.roundedOutlineGradient(RenderContext.graphics(), (float) x, (float) y, (float) width, (float) height,
+                (float) radius, (float) thickness, bottomLeft.getRGB(), topLeft.getRGB(), bottomRight.getRGB(), topRight.getRGB());
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double radius) {
@@ -74,23 +74,35 @@ public interface SharedRenderingConstants {
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double texX, double texY, double u, double v, double radius, double expand, float alpha) {
-        roundedRectTextured(x - expand, y - expand, width + expand * 2, height + expand * 2, texX, texY, u, v, radius, alpha);
+        Identifier texture = RenderSystem.boundTexture();
+        if (texture == null) {
+            return;
+        }
+        Render.roundedTextureSpecial(RenderContext.graphics(), texture, (float) (x - expand), (float) (y - expand),
+                (float) (width + expand * 2), (float) (height + expand * 2), (float) radius, alpha,
+                (float) texX, (float) texY, (float) u, (float) v);
     }
 
     default void roundedRectGradientHorizontal(double x, double y, double width, double height, double radius, Color left, Color right) {
-        roundedRect(x, y, width, height, radius, left);
+        Render.roundedGradient(RenderContext.graphics(), (float) x, (float) y, (float) width, (float) height,
+                (float) radius, left.getRGB(), left.getRGB(), right.getRGB(), right.getRGB());
     }
 
     default void roundedRectGradientVertical(double x, double y, double width, double height, double radius, Color top, Color bottom) {
-        roundedRect(x, y, width, height, radius, top);
+        Render.roundedGradient(RenderContext.graphics(), (float) x, (float) y, (float) width, (float) height,
+                (float) radius, bottom.getRGB(), top.getRGB(), bottom.getRGB(), top.getRGB());
     }
 
     default void drawGradientCornerLR(double x, double y, double width, double height, double radius, Color topLeft, Color bottomRight) {
-        roundedRect(x, y, width, height, radius, evenAdd(topLeft, bottomRight));
+        Color mixed = evenAdd(topLeft, bottomRight);
+        Render.roundedGradient(RenderContext.graphics(), (float) x, (float) y, (float) width, (float) height,
+                (float) radius, mixed.getRGB(), topLeft.getRGB(), bottomRight.getRGB(), mixed.getRGB());
     }
 
     default void drawGradientCornerRL(double x, double y, double width, double height, double radius, Color bottomLeft, Color topRight) {
-        roundedRect(x, y, width, height, radius, evenAdd(bottomLeft, topRight));
+        Color mixed = evenAdd(bottomLeft, topRight);
+        Render.roundedGradient(RenderContext.graphics(), (float) x, (float) y, (float) width, (float) height,
+                (float) radius, bottomLeft.getRGB(), mixed.getRGB(), mixed.getRGB(), topRight.getRGB());
     }
 
     default Color evenAdd(Color a, Color b) {

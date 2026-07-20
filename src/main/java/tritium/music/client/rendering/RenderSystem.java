@@ -18,8 +18,7 @@ public class RenderSystem {
     public static final float DIVIDE_BY_255 = 0.003921568627451F;
     public static final Minecraft mc = Minecraft.getInstance();
     private static final double TARGET_GUI_SCALE = 2.0;
-    private static final double REFERENCE_WIDTH = 1920.0;
-    private static final double REFERENCE_HEIGHT = 1013.0;
+    private static final double MAX_REFERENCE_WIDTH = 1920.0;
 
     @Getter
     @Setter
@@ -70,11 +69,13 @@ public class RenderSystem {
     }
 
     public static double getWidth() {
-        return REFERENCE_WIDTH / TARGET_GUI_SCALE;
+        return Math.min(window().getWidth(), MAX_REFERENCE_WIDTH) / TARGET_GUI_SCALE;
     }
 
     public static double getHeight() {
-        return REFERENCE_HEIGHT / TARGET_GUI_SCALE;
+        double framebufferWidth = Math.max(1, window().getWidth());
+        double fixedWidth = Math.min(framebufferWidth, MAX_REFERENCE_WIDTH);
+        return window().getHeight() / (framebufferWidth / fixedWidth) / TARGET_GUI_SCALE;
     }
 
     public static double getFixedWidth() {
