@@ -15,8 +15,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class FabricMusicPlatform implements MusicPlatform {
 
@@ -26,13 +24,7 @@ public class FabricMusicPlatform implements MusicPlatform {
     private final Map<Identifier, NativeImage> imageCache = new ConcurrentHashMap<>();
 
     public FabricMusicPlatform() {
-        AtomicInteger counter = new AtomicInteger();
-        ThreadFactory factory = runnable -> {
-            Thread thread = new Thread(runnable, "tritium-music-worker-" + counter.incrementAndGet());
-            thread.setDaemon(true);
-            return thread;
-        };
-        this.executor = Executors.newThreadPerTaskExecutor(factory);
+        this.executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("tritium-music-worker-", 1).factory());
     }
 
     private Minecraft mc() {
@@ -131,7 +123,7 @@ public class FabricMusicPlatform implements MusicPlatform {
         int h = Math.min(src.getHeight(), dst.getHeight());
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                dst.setPixelABGR(x, y, src.getPixel(x, y));
+                dst.setPixel(x, y, src.getPixel(x, y));
             }
         }
     }

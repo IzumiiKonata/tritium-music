@@ -38,7 +38,6 @@ public final class LyricOffscreen {
 
     public static void renderBaseGlyphs(TRenderTarget rt, int w, int h,
                                         Glyph[] glyphTable, int baseColor,
-                                        NativeImage atlas, int atlasW, int atlasH,
                                         List<GlyphCmd> glyphs, int blitScale) {
         int colorA = (baseColor >> 24) & 0xFF;
         float colorAf = colorA / 255f;
@@ -47,10 +46,11 @@ public final class LyricOffscreen {
 
         for (GlyphCmd cmd : glyphs) {
             Glyph g = glyphTable[cmd.ch];
-            if (g == null || !g.uploaded) continue;
+            if (g == null || !g.uploaded || g.atlasImage == null) continue;
 
-            int srcX = Math.round(g.u0 * atlasW);
-            int srcY = Math.round(g.v0 * atlasH);
+            NativeImage atlas = g.atlasImage;
+            int srcX = Math.round(g.u0 * atlas.getWidth());
+            int srcY = Math.round(g.v0 * atlas.getHeight());
             int srcW = g.width;
             int srcH = g.height;
 

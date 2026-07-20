@@ -1,7 +1,8 @@
 package tritium.music.client.rendering;
 
-import net.minecraft.client.gui.navigation.ScreenRectangle;
 import org.joml.Matrix3x2fc;
+import org.joml.Vector2f;
+import org.jspecify.annotations.Nullable;
 import tritium.music.client.render.RenderContext;
 
 import java.util.ArrayDeque;
@@ -15,7 +16,7 @@ import java.util.Deque;
 public class StencilClipManager {
 
     private static final ThreadLocal<double[]> CAPTURE = new ThreadLocal<>();
-    private static final Deque<ScreenRectangle> stack = new ArrayDeque<>();
+    private static final Deque<ClipRect> stack = new ArrayDeque<>();
 
     public static boolean stencilClipping() {
         return !stack.isEmpty();
@@ -23,6 +24,10 @@ public class StencilClipManager {
 
     public static boolean capturing() {
         return CAPTURE.get() != null;
+    }
+
+    public static @Nullable ClipRect currentClip() {
+        return stack.peek();
     }
 
     public static void captureRect(double x, double y, double width, double height) {
@@ -47,7 +52,18 @@ public class StencilClipManager {
         int x1 = (int) Math.ceil(x + width + slackX);
         int y1 = (int) Math.ceil(y + height + slackY);
 
-        stack.push(new ScreenRectangle(x0, y0, x1 - x0, y1 - y0));
+        Vector2f p0 = pose.transformPosition((float) x, (float) y, new Vector2f());
+        Vector2f p1 = pose.transformPosition((float) (x + width), (float) y, new Vector2f());
+        Vector2f p2 = pose.transformPosition((float) (x + width), (float) (y + height), new Vector2f());
+        Vector2f p3 = pose.transformPosition((float) x, (float) (y + height), new Vector2f());
+        ClipRect clip = new ClipRect(
+                Math.min(Math.min(p0.x, p1.x), Math.min(p2.x, p3.x)),
+                Math.min(Math.min(p0.y, p1.y), Math.min(p2.y, p3.y)),
+                Math.max(Math.max(p0.x, p1.x), Math.max(p2.x, p3.x)),
+                Math.max(Math.max(p0.y, p1.y), Math.max(p2.y, p3.y))
+        );
+        ClipRect parent = stack.peek();
+        stack.push(parent == null ? clip : parent.intersection(clip));
         RenderContext.graphics().enableScissor(x0, y0, x1, y1);
     }
 
@@ -77,6 +93,17 @@ public class StencilClipManager {
         while (!stack.isEmpty()) {
             stack.pop();
             RenderContext.graphics().disableScissor();
+        }
+    }
+
+    public record ClipRect(float left, float top, float right, float bottom) {
+        private ClipRect intersection(ClipRect other) {
+            return new ClipRect(
+                    Math.max(left, other.left),
+                    Math.max(top, other.top),
+                    Math.min(right, other.right),
+                    Math.min(bottom, other.bottom)
+            );
         }
     }
 }

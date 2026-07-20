@@ -26,6 +26,7 @@ public class CFontRenderer implements Closeable {
     public float sizePx;
     private final TextureAtlas atlas;
     private FontKerning fontKerning;
+    private final Object glyphLock = new Object();
 
     public CFontRenderer(Font font, float sizePx) {
         this.sizePx = sizePx;
@@ -71,18 +72,28 @@ public class CFontRenderer implements Closeable {
     final Object fontHeightLock = new Object();
 
     private Glyph locateGlyph(char ch) {
-        Glyph gly = allGlyphs[ch];
-        if (gly != null && gly.uploaded) return gly;
-
-        if (gly == null) {
-            GlyphGenerator.generate(this, ch, this.font, atlas, fontHeight -> {
-                synchronized (fontHeightLock) {
-                    this.fontHeight = Math.max(this.fontHeight, fontHeight);
-                }
-            });
+        synchronized (glyphLock) {
+            Glyph glyph = allGlyphs[ch];
+            if (glyph != null && glyph.uploaded) {
+                return glyph;
+            }
+            if (glyph == null) {
+                GlyphGenerator.generate(this, ch, this.font, atlas, fontHeight -> {
+                    synchronized (fontHeightLock) {
+                        this.fontHeight = Math.max(this.fontHeight, fontHeight);
+                    }
+                });
+            }
+            return null;
         }
+    }
 
-        return null;
+    void discardGlyph(char ch, Glyph glyph) {
+        synchronized (glyphLock) {
+            if (allGlyphs[ch] == glyph && !glyph.uploaded) {
+                allGlyphs[ch] = null;
+            }
+        }
     }
 
     public void prewarm(String text) {
@@ -126,7 +137,7 @@ public class CFontRenderer implements Closeable {
         if (glyph != null && glyph.uploaded) {
             int leftColor = packColor(r, g, b, baseA * leftAlphaMul);
             int rightColor = packColor(r, g, b, baseA * rightAlphaMul);
-            Render.glyph(graphics, atlas.identifier(), 0, 0, glyph.width, glyph.height,
+            Render.glyph(graphics, glyph.atlasIdentifier, 0, 0, glyph.width, glyph.height,
                     glyph.u0, glyph.v0, glyph.u1, glyph.v1, leftColor, rightColor);
             pose.popMatrix();
             return glyph.width * 0.5f;
@@ -235,7 +246,7 @@ public class CFontRenderer implements Closeable {
             if (glyph != null && glyph.uploaded) {
                 float x0 = (float) xOffset;
                 float y0 = (float) yOffset;
-                Render.glyph(RenderContext.graphics(), atlas.identifier(),
+                Render.glyph(RenderContext.graphics(), glyph.atlasIdentifier,
                         x0, y0, glyph.width, glyph.height,
                         glyph.u0, glyph.v0, glyph.u1, glyph.v1, curColor);
 

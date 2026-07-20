@@ -5,6 +5,8 @@ in vec2 localPosition;
 in vec4 vertexColor;
 in float radius;
 in float borderSize;
+in vec2 guiPosition;
+flat in ivec4 clipRectFixed;
 
 out vec4 fragColor;
 
@@ -19,11 +21,22 @@ vec2 logicalSize() {
     );
 }
 
+float clipCoverage() {
+    vec4 clipRect = vec4(clipRectFixed) / 8.0;
+    vec2 inside = min(guiPosition - clipRect.xy, clipRect.zw - guiPosition);
+    float distance = min(inside.x, inside.y);
+    if (distance < 0.0) {
+        return 0.0;
+    }
+    float aa = max(fwidth(distance), 0.0001);
+    return smoothstep(0.0, aa, distance);
+}
+
 void main() {
     vec2 size = logicalSize();
     vec2 position = (abs(localCoord - 0.5) + 0.5) * size;
     float distance = length(max(position - size + radius + borderSize, 0.0)) - radius + 0.5;
     float coverage = smoothstep(0.0, 1.0, distance) - smoothstep(0.0, 1.0, distance - borderSize);
     float noise = mix(0.5 / 255.0, -0.5 / 255.0, fract(sin(dot(localCoord, vec2(12.9898, 78.233))) * 43758.5453));
-    fragColor = vec4(vertexColor.rgb + vec3(noise), vertexColor.a * coverage);
+    fragColor = vec4(vertexColor.rgb + vec3(noise), vertexColor.a * coverage * clipCoverage());
 }

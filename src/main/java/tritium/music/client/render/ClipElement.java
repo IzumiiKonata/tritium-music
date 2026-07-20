@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-public record RoundedElement(
+public record ClipElement(
         RenderPipeline pipeline,
         TextureSetup textureSetup,
         Matrix3x2fc pose,
@@ -26,21 +26,15 @@ public record RoundedElement(
             .addAttribute("Position", GpuFormat.RGB32_FLOAT)
             .addAttribute("UV0", GpuFormat.RG32_FLOAT)
             .addAttribute("Color", GpuFormat.RGBA8_UNORM)
-            .addAttribute("LineWidth", GpuFormat.R32_FLOAT)
             .addAttribute("UV1", GpuFormat.RG16_SINT)
             .addAttribute("UV2", GpuFormat.RG16_SINT)
             .build();
 
-    public RoundedElement(
-            RenderPipeline pipeline,
-            TextureSetup textureSetup,
-            Matrix3x2fc pose,
-            List<Vertex> vertices,
-            float width,
-            float height,
-            @Nullable ScreenRectangle scissorArea
-    ) {
-        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, scissorArea, computeBounds(width, height, pose, scissorArea));
+    public ClipElement(RenderPipeline pipeline, TextureSetup textureSetup, Matrix3x2fc pose, List<Vertex> vertices,
+                       float x0, float y0, float x1, float y1, @Nullable ScreenRectangle scissorArea) {
+        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, scissorArea,
+                new MeshElement(pipeline, textureSetup, pose, List.of(), false, false,
+                        x0, y0, x1, y1, scissorArea).bounds());
     }
 
     @Override
@@ -49,18 +43,16 @@ public record RoundedElement(
             consumer.addVertexWith2DPose(pose, vertex.x(), vertex.y())
                     .setUv(vertex.u(), vertex.v())
                     .setColor(vertex.color())
-                    .setLineWidth(vertex.radius())
-                    .setUv1(ClipElement.encode(vertex.clipLeft()), ClipElement.encode(vertex.clipTop()))
-                    .setUv2(ClipElement.encode(vertex.clipRight()), ClipElement.encode(vertex.clipBottom()));
+                    .setUv1(encode(vertex.clipLeft()), encode(vertex.clipTop()))
+                    .setUv2(encode(vertex.clipRight()), encode(vertex.clipBottom()));
         }
     }
 
-    private static ScreenRectangle computeBounds(float width, float height, Matrix3x2fc pose, @Nullable ScreenRectangle scissorArea) {
-        ScreenRectangle rectangle = new ScreenRectangle(0, 0, (int) Math.ceil(width), (int) Math.ceil(height)).transformMaxBounds(pose);
-        return scissorArea == null ? rectangle : scissorArea.intersection(rectangle);
+    static int encode(float coordinate) {
+        return Math.clamp(Math.round(coordinate * 8.0f), Short.MIN_VALUE, Short.MAX_VALUE);
     }
 
-    public record Vertex(float x, float y, float u, float v, int color, float radius,
+    public record Vertex(float x, float y, float u, float v, int color,
                          float clipLeft, float clipTop, float clipRight, float clipBottom) {
     }
 }

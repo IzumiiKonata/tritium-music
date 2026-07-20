@@ -39,6 +39,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     double fftScale = 0;
     float musicBgAlpha = 1.0f;
     static Music prevMusic = null;
+    TextureHandle previousBackground;
 
     public float alpha = 0f;
     boolean closing = false;
@@ -49,6 +50,10 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
     double coverSize = (CloudMusic.player == null || CloudMusic.player.isPausing()) ? this.getCoverSizeMin() : this.getCoverSizeMax();
     float coverAlpha = 1f;
+
+    double coverFloatX = 0.5, coverFloatY = 0.5;
+    double coverFloatTargetX = 0.5, coverFloatTargetY = 0.5;
+    Timer coverFloatTimer = new Timer();
 
     boolean progressBarDragging = false;
     double progressBarProgressOverride = 0;
@@ -363,9 +368,6 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             int prog = (int) (progress * charArray.length);
                             int glyphBlitScale = scale / 2;
 
-                            NativeImage atlasImg = FontManager.pf65bold.getAtlasImage();
-                            int atlasW = atlasImg.getWidth();
-                            int atlasH = atlasImg.getHeight();
                             int baseTextColor = hexColor(1f, 1f, 1f, lyric.alpha);
 
                             List<LyricOffscreen.GlyphCmd> baseGlyphs = new ArrayList<>();
@@ -386,7 +388,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
                             LyricOffscreen.renderBaseGlyphs(baseRt, allocW, fbHeight,
                                     FontManager.pf65bold.allGlyphs, baseTextColor,
-                                    atlasImg, atlasW, atlasH, baseGlyphs, glyphBlitScale);
+                                    baseGlyphs, glyphBlitScale);
 
                             double invScale = 1.0 / scale;
                             stencilShader.draw(baseRt, stencilRt, renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
@@ -530,13 +532,10 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         double coverSizePerc = coverSize / this.getCoverSizeMax();
         double coverRadius = 7;
 
-        RenderContext.graphics().pose().pushMatrix();
-        this.scaleAtPos(RenderSystem.getWidth() * .5, RenderSystem.getHeight() * .5, (.925 + (alpha * 0.075)));
         if (coverBloomShader == null)
             coverBloomShader = new BloomShader();
 
         coverBloomShader.run(Collections.singletonList(() -> this.roundedRect(center - coverSize * .5 + xOffset, center - coverSize * .575, coverSize, coverSize, coverRadius * coverSizePerc - 2, -.5, 0, 0, 0, alpha * .4f)));
-        RenderContext.graphics().pose().popMatrix();
 
         if (CloudMusic.currentlyPlaying != null) {
             TextureHandle musicCover = CloudMusic.currentlyPlaying.getCoverLocation();
@@ -738,12 +737,12 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
         if (CloudMusic.currentlyPlaying != null && CloudMusic.currentlyPlaying != prevMusic) {
             if (prevMusic != null) musicBgAlpha = 0.0f;
+            previousBackground = prevMusic == null ? null : prevMusic.getBlurredCoverLocation();
             prevMusic = CloudMusic.currentlyPlaying;
             coverAlpha = 0.0f;
         }
 
         if (hasBg) {
-            StencilClipManager.beginClip(() -> Rect.draw(posX + 2.5, posY + 2.5, width - 4.5, height, -1));
             RenderContext.graphics().pose().pushMatrix();
 
             float lowFreqEnergy = calculateLowFrequencyEnergy();
@@ -751,32 +750,61 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             if (!Double.isFinite(fftScale)) fftScale = 0;
             if (!Float.isFinite(lowFreqEnergy) || lowFreqEnergy <= 0.01f) lowFreqEnergy = 0;
 
-            float scaledEnergy = (float) Math.log1p(lowFreqEnergy * 10) * 0.025f;
+            float scaledEnergy = (float) Math.log1p(lowFreqEnergy * 10) * 0.05f;
             float damping = lowFreqEnergy > fftScale ? 0.3f : 0.6f;
-            fftScale = Interpolations.interpolate(fftScale, scaledEnergy, damping);
+            fftScale = Interpolations.interpolate(fftScale, scaledEnergy * 0.75f, damping);
 
             scaleAtPos(RenderSystem.getWidth() * .5, RenderSystem.getHeight() * .5, 1 + fftScale);
 
-            double bgSize = Math.max(width, height);
+            if (coverFloatTimer.isDelayed(4000)) {
+                coverFloatTargetX = Math.random();
+                coverFloatTargetY = Math.random();
+                coverFloatTimer.reset();
+            }
 
-            this.musicBgAlpha = Interpolations.interpolate(this.musicBgAlpha, 1.0f, 0.15f);
-            Image.draw(musicCoverBlurred, posX + width * .5 - bgSize * .5, posY + height * .5 - bgSize * .5, bgSize, bgSize, Image.Type.NoColor, this.musicBgAlpha * alpha);
+            if (CloudMusic.player != null && !CloudMusic.player.isPausing()) {
+                coverFloatX = Interpolations.interpolateLinear(coverFloatX, coverFloatTargetX, 0.0035f);
+                coverFloatY = Interpolations.interpolateLinear(coverFloatY, coverFloatTargetY, 0.0035f);
+            }
+
+            int tileSize = 1000;
+            int cropSize = 600;
+            int maxOffset = tileSize - cropSize;
+            double cropU = Mth.limit(coverFloatX * maxOffset, 0, maxOffset);
+            double cropV = Mth.limit(coverFloatY * maxOffset, 0, maxOffset);
+
+            double renderTileWidth;
+            double renderTileHeight;
+            if (width > height) {
+                renderTileWidth = tileSize;
+                renderTileHeight = tileSize * (width / height);
+            } else {
+                renderTileWidth = tileSize * (height / width);
+                renderTileHeight = tileSize;
+            }
+
+            boolean hasPreviousBackground = previousBackground != null && Platform.hasTexture(previousBackground);
+            if (hasPreviousBackground && musicBgAlpha < 0.99f) {
+                Image.drawRegion(previousBackground, posX, posY, width, height,
+                        cropU, cropV, cropSize, cropSize, renderTileWidth, renderTileHeight, alpha);
+            }
+
+            this.musicBgAlpha = Interpolations.interpolate(this.musicBgAlpha, 1.0f, hasPreviousBackground ? 0.05f : 0.15f);
+            Image.drawRegion(musicCoverBlurred, posX, posY, width, height,
+                    cropU, cropV, cropSize, cropSize, renderTileWidth, renderTileHeight, this.musicBgAlpha * alpha);
 
             RenderContext.graphics().pose().popMatrix();
-            StencilClipManager.endClip();
         }
 
         Rect.draw(posX, posY, width, height, hexColor(0f, 0f, 0f, alpha * .42f));
 
-//        double fadeH = height * 0.22;
-//        RenderSystem.drawGradientRectTopToBottom(posX, posY, posX + width, posY + fadeH, hexColor(0f, 0f, 0f, alpha * .5f), hexColor(0f, 0f, 0f, 0f));
-//        RenderSystem.drawGradientRectTopToBottom(posX, posY + height - fadeH, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .55f));
+        double fadeH = height * 0.22;
+        RenderSystem.drawGradientRectTopToBottom(posX, posY, posX + width, posY + fadeH, hexColor(0f, 0f, 0f, alpha * .5f), hexColor(0f, 0f, 0f, 0f));
+        RenderSystem.drawGradientRectTopToBottom(posX, posY + height - fadeH, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .55f));
 
-//        double sideW = width * 0.16;
-//        RenderSystem.drawGradientRectLeftToRight(posX, posY, posX + sideW, posY + height, hexColor(0f, 0f, 0f, alpha * .35f), hexColor(0f, 0f, 0f, 0f));
-//        RenderSystem.drawGradientRectLeftToRight(posX + width - sideW, posY, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .35f));
-
-//        Rect.draw(posX, posY, width, height, -1);
+        double sideW = width * 0.16;
+        RenderSystem.drawGradientRectLeftToRight(posX, posY, posX + sideW, posY + height, hexColor(0f, 0f, 0f, alpha * .35f), hexColor(0f, 0f, 0f, 0f));
+        RenderSystem.drawGradientRectLeftToRight(posX + width - sideW, posY, posX + width, posY + height, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * .35f));
 
     }
 

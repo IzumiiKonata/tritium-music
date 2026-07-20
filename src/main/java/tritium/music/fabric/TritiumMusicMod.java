@@ -18,6 +18,7 @@ import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.shader.EffectPipelines;
 import tritium.music.client.render.RoundedPipeline;
+import tritium.music.client.render.ClipPipeline;
 import tritium.music.client.render.VerticalFadePipeline;
 import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.hud.HudWidget;
@@ -53,6 +54,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         EffectPipelines.initialize();
+        ClipPipeline.initialize();
         RoundedPipeline.initialize();
         VerticalFadePipeline.initialize();
         StencilCompositePipeline.initialize();

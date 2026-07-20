@@ -17,7 +17,7 @@ public class TextField {
     }
 
     public float xPosition, yPosition, width, height;
-    public int enabledColor = 0xFFFFFFFF;
+    public int enabledColor = 0xFFE0E0E0;
 
     private CFontRenderer fontRenderer;
     private String text = "";
@@ -35,7 +35,10 @@ public class TextField {
 
     private float wholeAlpha = 1f;
     private TextChangedCallback textChangedCallback;
-    private int maxLength = 256;
+    private int maxLength = 512;
+
+    private float hoverAlpha;
+    private Color lineColor = new Color(160, 160, 160);
 
     private double animatedCursorX = -1;
     private final Timer cursorForceShowTimer = new Timer();
@@ -156,15 +159,15 @@ public class TextField {
         this.setFocused(inside && enabled);
 
         if (focused && inside && button == 0) {
-            int pos = charIndexAt(mouseX);
+            int pos = charIndexAt(mouseX, calculateTextScrollOffset());
             setCursorPosition(pos);
             dragging = true;
         }
         return inside;
     }
 
-    private int charIndexAt(double mouseX) {
-        double relativeX = mouseX - xPosition;
+    private int charIndexAt(double mouseX, double scrollOffset) {
+        double relativeX = mouseX - xPosition + scrollOffset;
         if (text.isEmpty() || relativeX <= 0) {
             return 0;
         }
@@ -318,54 +321,77 @@ public class TextField {
             dragging = false;
         }
         if (dragging) {
-            int pos = charIndexAt(mouseX);
-            cursorPosition = pos;
+            int pos = charIndexAt(mouseX, calculateTextScrollOffset());
             dragEndChar = pos;
             selectionEnd = pos;
             cursorForceShowTimer.reset();
         }
 
+        wholeAlpha = Math.max(0f, Math.min(1f, wholeAlpha));
+        double scrollOffset = calculateTextScrollOffset();
+        boolean hovered = RenderSystem.isHovered(mouseX, mouseY, xPosition, yPosition, width, height);
+        Color targetLineColor = hovered || focused ? new Color(255, 133, 155) : new Color(180, 180, 180);
+        lineColor = Interpolations.getColorAnimationState(lineColor, targetLineColor, 100f);
+        hoverAlpha = Interpolations.interpolateLinear(hoverAlpha, hovered || focused ? 0.4f : 0.3f, 0.1f) * wholeAlpha;
+
         int color = enabled ? enabledColor : disabledColor;
-        color = RGBA.color(RGBA.red(color), RGBA.green(color), RGBA.blue(color), (int) (wholeAlpha * 255));
+        color = RGBA.color(color, (int) (RGBA.alpha(color) * wholeAlpha));
 
         double textY = yPosition + (height - fontRenderer.getFontHeight()) * 0.5;
 
+        if (drawUnderline) {
+            Rect.draw(xPosition, yPosition + height, width, 0.5, RGBA.color(lineColor.getRGB(), wholeAlpha));
+        }
+
+        StencilClipManager.beginClip(xPosition - 1, yPosition - 4, width + 2, height + 8);
+
         if (text.isEmpty() && !focused) {
-            int phColor = RGBA.color(0x70, 0x70, 0x70, (int) (wholeAlpha * 255));
-            fontRenderer.drawString(placeholder, xPosition, textY, phColor);
+            fontRenderer.drawString(placeholder, xPosition, textY, RGBA.color(enabledColor, hoverAlpha));
         } else {
             if (hasSelection()) {
-                renderSelection(textY);
+                renderSelection(textY, scrollOffset);
             }
 
-            fontRenderer.drawString(text, xPosition, textY, color);
+            fontRenderer.drawString(text, xPosition - scrollOffset, textY, color);
 
             if (focused && !hasSelection()) {
-                renderCursor(textY);
+                renderCursor(textY, scrollOffset);
             }
         }
 
-        if (drawUnderline) {
-            Rect.draw(xPosition, yPosition + height, width, 1, RGBA.color(0xFF, 0xFF, 0xFF, (int) (wholeAlpha * 60)));
-        }
+        StencilClipManager.endClip();
     }
 
-    private void renderSelection(double textY) {
+    private double calculateTextScrollOffset() {
+        double totalWidth = fontRenderer.getStringWidthD(text);
+        if (totalWidth <= width) {
+            return 0;
+        }
+
+        int right = Math.max(cursorPosition, selectionEnd);
+        double rightWidth = fontRenderer.getStringWidthD(text.substring(0, right));
+        double offset = Math.max(0, rightWidth - width);
+        int left = Math.min(cursorPosition, selectionEnd);
+        double leftWidth = fontRenderer.getStringWidthD(text.substring(0, left));
+        return Math.min(offset, leftWidth);
+    }
+
+    private void renderSelection(double textY, double scrollOffset) {
         int low = Math.min(cursorPosition, selectionEnd);
         int high = Math.max(cursorPosition, selectionEnd);
         if (low >= high) {
             return;
         }
 
-        double startX = xPosition + fontRenderer.getStringWidthD(text.substring(0, low));
+        double startX = xPosition + fontRenderer.getStringWidthD(text.substring(0, low)) - scrollOffset;
         double endX = startX + fontRenderer.getStringWidthD(text.substring(low, high)) + 1;
 
         int sel = RGBA.color(new Color(196, 225, 245).getRGB(), (int) (wholeAlpha * 255));
         Rect.draw(startX, textY - 1, endX - startX, fontRenderer.getFontHeight() + 2, sel);
     }
 
-    private void renderCursor(double textY) {
-        double caretX = xPosition + fontRenderer.getStringWidthD(text.substring(0, cursorPosition));
+    private void renderCursor(double textY, double scrollOffset) {
+        double caretX = xPosition + fontRenderer.getStringWidthD(text.substring(0, cursorPosition)) - scrollOffset;
 
         if (animatedCursorX < 0) {
             animatedCursorX = caretX;

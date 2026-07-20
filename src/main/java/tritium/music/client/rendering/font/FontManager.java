@@ -21,17 +21,15 @@ public class FontManager {
 
     private static volatile boolean loaded = false;
 
-    private static CFontRenderer[] allFonts() {
+    private static CFontRenderer[] lyricFonts() {
         return new CFontRenderer[] {
-            pf12bold, pf14bold, pf16bold, pf18bold, pf20bold, pf25bold, pf28bold, pf34bold, pf40bold, pf50bold, pf65bold,
-            pf12, pf14, pf16, pf18, pf20, pf25, pf32,
-            icon30, music18, music40
+            pf18bold, pf28bold, pf34bold, pf65bold
         };
     }
 
     public static void prewarmGlyphs(String text) {
         if (text == null || text.isEmpty()) return;
-        for (CFontRenderer fr : allFonts()) {
+        for (CFontRenderer fr : lyricFonts()) {
             if (fr != null) fr.prewarm(text);
         }
     }

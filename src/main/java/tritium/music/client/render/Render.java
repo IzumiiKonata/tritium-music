@@ -15,6 +15,7 @@ import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
 import tritium.music.client.rendering.shader.EffectQueue;
+import tritium.music.client.rendering.StencilClipManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -232,11 +233,16 @@ public final class Render {
             return;
         }
         Matrix3x2f localPose = pose(g).translate(dimensions.x(), dimensions.y());
+        StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
+        float clipLeft = clip == null ? -4096.0f : clip.left();
+        float clipTop = clip == null ? -4096.0f : clip.top();
+        float clipRight = clip == null ? 4095.0f : clip.right();
+        float clipBottom = clip == null ? 4095.0f : clip.bottom();
         List<RoundedElement.Vertex> vertices = new ArrayList<>(4);
-        vertices.add(new RoundedElement.Vertex(0f, 0f, u0, v0, topLeft, radius));
-        vertices.add(new RoundedElement.Vertex(0f, dimensions.height(), u0, v1, bottomLeft, radius));
-        vertices.add(new RoundedElement.Vertex(dimensions.width(), dimensions.height(), u1, v1, bottomRight, radius));
-        vertices.add(new RoundedElement.Vertex(dimensions.width(), 0f, u1, v0, topRight, radius));
+        vertices.add(new RoundedElement.Vertex(0f, 0f, u0, v0, topLeft, radius, clipLeft, clipTop, clipRight, clipBottom));
+        vertices.add(new RoundedElement.Vertex(0f, dimensions.height(), u0, v1, bottomLeft, radius, clipLeft, clipTop, clipRight, clipBottom));
+        vertices.add(new RoundedElement.Vertex(dimensions.width(), dimensions.height(), u1, v1, bottomRight, radius, clipLeft, clipTop, clipRight, clipBottom));
+        vertices.add(new RoundedElement.Vertex(dimensions.width(), 0f, u1, v0, topRight, radius, clipLeft, clipTop, clipRight, clipBottom));
         state(g).addGuiElement(new RoundedElement(
                 pipeline, setup, localPose, vertices, dimensions.width(), dimensions.height(), scissor(g)
         ));
@@ -279,6 +285,21 @@ public final class Render {
     private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
                                List<MeshElement.Vertex> verts, boolean writeUv, boolean writeNormal,
                                float x0, float y0, float x1, float y1) {
+        StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
+        if (clip != null && (pipeline == RenderPipelines.GUI || pipeline == RenderPipelines.GUI_TEXTURED)) {
+            RenderPipeline clippedPipeline = pipeline == RenderPipelines.GUI ? ClipPipeline.SOLID : ClipPipeline.TEXTURED;
+            List<ClipElement.Vertex> clippedVertices = new ArrayList<>(verts.size());
+            for (MeshElement.Vertex vertex : verts) {
+                clippedVertices.add(new ClipElement.Vertex(
+                        vertex.x(), vertex.y(), vertex.u(), vertex.v(), vertex.color(),
+                        clip.left(), clip.top(), clip.right(), clip.bottom()
+                ));
+            }
+            state(g).addGuiElement(new ClipElement(
+                    clippedPipeline, setup, pose(g), clippedVertices, x0, y0, x1, y1, scissor(g)
+            ));
+            return;
+        }
         state(g).addGuiElement(new MeshElement(pipeline, setup, pose(g), verts, writeUv, writeNormal, x0, y0, x1, y1, scissor(g)));
     }
 
