@@ -165,6 +165,46 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         }
     }
 
+    private static void updateLyricPositions(double width, double playbackProgress) {
+        if (CloudMusic.currentLyric == null) return;
+
+        LyricLine currentLyric = CloudMusic.findCurrentLyric(playbackProgress);
+        int toIndex = CloudMusic.lyrics.indexOf(currentLyric);
+        if (toIndex == -1 || toIndex >= CloudMusic.lyrics.size()) return;
+
+        double offsetY = RenderSystem.getHeight() * lyricFraction() - getLyricLineSpacing();
+        float fraction = .4f;
+
+        synchronized (CloudMusic.lyrics) {
+            List<LyricLine> subList = CloudMusic.lyrics.subList(0, toIndex);
+            for (int i = subList.size() - 1; i >= 0; i--) {
+                LyricLine lyric = subList.get(i);
+
+                if (i >= subList.size() - 2) {
+                    LyricLayout.computeHeight(lyric, width);
+                    offsetY -= lyric.height;
+                }
+
+                SpringAnimation spring = LyricLayout.spring(lyric);
+                lyric.posY = Interpolations.interpolate(lyric.posY, offsetY, fraction);
+                spring.setPosition(Interpolations.interpolate(spring.getCurrentPosition(), offsetY, fraction));
+
+                LyricLayout.computeHeight(lyric, width);
+                offsetY -= lyric.height + getLyricLineSpacing();
+            }
+
+            offsetY = RenderSystem.getHeight() * lyricFraction();
+            for (LyricLine lyric : CloudMusic.lyrics.subList(toIndex, CloudMusic.lyrics.size())) {
+                SpringAnimation spring = LyricLayout.spring(lyric);
+                lyric.posY = Interpolations.interpolate(lyric.posY, offsetY, fraction);
+                spring.setPosition(Interpolations.interpolate(spring.getCurrentPosition(), offsetY, fraction));
+
+                LyricLayout.computeHeight(lyric, width);
+                offsetY += lyric.height + getLyricLineSpacing();
+            }
+        }
+    }
+
     private static long getLyricInterpolationWaitTimeMillis() {
         return 75;
     }
@@ -233,7 +273,11 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         double songProgress = playerNotReady ? 0 : (progressBarDragging ? overridePlaybackProgress : CloudMusic.player.getCurrentTimeMillis());
 
         double lyricsWidth = width * getLyricWidthFactor();
-        this.updateLyricPositions(posY, height, lyricsWidth);
+        if (progressBarDragging) {
+            updateLyricPositions(lyricsWidth, overridePlaybackProgress);
+        } else {
+            this.updateLyricPositions(posY, height, lyricsWidth);
+        }
 
         List<Runnable> blurRects = new ArrayList<>();
 
@@ -535,7 +579,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         if (coverBloomShader == null)
             coverBloomShader = new BloomShader();
 
-        coverBloomShader.run(Collections.singletonList(() -> this.roundedRect(center - coverSize * .5 + xOffset, center - coverSize * .575, coverSize, coverSize, coverRadius * coverSizePerc - 2, -.5, 0, 0, 0, alpha * .4f)));
+        coverBloomShader.run(Collections.singletonList(() -> this.roundedRect(center - coverSize * .5 + xOffset, center - coverSize * .575, coverSize, coverSize, coverRadius * coverSizePerc, -.5, 0, 0, 0, alpha * .4f)));
 
         if (CloudMusic.currentlyPlaying != null) {
             TextureHandle musicCover = CloudMusic.currentlyPlaying.getCoverLocation();
@@ -598,7 +642,6 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             } else {
                 double xDelta = Math.max(0, Math.min(progressBarWidth, (mouseX - elementsXOffset)));
                 this.progressBarProgressOverride = xDelta / progressBarWidth;
-                updateLyricPositions(posY, height, NCMScreen.getInstance().getPanelWidth() * getLyricWidthFactor());
             }
         }
 
@@ -743,8 +786,6 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         }
 
         if (hasBg) {
-            RenderContext.graphics().pose().pushMatrix();
-
             float lowFreqEnergy = calculateLowFrequencyEnergy();
 
             if (!Double.isFinite(fftScale)) fftScale = 0;
@@ -754,7 +795,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             float damping = lowFreqEnergy > fftScale ? 0.3f : 0.6f;
             fftScale = Interpolations.interpolate(fftScale, scaledEnergy * 0.75f, damping);
 
-            scaleAtPos(RenderSystem.getWidth() * .5, RenderSystem.getHeight() * .5, 1 + fftScale);
+            double backgroundScale = 1 + Math.max(0, fftScale);
 
             if (coverFloatTimer.isDelayed(4000)) {
                 coverFloatTargetX = Math.random();
@@ -772,6 +813,10 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             int maxOffset = tileSize - cropSize;
             double cropU = Mth.limit(coverFloatX * maxOffset, 0, maxOffset);
             double cropV = Mth.limit(coverFloatY * maxOffset, 0, maxOffset);
+            double scaledCropSize = cropSize / backgroundScale;
+            double cropInset = (cropSize - scaledCropSize) * .5;
+            cropU += cropInset;
+            cropV += cropInset;
 
             double renderTileWidth;
             double renderTileHeight;
@@ -786,14 +831,12 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             boolean hasPreviousBackground = previousBackground != null && Platform.hasTexture(previousBackground);
             if (hasPreviousBackground && musicBgAlpha < 0.99f) {
                 Image.drawRegion(previousBackground, posX, posY, width, height,
-                        cropU, cropV, cropSize, cropSize, renderTileWidth, renderTileHeight, alpha);
+                        cropU, cropV, scaledCropSize, scaledCropSize, renderTileWidth, renderTileHeight, alpha);
             }
 
             this.musicBgAlpha = Interpolations.interpolate(this.musicBgAlpha, 1.0f, hasPreviousBackground ? 0.05f : 0.15f);
             Image.drawRegion(musicCoverBlurred, posX, posY, width, height,
-                    cropU, cropV, cropSize, cropSize, renderTileWidth, renderTileHeight, this.musicBgAlpha * alpha);
-
-            RenderContext.graphics().pose().popMatrix();
+                    cropU, cropV, scaledCropSize, scaledCropSize, renderTileWidth, renderTileHeight, this.musicBgAlpha * alpha);
         }
 
         Rect.draw(posX, posY, width, height, hexColor(0f, 0f, 0f, alpha * .42f));

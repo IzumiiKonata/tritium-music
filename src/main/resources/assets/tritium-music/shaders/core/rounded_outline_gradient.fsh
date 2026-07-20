@@ -35,8 +35,11 @@ float clipCoverage() {
 void main() {
     vec2 size = logicalSize();
     vec2 position = (abs(localCoord - 0.5) + 0.5) * size;
-    float distance = length(max(position - size + radius + borderSize, 0.0)) - radius + 0.5;
-    float coverage = smoothstep(0.0, 1.0, distance) - smoothstep(0.0, 1.0, distance - borderSize);
+    float rawDistance = length(max(position - size + radius + borderSize, 0.0)) - radius;
+    float pixel = max(length(vec2(dFdx(rawDistance), dFdy(rawDistance))), 0.0001);
+    float distance = rawDistance + pixel;
+    float aa = pixel * 2.0;
+    float coverage = smoothstep(0.0, aa, distance) - smoothstep(0.0, aa, distance - borderSize);
     float noise = mix(0.5 / 255.0, -0.5 / 255.0, fract(sin(dot(localCoord, vec2(12.9898, 78.233))) * 43758.5453));
     fragColor = vec4(vertexColor.rgb + vec3(noise), vertexColor.a * coverage * clipCoverage());
 }

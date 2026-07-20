@@ -233,6 +233,14 @@ public final class Render {
             return;
         }
         Matrix3x2f localPose = pose(g).translate(dimensions.x(), dimensions.y());
+        float scaleX = (float) Math.sqrt(localPose.m00() * localPose.m00() + localPose.m01() * localPose.m01());
+        float scaleY = (float) Math.sqrt(localPose.m10() * localPose.m10() + localPose.m11() * localPose.m11());
+        float radiusScale = Math.min(scaleX, scaleY);
+        radius *= radiusScale;
+        if (pipeline == RoundedPipeline.OUTLINE || pipeline == RoundedPipeline.OUTLINE_GRADIENT) {
+            u0 *= radiusScale;
+            u1 *= radiusScale;
+        }
         StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
         float clipLeft = clip == null ? -4096.0f : clip.left();
         float clipTop = clip == null ? -4096.0f : clip.top();

@@ -54,33 +54,19 @@ public final class LyricOffscreen {
             int srcW = g.width;
             int srcH = g.height;
 
-            int dstX = Math.round(cmd.x);
-            int dstY = Math.round(cmd.y);
+            int left = Math.max(0, (int) Math.floor(cmd.x - 1));
+            int top = Math.max(0, (int) Math.floor(cmd.y - 1));
+            int right = Math.min(w, (int) Math.ceil(cmd.x + srcW * blitScale + 1));
+            int bottom = Math.min(h, (int) Math.ceil(cmd.y + srcH * blitScale + 1));
 
-            for (int py = 0; py < srcH; py++) {
-                int sy = srcY + py;
-                int dyBase = dstY + py * blitScale;
-                if (dyBase + blitScale - 1 < 0 || dyBase >= h) continue;
-
-                for (int px = 0; px < srcW; px++) {
-                    int sx = srcX + px;
-                    int dxBase = dstX + px * blitScale;
-                    if (dxBase + blitScale - 1 < 0 || dxBase >= w) continue;
-
-                    int argb = atlas.getPixel(sx, sy);
-                    int glyphA = (argb >> 24) & 0xFF;
-                    int outA = (int) (glyphA * colorAf);
-                    int outBgr = (argb & 0xFF00FF00) | ((argb & 0xFF) << 16) | ((argb >> 16) & 0xFF);
-                    int outPixel = (outA << 24) | outBgr;
-
-                    for (int by = 0; by < blitScale; by++) {
-                        int dy = dyBase + by;
-                        if (dy < 0 || dy >= h) continue;
-                        for (int bx = 0; bx < blitScale; bx++) {
-                            int dx = dxBase + bx;
-                            if (dx < 0 || dx >= w) continue;
-                            img.setPixelABGR(dx, dy, outPixel);
-                        }
+            for (int dy = top; dy < bottom; dy++) {
+                float sampleY = ((dy + .5f) - cmd.y) / blitScale - .5f;
+                for (int dx = left; dx < right; dx++) {
+                    float sampleX = ((dx + .5f) - cmd.x) / blitScale - .5f;
+                    float glyphA = sampleAlpha(atlas, srcX, srcY, srcW, srcH, sampleX, sampleY);
+                    int outA = Math.clamp(Math.round(glyphA * colorAf), 0, 255);
+                    if (outA != 0) {
+                        img.setPixelABGR(dx, dy, (outA << 24) | 0x00FFFFFF);
                     }
                 }
             }
@@ -91,6 +77,26 @@ public final class LyricOffscreen {
         encoder.writeToTexture(rt.colorTexture(), img);
         encoder.submit();
         img.close();
+    }
+
+    private static float sampleAlpha(NativeImage image, int originX, int originY, int width, int height,
+                                     float x, float y) {
+        int x0 = (int) Math.floor(x);
+        int y0 = (int) Math.floor(y);
+        int x1 = x0 + 1;
+        int y1 = y0 + 1;
+        float tx = x - x0;
+        float ty = y - y0;
+        float top = alpha(image, originX, originY, width, height, x0, y0) * (1 - tx)
+                + alpha(image, originX, originY, width, height, x1, y0) * tx;
+        float bottom = alpha(image, originX, originY, width, height, x0, y1) * (1 - tx)
+                + alpha(image, originX, originY, width, height, x1, y1) * tx;
+        return top * (1 - ty) + bottom * ty;
+    }
+
+    private static int alpha(NativeImage image, int originX, int originY, int width, int height, int x, int y) {
+        if (x < 0 || y < 0 || x >= width || y >= height) return 0;
+        return image.getPixel(originX + x, originY + y) >>> 24;
     }
 
     public static final class GlyphCmd {
