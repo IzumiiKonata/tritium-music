@@ -15,6 +15,7 @@ import java.awt.Font;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,7 @@ public class CFontRenderer implements Closeable {
     private final TextureAtlas atlas;
     private FontKerning fontKerning;
     private final Object glyphLock = new Object();
+    private long layoutGeneration;
 
     public CFontRenderer(Font font, float sizePx) {
         this.sizePx = sizePx;
@@ -351,6 +353,12 @@ public class CFontRenderer implements Closeable {
     }
 
     private final Map<String, Double> stringWidthMapD = new HashMap<>();
+    private final Map<WrapKey, List<WrappedLine>> wrappedLineCache = new LinkedHashMap<>(128, .75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<WrapKey, List<WrappedLine>> eldest) {
+            return size() > 512;
+        }
+    };
 
     public boolean areGlyphsLoaded(String text) {
         for (char c : text.toCharArray()) {
@@ -437,7 +445,9 @@ public class CFontRenderer implements Closeable {
         atlas.init();
         allGlyphs = new Glyph['￿' + 1];
         stringWidthMapD.clear();
+        wrappedLineCache.clear();
         fontHeight = -1;
+        layoutGeneration++;
     }
 
     float getCharWidth(char ch) {
@@ -453,7 +463,10 @@ public class CFontRenderer implements Closeable {
 
         if (glyph == null) {
             locateGlyph(ch);
-            return .0f;
+            glyph = allGlyphs[ch];
+            if (glyph == null) {
+                return .0f;
+            }
         }
 
         float width = glyph.width * .5f;
@@ -470,27 +483,103 @@ public class CFontRenderer implements Closeable {
     }
 
     public String[] fitWidth(String text, double width) {
-        List<String> lines = new ArrayList<>();
+        List<WrappedLine> wrappedLines = fitWidthLines(text, width);
+        String[] lines = new String[wrappedLines.size()];
+        for (int i = 0; i < wrappedLines.size(); i++) {
+            lines[i] = wrappedLines.get(i).text();
+        }
+        return lines;
+    }
+
+    public List<WrappedLine> fitWidthLines(String text, double width) {
+        if (text == null || text.isEmpty()) {
+            return List.of();
+        }
+
+        double effectiveWidth = adaptiveWidth(width);
+        WrapKey key = new WrapKey(text, Double.doubleToLongBits(effectiveWidth));
+        List<WrappedLine> cached = wrappedLineCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<WrappedLine> lines = new ArrayList<>();
 
         int i = 0;
         while (i < text.length()) {
             int previousI = i;
-            LineBreakResult result = findLineBreak(text, i, width);
+            LineBreakResult result = findLineBreak(text, i, effectiveWidth);
 
-            lines.add(text.substring(i, result.endIndex));
+            lines.add(new WrappedLine(text.substring(i, result.endIndex), i, result.endIndex));
 
-            i = result.nextStartIndex;
+            i = skipLineStartWhitespace(text, result.nextStartIndex);
 
             if (i == previousI) {
                 i++;
             }
         }
 
-        return lines.toArray(new String[0]);
+        List<WrappedLine> result = List.copyOf(lines);
+        if (isLayoutStable(text)) {
+            wrappedLineCache.put(key, result);
+        }
+        return result;
+    }
+
+    public record WrappedLine(String text, int startIndex, int endIndex) {
+    }
+
+    private record WrapKey(String text, long widthBits) {
+    }
+
+    private double adaptiveWidth(double width) {
+        if (Double.isNaN(width) || width <= 0) {
+            return 0;
+        }
+        if (Double.isInfinite(width)) {
+            return Double.MAX_VALUE;
+        }
+        return Math.floor(width * 16) / 16;
+    }
+
+    private int skipLineStartWhitespace(String text, int index) {
+        while (index < text.length()) {
+            char c = text.charAt(index);
+            if (c != ' ' && c != '\t') {
+                break;
+            }
+            index++;
+        }
+        return index;
+    }
+
+    public boolean isLayoutStable(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\247' && i + 1 < text.length()) {
+                i++;
+                continue;
+            }
+            if (c == '\n' || c == '\r' || c == '\t' || c == ' ') {
+                continue;
+            }
+            if (c == '（') c = '(';
+            if (c == '）') c = ')';
+            if (c == '・') c = '·';
+            Glyph glyph = allGlyphs[c];
+            if (glyph == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public long getLayoutGeneration() {
+        return layoutGeneration;
     }
 
     static final char[] breakableChars = new char['￿' + 1];
-    static String breakable = " .。,，!！?？;；、";
+    static String breakable = " \t.-‐‑‒–—…。,，!！?？:：;；、";
     static String wrapStarts = "(（「『{[【<";
     static String wrapEnds = ")）」』}]】>";
 
@@ -552,8 +641,9 @@ public class CFontRenderer implements Closeable {
                 continue;
             }
 
-            if (c == '\n') {
-                return new LineBreakResult(i, i + 1);
+            if (c == '\n' || c == '\r') {
+                int nextStartIndex = c == '\r' && i + 1 < text.length() && text.charAt(i + 1) == '\n' ? i + 2 : i + 1;
+                return new LineBreakResult(i, nextStartIndex);
             }
 
             int breakableCharValue = breakableChars[c];
@@ -571,11 +661,11 @@ public class CFontRenderer implements Closeable {
                 } else if (breakableCharValue >= lastBreakableIndexPriority) {
                     lastBreakableIndexPriority = breakableCharValue;
                     lastBreakableIndex = i;
-                    lastBreakableTrimThisChar = (c == ' ');
+                    lastBreakableTrimThisChar = c == ' ' || c == '\t';
                 }
             }
 
-            double charWidth = getCharWidth(c, nextChar);
+            double charWidth = c == '\t' ? getCharWidth(' ') * 4 : getCharWidth(c, nextChar);
 
             if (currentWidth + charWidth > maxWidth) {
                 if (breakableCharValue > 0 && breakableCharValue >= lastBreakableIndexPriority) {

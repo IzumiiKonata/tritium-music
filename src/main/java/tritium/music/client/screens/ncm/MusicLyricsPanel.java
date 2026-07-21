@@ -355,19 +355,22 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
             List<LyricLine.Word> words = lyric.words;
             if (!words.isEmpty()) {
-                for (LyricLine.Word word : words) {
-                    double wordWidth = FontManager.pf65bold.getStringWidthD(word.word);
+                int renderedLineIndex = 0;
+                for (LyricLayout.WordFragment fragment : LyricLayout.wrapWords(lyric, lyricsWidth)) {
+                    LyricLine.Word word = fragment.word();
+                    double wordWidth = FontManager.pf65bold.getStringWidthD(fragment.text());
 
-                    if (renderX + wordWidth >= lyricRenderOffsetX + lyricsWidth + lyric.reboundAnimation) {
+                    if (fragment.lineIndex() != renderedLineIndex) {
                         renderX = lyricRenderOffsetX + lyric.reboundAnimation;
-                        renderY += FontManager.pf65bold.getHeight() * .85 + 4;
+                        renderY += (fragment.lineIndex() - renderedLineIndex) * (FontManager.pf65bold.getHeight() * .85 + 4);
+                        renderedLineIndex = fragment.lineIndex();
                     }
 
                     if (!lyric.renderEmphasizes) Arrays.fill(word.emphasizes, 2);
 
-                    double emphasizeWholeWord = word.emphasizes[0];
+                    double emphasizeWholeWord = word.emphasizes[fragment.startInWord()];
 
-                    char[] charArray = word.word.toCharArray();
+                    char[] charArray = fragment.text().toCharArray();
 
                     double emphasizeTarget = 1;
                     double emphasizeSpeed = 0.05;
@@ -377,18 +380,22 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             double x = renderX;
                             for (int j = 0; j < charArray.length; j++) {
                                 char c = charArray[j];
-                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[j], hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
+                                int charIndex = fragment.startInWord() + j;
+                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[charIndex], hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
                                 x += FontManager.pf65bold.getCharWidth(c, j + 1 < charArray.length ? charArray[j + 1] : '\0');
                             }
                         } else {
-                            FontManager.pf65bold.drawString(word.word, renderX, renderY - word.emphasizes[0], hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
+                            FontManager.pf65bold.drawString(fragment.text(), renderX, renderY - emphasizeWholeWord, hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
                         }
                     } else {
-                        FontManager.pf65bold.drawString(word.word, renderX, renderY, hexColor(1, 1, 1, alpha * .35f));
+                        FontManager.pf65bold.drawString(fragment.text(), renderX, renderY, hexColor(1, 1, 1, alpha * .35f));
                     }
 
                     if (currentIndex - k <= 1) {
-                        double progress = Mth.limit((songProgress - word.timestamp) / (double) (word.duration), 0, 1);
+                        double wordProgress = Mth.limit((songProgress - word.timestamp) / (double) word.duration, 0, 1);
+                        double fragmentStartWidth = FontManager.pf65bold.getStringWidthD(word.word.substring(0, fragment.startInWord()));
+                        double sungWidth = FontManager.pf65bold.getStringWidthD(word.word) * wordProgress;
+                        double progress = wordWidth == 0 ? wordProgress : Mth.limit((sungWidth - fragmentStartWidth) / wordWidth, 0, 1);
                         double stringWidthD = wordWidth;
                         double gradientWidth = 16;
 
@@ -409,7 +416,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
                             LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
 
-                            int prog = (int) (progress * charArray.length);
+                            int prog = (int) (wordProgress * word.word.length());
                             int glyphBlitScale = scale / 2;
 
                             int baseTextColor = hexColor(1f, 1f, 1f, lyric.alpha);
@@ -419,12 +426,13 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             for (int j = 0; j < charArray.length; j++) {
                                 char c = charArray[j];
                                 char nextChar = j + 1 < charArray.length ? charArray[j + 1] : '\0';
+                                int charIndex = fragment.startInWord() + j;
 
-                                if (j <= prog && lyric.renderEmphasizes) {
-                                    word.emphasizes[j] = Interpolations.interpolate(word.emphasizes[j], emphasizeTarget, emphasizeSpeed);
+                                if (charIndex <= prog && lyric.renderEmphasizes) {
+                                    word.emphasizes[charIndex] = Interpolations.interpolate(word.emphasizes[charIndex], emphasizeTarget, emphasizeSpeed);
                                 }
 
-                                float yScaled = (float) (-word.emphasizes[j] * scale);
+                                float yScaled = (float) (-word.emphasizes[charIndex] * scale);
                                 baseGlyphs.add(new LyricOffscreen.GlyphCmd(c, xScaled, yScaled));
 
                                 xScaled += FontManager.pf65bold.getCharWidth(c, nextChar) * scale;
@@ -441,17 +449,18 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             double x = renderX;
                             for (int j = 0; j < charArray.length; j++) {
                                 char c = charArray[j];
+                                int charIndex = fragment.startInWord() + j;
 
                                 if (lyric.renderEmphasizes)
-                                    word.emphasizes[j] = Interpolations.interpolate(word.emphasizes[j], emphasizeTarget, emphasizeSpeed);
+                                    word.emphasizes[charIndex] = Interpolations.interpolate(word.emphasizes[charIndex], emphasizeTarget, emphasizeSpeed);
 
-                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[j],
+                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[charIndex],
                                         hexColor(1f, 1f, 1f, alpha * lyric.alpha));
                                 x += FontManager.pf65bold.getCharWidth(c, j + 1 < charArray.length ? charArray[j + 1] : '\0');
                             }
                         }
                     } else {
-                        FontManager.pf65bold.drawString(word.word, renderX, renderY - emphasizeWholeWord, hexColor(1, 1, 1, alpha * lyric.alpha));
+                        FontManager.pf65bold.drawString(fragment.text(), renderX, renderY - emphasizeWholeWord, hexColor(1, 1, 1, alpha * lyric.alpha));
                     }
 
                     renderX += wordWidth;
