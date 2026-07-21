@@ -3,6 +3,7 @@ package tritium.music.client.rendering.font;
 import com.mojang.blaze3d.platform.NativeImage;
 import lombok.SneakyThrows;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2fStack;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
@@ -205,6 +206,7 @@ public class CFontRenderer implements Closeable {
         double xOffset = 0;
         double yOffset = 0;
         boolean inSel = false;
+        List<GlyphBatch> batches = new ArrayList<>();
 
         int curColor = packColor(r, g, b, a);
 
@@ -246,9 +248,7 @@ public class CFontRenderer implements Closeable {
             if (glyph != null && glyph.uploaded) {
                 float x0 = (float) xOffset;
                 float y0 = (float) yOffset;
-                Render.glyph(RenderContext.graphics(), glyph.atlasIdentifier,
-                        x0, y0, glyph.width, glyph.height,
-                        glyph.u0, glyph.v0, glyph.u1, glyph.v1, curColor);
+                addGlyph(batches, glyph, x0, y0, curColor, curColor);
 
                 xOffset += glyph.width;
 
@@ -260,7 +260,36 @@ public class CFontRenderer implements Closeable {
             }
         }
 
+        drawBatches(batches);
         return allLoaded;
+    }
+
+    private static void addGlyph(List<GlyphBatch> batches, Glyph glyph, float x, float y,
+                                 int leftColor, int rightColor) {
+        GlyphBatch batch;
+        if (batches.isEmpty() || !batches.getLast().atlas.equals(glyph.atlasIdentifier)) {
+            batch = new GlyphBatch(glyph.atlasIdentifier);
+            batches.add(batch);
+        } else {
+            batch = batches.getLast();
+        }
+        batch.quads.add(new Render.GlyphQuad(x, y, glyph.width, glyph.height,
+                glyph.u0, glyph.v0, glyph.u1, glyph.v1, leftColor, rightColor));
+    }
+
+    private static void drawBatches(List<GlyphBatch> batches) {
+        for (GlyphBatch batch : batches) {
+            Render.glyphs(RenderContext.graphics(), batch.atlas, batch.quads);
+        }
+    }
+
+    private static final class GlyphBatch {
+        private final Identifier atlas;
+        private final List<Render.GlyphQuad> quads = new ArrayList<>();
+
+        private GlyphBatch(Identifier atlas) {
+            this.atlas = atlas;
+        }
     }
 
     private static int packColor(float r, float g, float b, float a) {
@@ -416,6 +445,10 @@ public class CFontRenderer implements Closeable {
     }
 
     public float getCharWidth(char ch, char nextChar) {
+        if (ch == '（') ch = '(';
+        if (ch == '）') ch = ')';
+        if (ch == '・') ch = '·';
+
         Glyph glyph = allGlyphs[ch];
 
         if (glyph == null) {

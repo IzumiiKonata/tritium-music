@@ -268,6 +268,19 @@ public class PlaylistPanel extends NCMPanel {
         }
     }
 
+    @Override
+    public void onMouseClickReceived(double mouseX, double mouseY, int mouseButton) {
+        if (this.tfSearch != null && this.tfSearch.isFocused()) {
+            var searchBar = this.tfSearch.getParent();
+            if (searchBar == null || !RenderSystem.isHovered(mouseX, mouseY,
+                    searchBar.getX(), searchBar.getY(), searchBar.getWidth(), searchBar.getHeight())) {
+                this.tfSearch.setFocused(false);
+            }
+        }
+
+        super.onMouseClickReceived(mouseX, mouseY, mouseButton);
+    }
+
     private String formatDuration(long totalMillis) {
         long totalSeconds = totalMillis / 1000;
 

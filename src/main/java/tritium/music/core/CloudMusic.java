@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import lombok.Cleanup;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.audio.AudioPlayer;
 import tritium.music.core.lyric.LyricLine;
 import tritium.music.core.lyric.LyricParser;
@@ -28,6 +29,7 @@ import tritium.music.core.util.Timer;
 import tritium.music.core.util.WrappedInputStream;
 import tritium.music.platform.Platform;
 
+import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -1066,7 +1068,33 @@ public class CloudMusic {
             if (code == 800) {
                 key = CloudMusic.qrKey();
 
+                NCMScreen.getInstance().loginRenderer.avatarLoaded = false;
+                NCMScreen.getInstance().loginRenderer.scannedUserName = "";
+
                 QRCodeGenerator.generateAndLoadTexture("https://music.163.com/login?codekey=" + key);
+            }
+
+            if (code == 802) {
+                if (json.has("nickname")) {
+                    NCMScreen.getInstance().loginRenderer.scannedUserName = json.get("nickname").getAsString();
+                }
+
+                if (json.has("avatarUrl")) {
+                    String url = json.get("avatarUrl").getAsString();
+
+                    if (!NCMScreen.getInstance().loginRenderer.avatarLoaded) {
+                        NCMScreen.getInstance().loginRenderer.avatarLoaded = true;
+                        AsyncUtil.runAsync(() -> {
+                            try (InputStream is = HttpUtils.get(url, null)) {
+                                BufferedImage img = ImageIO.read(is);
+
+                                Textures.loadTextureAsync(NCMScreen.getInstance().loginRenderer.scannedAvatar, img);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        });
+                    }
+                }
             }
 
             if (code == 803) {

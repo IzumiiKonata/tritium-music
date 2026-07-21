@@ -179,16 +179,37 @@ public final class Render {
 
     public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
                              float u0, float v0, float u1, float v1, int leftColor, int rightColor) {
+        glyphs(g, atlas, List.of(new GlyphQuad(x, y, w, h, u0, v0, u1, v1, leftColor, rightColor)));
+    }
+
+    public static void glyphs(GuiGraphicsExtractor g, Identifier atlas, List<GlyphQuad> quads) {
+        if (quads.isEmpty()) return;
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(atlas);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
 
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(x, y, u0, v0, leftColor));
-        verts.add(new MeshElement.Vertex(x, y + h, u0, v1, leftColor));
-        verts.add(new MeshElement.Vertex(x + w, y + h, u1, v1, rightColor));
-        verts.add(new MeshElement.Vertex(x + w, y, u1, v0, rightColor));
+        List<MeshElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        for (GlyphQuad quad : quads) {
+            float x1 = quad.x() + quad.width();
+            float y1 = quad.y() + quad.height();
+            verts.add(new MeshElement.Vertex(quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor()));
+            verts.add(new MeshElement.Vertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor()));
+            verts.add(new MeshElement.Vertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor()));
+            verts.add(new MeshElement.Vertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor()));
+            minX = Math.min(minX, quad.x());
+            minY = Math.min(minY, quad.y());
+            maxX = Math.max(maxX, x1);
+            maxY = Math.max(maxY, y1);
+        }
+        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, minX, minY, maxX, maxY);
+    }
 
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, x, y, x + w, y + h);
+    public record GlyphQuad(float x, float y, float width, float height,
+                            float u0, float v0, float u1, float v1,
+                            int leftColor, int rightColor) {
     }
 
     public static void roundedTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha) {

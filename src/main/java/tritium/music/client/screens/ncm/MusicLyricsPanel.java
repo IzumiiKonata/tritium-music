@@ -323,7 +323,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             }
 
             boolean isCurrentLyric = lyric == currentLyric;
-            lyric.alpha = Interpolations.interpolate(lyric.alpha, isCurrentLyric ? 1f : 0f, isCurrentLyric ? 0.1f : .05f);
+            lyric.alpha = Interpolations.interpolate(lyric.alpha, isCurrentLyric ? 1f : 0f, isCurrentLyric ? 0.15f : .1f);
             boolean isHovering = isHovered(mouseX, mouseY - scrollOffset, lyricRenderOffsetX, lyric.posY, lyricsWidth, lyric.height);
             lyric.hoveringAlpha = Interpolations.interpolate(lyric.hoveringAlpha, isHovering ? 1f : 0f, 0.2f);
             lyric.blurAlpha = Interpolations.interpolate(lyric.blurAlpha, !hoveringLyrics ? Math.min(1f, Math.abs(k - currentIndex) * .85f) : 0f, 0.05f);
@@ -377,11 +377,11 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             double x = renderX;
                             for (int j = 0; j < charArray.length; j++) {
                                 char c = charArray[j];
-                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[j], hexColor(1, 1, 1, alpha * .5f));
+                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[j], hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
                                 x += FontManager.pf65bold.getCharWidth(c, j + 1 < charArray.length ? charArray[j + 1] : '\0');
                             }
                         } else {
-                            FontManager.pf65bold.drawString(word.word, renderX, renderY - word.emphasizes[0], hexColor(1, 1, 1, alpha * .5f));
+                            FontManager.pf65bold.drawString(word.word, renderX, renderY - word.emphasizes[0], hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
                         }
                     } else {
                         FontManager.pf65bold.drawString(word.word, renderX, renderY, hexColor(1, 1, 1, alpha * .35f));
