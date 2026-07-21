@@ -3,8 +3,6 @@ package tritium.music.platform;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import java.util.Objects;
-
 @Getter
 @RequiredArgsConstructor
 public final class TextureHandle {
@@ -21,7 +19,27 @@ public final class TextureHandle {
     }
 
     private static String normalize(String path) {
-        return path.toLowerCase().replaceAll("[^a-z0-9/._-]", "_");
+        StringBuilder normalized = null;
+        for (int i = 0; i < path.length(); i++) {
+            char original = path.charAt(i);
+            char value = original >= 'A' && original <= 'Z' ? (char) (original + ('a' - 'A')) : original;
+            if (!isValidPathCharacter(value)) {
+                value = '_';
+            }
+            if (normalized != null) {
+                normalized.append(value);
+            } else if (value != original) {
+                normalized = new StringBuilder(path.length());
+                normalized.append(path, 0, i).append(value);
+            }
+        }
+        return normalized == null ? path : normalized.toString();
+    }
+
+    private static boolean isValidPathCharacter(char value) {
+        return value >= 'a' && value <= 'z'
+                || value >= '0' && value <= '9'
+                || value == '/' || value == '.' || value == '_' || value == '-';
     }
 
     @Override
@@ -33,7 +51,7 @@ public final class TextureHandle {
 
     @Override
     public int hashCode() {
-        return Objects.hash(namespace, path);
+        return 31 * namespace.hashCode() + path.hashCode();
     }
 
     @Override

@@ -54,17 +54,29 @@ public class Music {
     private final List<String> translatedName;
 
     private transient String artistsName, translatedNames;
+    private transient TextureHandle coverLocation;
+    private transient TextureHandle blurredCoverLocation;
+    private transient TextureHandle smallCoverLocation;
 
     public final TextureHandle getCoverLocation() {
-        return TextureHandle.of("textures/music/" + this.id + "/cover.png");
+        if (coverLocation == null) {
+            coverLocation = TextureHandle.of("textures/music/" + this.id + "/cover.png");
+        }
+        return coverLocation;
     }
 
     public final TextureHandle getBlurredCoverLocation() {
-        return TextureHandle.of("textures/music/" + this.id + "/cover_blurred.png");
+        if (blurredCoverLocation == null) {
+            blurredCoverLocation = TextureHandle.of("textures/music/" + this.id + "/cover_blurred.png");
+        }
+        return blurredCoverLocation;
     }
 
     public final TextureHandle getSmallCoverLocation() {
-        return TextureHandle.of("textures/music/" + this.id + "/cover_small.png");
+        if (smallCoverLocation == null) {
+            smallCoverLocation = TextureHandle.of("textures/music/" + this.id + "/cover_small.png");
+        }
+        return smallCoverLocation;
     }
 
     public String getArtistsName() {

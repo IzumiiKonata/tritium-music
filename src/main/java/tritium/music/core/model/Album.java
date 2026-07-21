@@ -22,9 +22,13 @@ public class Album {
     private final String picUrl;
     @SerializedName("tns")
     private final List<String> translatedName;
+    private transient TextureHandle coverLocation;
 
     public final TextureHandle getCoverLocation() {
-        return TextureHandle.of("textures/album/" + this.id + "/cover.png");
+        if (coverLocation == null) {
+            coverLocation = TextureHandle.of("textures/album/" + this.id + "/cover.png");
+        }
+        return coverLocation;
     }
 
     @Override

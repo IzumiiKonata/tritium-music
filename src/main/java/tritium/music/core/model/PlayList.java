@@ -49,9 +49,13 @@ public class PlayList {
     public transient List<Music> musics;
     private transient boolean searchMode = false;
     public transient boolean musicsQueried = false, musicsLoaded = false;
+    private transient TextureHandle coverLocation;
 
     public final TextureHandle getCoverLocation() {
-        return TextureHandle.of("textures/playlist/" + this.id + "/cover.png");
+        if (coverLocation == null) {
+            coverLocation = TextureHandle.of("textures/playlist/" + this.id + "/cover.png");
+        }
+        return coverLocation;
     }
 
     public List<Music> getMusics() {

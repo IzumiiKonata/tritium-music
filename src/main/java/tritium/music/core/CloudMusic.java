@@ -50,6 +50,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -856,6 +858,8 @@ public class CloudMusic {
         }
     }
 
+    private static final Set<tritium.music.platform.TextureHandle> LOADING_COVERS = ConcurrentHashMap.newKeySet();
+
     private static boolean shouldLoadCover(tritium.music.platform.TextureHandle coverLocation, boolean forceReload) {
         return !Platform.hasTexture(coverLocation) || forceReload;
     }
@@ -865,6 +869,9 @@ public class CloudMusic {
             try {
                 @Cleanup
                 InputStream coverStream = HttpUtils.downloadStream(music.getCoverUrl(320), 5);
+                if (coverStream == null) {
+                    return;
+                }
                 byte[] imageData = coverStream.readAllBytes();
 
                 BufferedImage coverImage = Textures.decode(new ByteArrayInputStream(imageData));
@@ -874,6 +881,8 @@ public class CloudMusic {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+                LOADING_COVERS.remove(musicCover);
             }
         });
     }
@@ -894,9 +903,17 @@ public class CloudMusic {
 
     private static void loadSmallCoverAsync(Music music, tritium.music.platform.TextureHandle musicCoverSmall) {
         AsyncUtil.runAsync(() -> {
-            InputStream smallCoverStream = HttpUtils.downloadStream(music.getCoverUrl(128), 5);
-            BufferedImage smallCoverImage = Textures.decode(smallCoverStream);
-            Textures.loadTexture(musicCoverSmall, smallCoverImage);
+            try (InputStream smallCoverStream = HttpUtils.downloadStream(music.getCoverUrl(128), 5)) {
+                if (smallCoverStream == null) {
+                    return;
+                }
+                BufferedImage smallCoverImage = Textures.decode(smallCoverStream);
+                Textures.loadTexture(musicCoverSmall, smallCoverImage);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                LOADING_COVERS.remove(musicCoverSmall);
+            }
         });
     }
 
@@ -917,6 +934,7 @@ public class CloudMusic {
         Graphics2D graphics = (Graphics2D) output.getGraphics();
         graphics.setRenderingHints(map);
         graphics.drawImage(filtered, -blur, -blur, filtered.getWidth() + blur * 2, filtered.getHeight() + blur * 2, null);
+        graphics.dispose();
 
         return output;
     }
