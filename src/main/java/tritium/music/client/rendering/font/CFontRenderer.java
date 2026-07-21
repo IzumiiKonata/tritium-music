@@ -138,10 +138,12 @@ public class CFontRenderer implements Closeable {
 
         Glyph glyph = locateGlyph(c);
         if (glyph != null && glyph.uploaded) {
-            int leftColor = packColor(r, g, b, baseA * leftAlphaMul);
-            int rightColor = packColor(r, g, b, baseA * rightAlphaMul);
-            Render.glyph(graphics, glyph.atlasIdentifier, 0, 0, glyph.width, glyph.height,
-                    glyph.u0, glyph.v0, glyph.u1, glyph.v1, leftColor, rightColor);
+            if (glyph.atlasIdentifier != null) {
+                int leftColor = packColor(r, g, b, baseA * leftAlphaMul);
+                int rightColor = packColor(r, g, b, baseA * rightAlphaMul);
+                Render.glyph(graphics, glyph.atlasIdentifier, 0, 0, glyph.width, glyph.height,
+                        glyph.u0, glyph.v0, glyph.u1, glyph.v1, leftColor, rightColor);
+            }
             pose.popMatrix();
             return glyph.width * 0.5f;
         }
@@ -247,18 +249,26 @@ public class CFontRenderer implements Closeable {
             if (c == '・') c = '·';
 
             Glyph glyph = locateGlyph(c);
-            if (glyph != null && glyph.uploaded) {
-                float x0 = (float) xOffset;
-                float y0 = (float) yOffset;
-                addGlyph(batches, glyph, x0, y0, curColor, curColor);
+            if (glyph == null) {
+                glyph = allGlyphs[c];
+            }
+            if (glyph == null) {
+                allLoaded = false;
+                continue;
+            }
 
-                xOffset += glyph.width;
-
-                if (fontKerning != null && nextChar != '\0' && nextChar != '§' && nextChar != '\n') {
-                    xOffset += fontKerning.getKerning(c, nextChar, sizePx) * 2;
+            if (glyph.uploaded) {
+                if (glyph.atlasIdentifier != null) {
+                    addGlyph(batches, glyph, (float) xOffset, (float) yOffset, curColor, curColor);
                 }
             } else {
                 allLoaded = false;
+            }
+
+            xOffset += glyph.width;
+
+            if (fontKerning != null && nextChar != '\0' && nextChar != '§' && nextChar != '\n') {
+                xOffset += fontKerning.getKerning(c, nextChar, sizePx) * 2;
             }
         }
 
@@ -268,9 +278,13 @@ public class CFontRenderer implements Closeable {
 
     private static void addGlyph(List<GlyphBatch> batches, Glyph glyph, float x, float y,
                                  int leftColor, int rightColor) {
+        Identifier atlas = glyph.atlasIdentifier;
+        if (atlas == null) {
+            return;
+        }
         GlyphBatch batch;
-        if (batches.isEmpty() || !batches.getLast().atlas.equals(glyph.atlasIdentifier)) {
-            batch = new GlyphBatch(glyph.atlasIdentifier);
+        if (batches.isEmpty() || !atlas.equals(batches.getLast().atlas)) {
+            batch = new GlyphBatch(atlas);
             batches.add(batch);
         } else {
             batch = batches.getLast();
