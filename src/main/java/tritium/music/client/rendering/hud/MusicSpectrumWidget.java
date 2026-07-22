@@ -155,7 +155,7 @@ public class MusicSpectrumWidget extends HudWidget {
             indicatorTimeStamp = new long[n];
         }
 
-        boolean playing = CloudMusic.player.player.isPlaying();
+        boolean playing = CloudMusic.player.isPlaying();
         float smooth = (float) cfg().smoothing;
         float attackFraction = 1.0f + (1.0f - smooth) * 1.4f;
         float decayFraction = 0.07f + (1.0f - smooth) * 1.6f;

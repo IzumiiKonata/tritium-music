@@ -1,20 +1,19 @@
 package tritium.music.core.audio;
 
 import lombok.Getter;
-import lombok.SneakyThrows;
 import tritium.music.core.MusicState;
 import tritium.music.repackage.processing.sound.Engine;
 import tritium.music.repackage.processing.sound.FFT;
 import tritium.music.repackage.processing.sound.JSynFFT;
-import tritium.music.repackage.processing.sound.SoundFile;
-import tritium.music.repackage.processing.sound.Waveform;
 
+import javax.sound.sampled.AudioFormat;
 import java.io.File;
+import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class AudioPlayer {
 
-    public SoundFile player;
+    private StreamingSoundPlayer player;
     public Runnable afterPlayed;
 
     /**
@@ -55,12 +54,11 @@ public class AudioPlayer {
 
     private static int skipCount = 0;
 
-    @Getter
-    private final FFT fft = new FFT(BAR_COUNT, this::onFFT);
     private final SpectrumVisualizer visualizer = new SpectrumVisualizer(JSynFFT.FFT_SIZE, BAR_COUNT);
-
-    @Getter
-    private final Waveform waveform = new Waveform(windowTime * 0.001f);
+    private final float[] fftWindow = new float[JSynFFT.FFT_SIZE];
+    private int fftWindowOffset;
+    private int fftSamplesSinceAnalysis;
+    private int waveWriteIndex;
 
     public float[] wave, waveRight;
     public float[] waveVertexes, waveRightVertexes;
@@ -122,32 +120,38 @@ public class AudioPlayer {
     @Getter
     public float volume = 0.25f;
 
-    public AudioPlayer(File file) {
+    public AudioPlayer(File file, long durationMillis) {
         finished = false;
-
-        this.player = new SoundFile(file.getAbsolutePath());
+        this.player = new StreamingSoundPlayer(file, durationMillis, this::onPcm);
         this.setListeners();
     }
 
-    public void setAudio(File file) {
-        this.close();
+    public AudioPlayer(String url, String type, long durationMillis) {
+        finished = false;
+        this.player = new StreamingSoundPlayer(url, type, durationMillis, this::onPcm);
+        this.setListeners();
+    }
 
-        this.player = new SoundFile(file.getAbsolutePath());
+    public void setAudio(File file, long durationMillis) {
+        this.close();
+        this.player = new StreamingSoundPlayer(file, durationMillis, this::onPcm);
+        this.setListeners();
+        finished = false;
+    }
+
+    public void setAudio(String url, String type, long durationMillis) {
+        this.close();
+        this.player = new StreamingSoundPlayer(url, type, durationMillis, this::onPcm);
         this.setListeners();
         finished = false;
     }
 
     public void setListeners() {
-        fft.removeInput();
-
         int sampleRate = Engine.getEngine().getSampleRate();
         float windowSeconds = windowTime * 0.001f;
         int displaySamples = Math.max(2, (int) (sampleRate * windowSeconds));
         int triggerSearch = displaySamples;
         int captureSamples = displaySamples + triggerSearch;
-
-        waveform.removeInput();
-        waveform.resize((float) captureSamples / sampleRate);
 
         oscStateL = new OscilloscopeState(captureSamples, displaySamples);
         oscStateR = new OscilloscopeState(captureSamples, displaySamples);
@@ -165,10 +169,15 @@ public class AudioPlayer {
         lockR.unlock();
 
         configuredWindowTime = windowTime;
-
-        waveform.input(this.player);
-        fft.input(this.player);
+        fftWindowOffset = 0;
+        fftSamplesSinceAnalysis = 0;
+        waveWriteIndex = 0;
+        Arrays.fill(fftWindow, 0);
         player.setOnFinished(() -> finished = true);
+        player.setOnFailed(() -> {
+            failed = true;
+            finished = true;
+        });
     }
 
     public void doDetections() {
@@ -190,15 +199,24 @@ public class AudioPlayer {
             spectrumDataLFilled = spectrumDataRFilled = false;
         }
 
-        wave = waveform.analyze();
-        waveRight = waveform.analyzeRight();
+        float[] left;
+        float[] right;
+        lockL.lock();
+        lockR.lock();
+        try {
+            left = orderedWave(wave, waveWriteIndex);
+            right = orderedWave(waveRight, waveWriteIndex);
+        } finally {
+            lockR.unlock();
+            lockL.unlock();
+        }
 
         if (mode == WaveMode.Waveform) {
-            computeVertexes(wave, waveVertexes);
-            computeVertexes(waveRight, waveRightVertexes);
+            computeVertexes(left, waveVertexes);
+            computeVertexes(right, waveRightVertexes);
         } else {
-            computeOscilloscopeVertexes(wave, osc, waveVertexes, oscStateL);
-            computeOscilloscopeVertexes(waveRight, oscRight, waveRightVertexes, oscStateR);
+            computeOscilloscopeVertexes(left, osc, waveVertexes, oscStateL);
+            computeOscilloscopeVertexes(right, oscRight, waveRightVertexes, oscStateR);
         }
 
         spectrumDataLFilled = true;
@@ -354,27 +372,85 @@ public class AudioPlayer {
         bandValues = visualizer.processFFT(magnitudes);
     }
 
+    private void onPcm(byte[] data, int offset, int length, AudioFormat format) {
+        int channels = format.getChannels();
+        int frameSize = format.getFrameSize();
+        int bytesPerSample = frameSize / channels;
+        int frameCount = length / frameSize;
+        lockL.lock();
+        lockR.lock();
+        try {
+            for (int frame = 0; frame < frameCount; frame++) {
+                int base = offset + frame * frameSize;
+                float left = readSample(data, base, bytesPerSample, format.isBigEndian());
+                float right = channels > 1 ? readSample(data, base + bytesPerSample, bytesPerSample, format.isBigEndian()) : left;
+                wave[waveWriteIndex] = left;
+                waveRight[waveWriteIndex] = right;
+                waveWriteIndex = (waveWriteIndex + 1) % wave.length;
+                fftWindow[fftWindowOffset++] = (left + right) * 0.5f;
+                if (fftWindowOffset == fftWindow.length) {
+                    fftWindowOffset = 0;
+                }
+                fftSamplesSinceAnalysis++;
+            }
+            if (spectrumEnabled && fftSamplesSinceAnalysis >= BAR_COUNT) {
+                float[] ordered = new float[fftWindow.length];
+                int tail = fftWindow.length - fftWindowOffset;
+                System.arraycopy(fftWindow, fftWindowOffset, ordered, 0, tail);
+                System.arraycopy(fftWindow, 0, ordered, tail, fftWindowOffset);
+                onFFT(FFT.analyzeSample(ordered, fftWindow.length));
+                fftSamplesSinceAnalysis = 0;
+            }
+        } finally {
+            lockR.unlock();
+            lockL.unlock();
+        }
+    }
+
+    private static float readSample(byte[] data, int offset, int bytes, boolean bigEndian) {
+        int value = 0;
+        if (bigEndian) {
+            for (int i = 0; i < bytes; i++) {
+                value = (value << 8) | (data[offset + i] & 0xff);
+            }
+        } else {
+            for (int i = bytes - 1; i >= 0; i--) {
+                value = (value << 8) | (data[offset + i] & 0xff);
+            }
+        }
+        int shift = 32 - bytes * 8;
+        return (value << shift >> shift) / (float) (1L << (bytes * 8 - 1));
+    }
+
+    private static float[] orderedWave(float[] source, int offset) {
+        float[] ordered = new float[source.length];
+        int tail = source.length - offset;
+        System.arraycopy(source, offset, ordered, 0, tail);
+        System.arraycopy(source, 0, ordered, tail, offset);
+        return ordered;
+    }
+
     public void play() {
         finished = false;
+        failed = false;
         this.player.play();
-        this.player.amp(volume);
+        this.player.setVolume(volume);
     }
 
-    @SneakyThrows
     public void setPlaybackTime(float millis) {
-        this.player.jump(millis / 1000F);
-        this.player.amp(volume);
+        this.player.seek((long) millis);
+        this.player.setVolume(volume);
     }
 
-    @SneakyThrows
     public void close() {
-        this.player.jump(0);
-        player.stop();
-        player.cleanUp();
+        this.player.close();
     }
 
     @Getter
     private boolean finished;
+
+    @Getter
+    private boolean failed;
 
     public void setAfterPlayed(Runnable runnable) {
         this.afterPlayed = runnable;
@@ -382,10 +458,15 @@ public class AudioPlayer {
             finished = true;
             runnable.run();
         });
+        this.player.setOnFailed(() -> {
+            failed = true;
+            finished = true;
+            runnable.run();
+        });
     }
 
     public float getTotalTimeSeconds() {
-        return (int) this.player.duration();
+        return this.player.durationMillis() / 1000f;
     }
 
     public float getCurrentTimeSeconds() {
@@ -397,7 +478,7 @@ public class AudioPlayer {
     }
 
     public float getCurrentTimeMillis() {
-        return this.player.position() * 1000;
+        return this.player.positionMillis();
     }
 
     public boolean isPausing() {
@@ -407,7 +488,7 @@ public class AudioPlayer {
     public void setVolume(float volume) {
         this.volume = volume;
         MusicState.get().setVolume(volume);
-        this.player.amp(this.getVolume());
+        this.player.setVolume(this.getVolume());
     }
 
     public void pause() {
@@ -416,5 +497,9 @@ public class AudioPlayer {
 
     public void unpause() {
         this.play();
+    }
+
+    public boolean isPlaying() {
+        return this.player.isPlaying();
     }
 }

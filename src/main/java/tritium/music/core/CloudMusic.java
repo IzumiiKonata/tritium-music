@@ -25,8 +25,6 @@ import tritium.music.core.util.JsonUtils;
 import tritium.music.core.util.Pair;
 import tritium.music.core.util.StringUtil;
 import tritium.music.core.util.Textures;
-import tritium.music.core.util.Timer;
-import tritium.music.core.util.WrappedInputStream;
 import tritium.music.platform.Platform;
 
 import javax.imageio.ImageIO;
@@ -39,7 +37,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -622,6 +619,10 @@ public class CloudMusic {
                 preloadNextCover();
                 waitForPlaybackCompletion();
                 handlePlaybackCompletion();
+                if (player.isFailed()) {
+                    Platform.log("[NCM] Playback stopped after the audio stream could not recover.");
+                    break;
+                }
                 updateCurrentIndex();
             }
         }
@@ -655,17 +656,16 @@ public class CloudMusic {
 
         private boolean initializeAndPlaySong(Music song, Pair<String, String> playUrl) {
             MusicState.get().setDownloading(false);
-            File musicFile = getMusicFile(playUrl, song);
 
             try {
-                player = initializePlayer(musicFile);
+                player = initializePlayer(playUrl, song);
             } catch (Exception e) {
                 handlePlayerInitializationError(e);
                 return false;
             }
 
             notifySongStart(song);
-            startPlayback(song, playUrl, musicFile);
+            startPlayback();
             return true;
         }
 
@@ -717,14 +717,13 @@ public class CloudMusic {
             Platform.log("[NCM] Now playing: " + song.getName() + ", id " + song.getId());
         }
 
-        private void startPlayback(Music song, Pair<String, String> playUrl, File musicFile) {
-            player.play();
+        private void startPlayback() {
             playing.set(true);
-
             player.setAfterPlayed(() -> {
                 this.notifyWaitLock();
                 playing.set(false);
             });
+            player.play();
         }
 
         private void preloadNextCover() {
@@ -737,51 +736,18 @@ public class CloudMusic {
             updateCurIdx();
         }
 
-        private File getMusicFile(Pair<String, String> playUrl, Music song) {
-
-            String url = playUrl.getA();
+        private AudioPlayer initializePlayer(Pair<String, String> playUrl, Music song) {
             String type = playUrl.getB().toLowerCase();
-
-            if (type.equals("flac") || type.equals("wav") || type.equals("mp3")) {
-                return getCachedOrTempFile(url, type, song);
+            if (!type.equals("flac") && !type.equals("wav") && !type.equals("mp3")) {
+                throw new IllegalArgumentException("Unsupported music format, url: " + playUrl.getA() + ", type: " + type);
             }
-            throw new IllegalArgumentException("Unsupported music format, url: " + url + ", type: " + type);
-        }
-
-        private File getCachedOrTempFile(String playUrl, String type, Music song) {
-            File musicCacheDir = new File(Platform.configDir(), "MusicCache");
-
-            if (!musicCacheDir.exists()) {
-                musicCacheDir.mkdir();
-            }
-
-            String extension = "_" + quality.getQuality() + "." + type;
-
-            File music = new File(musicCacheDir, song.getId() + extension);
-
-            if (!music.exists()) {
-                downloadMusic(playUrl, music);
-
-                AsyncUtil.runAsync(() -> {
-                    for (File file : musicCacheDir.listFiles()) {
-                        if (file.getName().startsWith(String.valueOf(song.getId())) && !file.getName().startsWith(song.getId() + "_" + quality.getQuality())) {
-                            file.delete();
-                        }
-                    }
-                });
-            }
-
-            return music;
-        }
-
-        private AudioPlayer initializePlayer(File musicFile) {
             AudioPlayer player = CloudMusic.player;
             if (player == null) {
-                player = new AudioPlayer(musicFile);
+                player = new AudioPlayer(playUrl.getA(), type, song.getDuration());
                 player.setVolume(MusicState.get().getVolume());
                 CloudMusic.player = player;
             } else {
-                player.setAudio(musicFile);
+                player.setAudio(playUrl.getA(), type, song.getDuration());
             }
             return player;
         }
@@ -937,98 +903,6 @@ public class CloudMusic {
         graphics.dispose();
 
         return output;
-    }
-
-    @SneakyThrows
-    private static void downloadMusic(String playUrl, File music) {
-
-        MusicState state = MusicState.get();
-        state.setDownloading(true);
-        state.setDownloadProgress(0);
-        state.setDownloadSpeed("0 b/s");
-
-        try {
-            InputStream stream = new WrappedInputStream(HttpUtils.get(playUrl, null), new WrappedInputStream.ProgressListener() {
-
-                final Timer timer = new Timer();
-
-                @Override
-                public void onProgress(double progress) {
-                    if (progress >= 1) {
-                        state.setDownloading(false);
-                    }
-
-                    state.setDownloadProgress(progress);
-                }
-
-                final long kilo = 1024;
-                final long mega = kilo * kilo;
-                final long giga = mega * kilo;
-                final long tera = giga * kilo;
-
-                String getSize(long size) {
-                    String s;
-                    double kb = (double) size / kilo;
-                    double mb = kb / kilo;
-                    double gb = mb / kilo;
-                    double tb = gb / kilo;
-                    if (size < kilo) {
-                        s = size + " Bytes";
-                    } else if (size < mega) {
-                        s = String.format("%.2f", kb) + " KB";
-                    } else if (size < giga) {
-                        s = String.format("%.2f", mb) + " MB";
-                    } else if (size < tera) {
-                        s = String.format("%.2f", gb) + " GB";
-                    } else {
-                        s = String.format("%.2f", tb) + " TB";
-                    }
-                    return s;
-                }
-
-                int lastBytesRead = 0;
-
-                @Override
-                public void bytesRead(int bytesRead) {
-
-                    int checkDelay = 500;
-
-                    if (timer.isDelayed(checkDelay)) {
-                        timer.reset();
-
-                        int diff = (bytesRead - lastBytesRead) * (1000 / checkDelay);
-
-                        state.setDownloadSpeed(this.getSize(diff) + "/s");
-
-                        lastBytesRead = bytesRead;
-                    }
-
-                }
-            });
-
-            OutputStream os = Files.newOutputStream(music.toPath(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-
-            writeTo(stream, os);
-
-            os.close();
-
-        } catch (Throwable t) {
-            t.printStackTrace();
-
-            state.setDownloading(false);
-
-            music.delete();
-        }
-    }
-
-    @SneakyThrows
-    public static void writeTo(InputStream src, OutputStream dest) {
-        byte[] buffer = new byte[1024];
-        int len;
-        while ((len = src.read(buffer)) != -1) {
-            dest.write(buffer, 0, len);
-        }
-        dest.flush();
     }
 
     public static void loadLyric(Music music) {
