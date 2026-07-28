@@ -27,4 +27,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts
-          path: build/libs/
+          path: |
+            fabric/build/libs/
+            !fabric/build/libs/*-sources.jar
+            neoforge/build/libs/
+            !neoforge/build/libs/*-sources.jar
