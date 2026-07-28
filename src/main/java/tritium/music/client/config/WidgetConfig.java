@@ -1,7 +1,6 @@
 package tritium.music.client.config;
 
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
-import tritium.music.client.rendering.hud.MusicSpectrumWidget;
 import tritium.music.core.MusicState;
 import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.Platform;
@@ -68,15 +67,12 @@ public class WidgetConfig {
     }
 
     public static class Spectrum {
-        public MusicSpectrumWidget.Style style = MusicSpectrumWidget.Style.Rect;
         public boolean compatMode = false;
         public boolean indicator = true;
         public double multiplier = 1.0;
         public double smoothing = 0.55;
         public double spectrumTilt = 3.0;
         public boolean absVol = true;
-        public double windowTime = 16.0;
-        public boolean stereo = false;
         public int rectColor = new Color(125, 125, 125, 200).getRGB();
     }
 

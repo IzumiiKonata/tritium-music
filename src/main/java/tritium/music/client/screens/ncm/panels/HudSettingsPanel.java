@@ -6,11 +6,10 @@ import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
-import tritium.music.client.rendering.hud.MusicSpectrumWidget;
 import tritium.music.client.rendering.ui.AbstractWidget;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.container.ScrollPanel;
-import tritium.music.client.rendering.ui.widgets.CycleButtonWidget;
+import tritium.music.client.rendering.ui.widgets.DropdownWidget;
 import tritium.music.client.rendering.ui.widgets.LabelWidget;
 import tritium.music.client.rendering.ui.widgets.RoundedButtonWidget;
 import tritium.music.client.rendering.ui.widgets.SliderWidget;
@@ -25,6 +24,8 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
 import java.util.function.DoubleSupplier;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class HudSettingsPanel extends NCMPanel {
 
@@ -157,13 +158,17 @@ public class HudSettingsPanel extends NCMPanel {
         content.addChild(row("组件缩放", "调整歌词组件的整体尺寸",
                 slider(() -> config.musicLyrics.scale, value -> config.musicLyrics.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
         content.addChild(row("切换动画", "选择歌词行进入时的动画",
-                cycle(
-                        () -> scrollEffectName(lyrics.scrollEffect),
-                        () -> lyrics.scrollEffect = next(lyrics.scrollEffect, MusicLyricsWidget.ScrollEffects.values()))));
+                dropdown(
+                        () -> lyrics.scrollEffect,
+                        value -> lyrics.scrollEffect = value,
+                        MusicLyricsWidget.ScrollEffects.values(),
+                        HudSettingsPanel::scrollEffectName)));
         content.addChild(row("文字对齐", "控制歌词在组件内的排列方向",
-                cycle(
-                        () -> alignName(lyrics.alignMode),
-                        () -> lyrics.alignMode = next(lyrics.alignMode, MusicLyricsWidget.AlignMode.values()))));
+                dropdown(
+                        () -> lyrics.alignMode,
+                        value -> lyrics.alignMode = value,
+                        MusicLyricsWidget.AlignMode.values(),
+                        HudSettingsPanel::alignName)));
 
         content.addChild(new SectionRow("内容"));
         content.addChild(row("显示翻译", "存在翻译时显示翻译文本",
@@ -206,10 +211,6 @@ public class HudSettingsPanel extends NCMPanel {
                 toggle(() -> config.musicSpectrum.enabled, value -> config.musicSpectrum.enabled = value)));
         content.addChild(row("组件缩放", "调整紧凑频谱的整体尺寸",
                 slider(() -> config.musicSpectrum.scale, value -> config.musicSpectrum.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
-        content.addChild(row("频谱样式", "在柱状频谱与示波器之间切换",
-                cycle(
-                        () -> spectrum.style == MusicSpectrumWidget.Style.Rect ? "柱状频谱" : "示波器",
-                        () -> spectrum.style = next(spectrum.style, MusicSpectrumWidget.Style.values()))));
         content.addChild(row("紧凑模式", "将柱状频谱限制在可移动区域内",
                 toggle(() -> spectrum.compatMode, value -> spectrum.compatMode = value)));
         content.addChild(row("峰值指示", "显示频段的短时峰值",
@@ -224,10 +225,6 @@ public class HudSettingsPanel extends NCMPanel {
                 slider(() -> spectrum.spectrumTilt, value -> spectrum.spectrumTilt = value, 0, 8, 0.25, value -> format(value, 2))));
         content.addChild(row("绝对音量", "使用音频绝对幅度驱动频谱",
                 toggle(() -> spectrum.absVol, value -> spectrum.absVol = value)));
-        content.addChild(row("分析窗口", "调整频谱分析的时间窗口",
-                slider(() -> spectrum.windowTime, value -> spectrum.windowTime = value, 4, 64, 1, value -> Math.round(value) + " ms")));
-        content.addChild(row("立体声分析", "分别采样左右声道",
-                toggle(() -> spectrum.stereo, value -> spectrum.stereo = value)));
 
         content.addChild(new SectionRow("颜色"));
         addColorRows("频谱", () -> spectrum.rectColor, value -> spectrum.rectColor = value);
@@ -268,11 +265,15 @@ public class HudSettingsPanel extends NCMPanel {
         }, min, max, step, formatter);
     }
 
-    private CycleButtonWidget cycle(java.util.function.Supplier<String> label, Runnable action) {
-        return new CycleButtonWidget(label, () -> {
-            action.run();
+    private <T> DropdownWidget<T> dropdown(
+            Supplier<T> getter,
+            Consumer<T> setter,
+            T[] values,
+            Function<T, String> formatter) {
+        return new DropdownWidget<>(getter, value -> {
+            setter.accept(value);
             save();
-        });
+        }, values, formatter);
     }
 
     private void resetPage() {
@@ -318,12 +319,15 @@ public class HudSettingsPanel extends NCMPanel {
             description.setClickable(false);
             addChild(title, description, control);
 
-            setBeforeRenderCallback(() -> setWidth(getParentWidth()));
+            setBeforeRenderCallback(() -> {
+                setWidth(getParentWidth());
+                setHeight(Math.max(40, 14 + control.getHeight()));
+            });
             title.setBeforeRenderCallback(() -> {
                 double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
                 double descriptionHeight = FontManager.pf12.getStringHeight(description.getLabel());
                 double blockHeight = titleHeight + 2 + descriptionHeight;
-                title.setPosition(16, (getHeight() - blockHeight) * 0.5);
+                title.setPosition(16, (40 - blockHeight) * 0.5);
             });
             description.setBeforeRenderCallback(() -> {
                 double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
@@ -331,7 +335,7 @@ public class HudSettingsPanel extends NCMPanel {
             });
             control.setBeforeRenderCallback(() -> control.setPosition(
                     control.getParentWidth() - control.getWidth() - 16,
-                    (control.getParentHeight() - control.getHeight()) * 0.5));
+                    (40 - Math.min(control.getHeight(), 22)) * 0.5));
         }
 
         @Override
@@ -398,15 +402,6 @@ public class HudSettingsPanel extends NCMPanel {
         }
         int rgb = Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
         setter.accept((rgb & 0x00FFFFFF) | (alpha << 24));
-    }
-
-    private static <T> T next(T current, T[] values) {
-        for (int index = 0; index < values.length; index++) {
-            if (values[index].equals(current)) {
-                return values[(index + 1) % values.length];
-            }
-        }
-        return values[0];
     }
 
     private static String scrollEffectName(MusicLyricsWidget.ScrollEffects effect) {

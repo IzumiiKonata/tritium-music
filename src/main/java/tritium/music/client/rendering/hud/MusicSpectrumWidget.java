@@ -1,8 +1,6 @@
 package tritium.music.client.rendering.hud;
 
 import net.minecraft.client.Minecraft;
-import tritium.music.client.render.Render;
-import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
@@ -19,11 +17,6 @@ public class MusicSpectrumWidget extends HudWidget {
 
     private long[] indicatorTimeStamp = new long[1];
 
-    public enum Style {
-        Rect,
-        Oscilloscope
-    }
-
     public MusicSpectrumWidget() {
         super("Music Spectrum");
     }
@@ -39,77 +32,36 @@ public class MusicSpectrumWidget extends HudWidget {
 
     @Override
     public void onRender() {
-        Style style = cfg().style;
-
         boolean compatMode = cfg().compatMode;
         boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
 
         if (CloudMusic.player != null) {
-
-            boolean rect = style == Style.Rect;
-            boolean oscilloscope = style == Style.Oscilloscope;
-
-            if (compatMode || oscilloscope) {
+            if (compatMode) {
                 this.setWidth(200);
                 this.setHeight(80);
-            }
-
-            AudioPlayer.waveMode = oscilloscope ? AudioPlayer.WaveMode.Oscilloscope : AudioPlayer.WaveMode.None;
-            AudioPlayer.windowTime = (float) cfg().windowTime;
-            AudioPlayer.stereo = cfg().stereo;
-            AudioPlayer.waveRegionWidth = this.getWidth();
-            AudioPlayer.waveRegionHeight = this.getHeight();
-
-            if (compatMode || oscilloscope) {
                 this.roundedRect(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 6, 0, 0, 0, 0.4f);
             }
 
-            if (rect) {
-                this.updateSpectrum();
-                this.drawBars(compatMode);
-
-                if (!compatMode) {
-                    this.setWidth(RenderSystem.getWidth());
-                    this.setHeight(RenderSystem.getHeight() * 0.33);
-                }
-            } else if (oscilloscope) {
-                this.drawWaveform();
+            this.updateSpectrum();
+            this.drawBars(compatMode);
+            if (!compatMode) {
+                this.setWidth(RenderSystem.getWidth());
+                this.setHeight(RenderSystem.getHeight() * 0.33);
             }
         } else if (editorPreview) {
-            boolean rect = style == Style.Rect;
-            boolean oscilloscope = style == Style.Oscilloscope;
-
-            if (compatMode || oscilloscope) {
+            if (compatMode) {
                 this.setWidth(200);
                 this.setHeight(80);
                 this.roundedRect(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 6, 0, 0, 0, 0.4f);
             }
 
-            if (rect) {
-                updateEditorSpectrum();
-                drawBars(compatMode);
-                if (!compatMode) {
-                    this.setWidth(RenderSystem.getWidth());
-                    this.setHeight(RenderSystem.getHeight() * 0.33);
-                }
-            } else {
-                drawEditorWaveform();
+            updateEditorSpectrum();
+            drawBars(compatMode);
+            if (!compatMode) {
+                this.setWidth(RenderSystem.getWidth());
+                this.setHeight(RenderSystem.getHeight() * 0.33);
             }
         }
-    }
-
-    private void drawEditorWaveform() {
-        int count = 96;
-        float[] points = new float[count * 2];
-        double phase = System.currentTimeMillis() * 0.004;
-        double width = getWidth() - 8;
-        for (int index = 0; index < count; index++) {
-            double progress = index / (double) (count - 1);
-            points[index * 2] = (float) (progress * width);
-            points[index * 2 + 1] = (float) (Math.sin(progress * Math.PI * 8 + phase) * 0.72
-                    + Math.sin(progress * Math.PI * 19 - phase * 0.7) * 0.28);
-        }
-        drawWaveSub(getHeight(), false, points, count);
     }
 
     private void updateEditorSpectrum() {
@@ -129,57 +81,6 @@ public class MusicSpectrumWidget extends HudWidget {
                     Interpolations.interpolate(renderSpectrumIndicator[index], 0, 0.08f),
                     renderSpectrum[index]);
         }
-    }
-
-    private void drawWaveform() {
-        AudioPlayer player = CloudMusic.player;
-        player.doDetections();
-
-        boolean stereo = cfg().stereo;
-        double pWidgetHeight = stereo ? this.getHeight() * 0.5 : this.getHeight();
-
-        if (player.spectrumDataLFilled && player.lockL.tryLock()) {
-            try {
-                drawWaveSub(pWidgetHeight, false, player.waveVertexes, player.waveVertexes.length / 2);
-            } finally {
-                player.lockL.unlock();
-            }
-        }
-
-        if (stereo && player.spectrumDataRFilled && player.lockR.tryLock()) {
-            try {
-                Rect.draw(this.getX() + 4, this.getY() + pWidgetHeight - 0.25, this.getWidth() - 8, 0.5,
-                        RGBA.color(255, 255, 255, 160));
-                drawWaveSub(pWidgetHeight, true, player.waveRightVertexes, player.waveRightVertexes.length / 2);
-            } finally {
-                player.lockR.unlock();
-            }
-        }
-    }
-
-    private void drawWaveSub(double pWidgetHeight, boolean secondHalf, float[] vertexes, int vertCount) {
-        if (vertexes == null || vertCount < 2) {
-            return;
-        }
-
-        double startX = this.getX() + 4;
-        double topMargin = 17;
-        double bottomMargin = 4;
-        double oscHeight = pWidgetHeight - topMargin - bottomMargin;
-        double centerY = this.getY() + topMargin + oscHeight * 0.5
-                + (secondHalf ? pWidgetHeight : 0) - 6;
-
-        float peak = 0f;
-        for (int i = 1; i < vertCount * 2; i += 2) {
-            peak = Math.max(peak, Math.abs(vertexes[i]));
-        }
-
-        float gain = peak > 1e-6f ? (float) (oscHeight * 0.5 / peak) : 1f;
-
-        int color = RGBA.color(0.92f, 0.98f, 1.0f, 0.95f);
-
-        Render.lineStrip(RenderContext.graphics(), vertexes, vertCount,
-                (float) startX, (float) centerY, gain, color);
     }
 
     private void updateSpectrum() {

@@ -177,7 +177,5 @@ public final class TritiumMusicNeoForge {
         WidgetConfig.Spectrum spectrum = WidgetConfig.get().spectrum;
         AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
         AudioPlayer.absoluteVolume = spectrum.absVol;
-        AudioPlayer.windowTime = (float) spectrum.windowTime;
-        AudioPlayer.stereo = spectrum.stereo;
     }
 }
