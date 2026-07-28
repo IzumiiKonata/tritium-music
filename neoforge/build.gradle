@@ -1,0 +1,118 @@
+plugins {
+	id 'net.neoforged.moddev'
+	id 'maven-publish'
+}
+
+base {
+	archivesName = "${rootProject.name}-neoforge-${project.minecraft_version}"
+}
+
+sourceSets {
+	main {
+		java {
+			setSrcDirs([rootProject.file('src/main/java'), file('src/main/java')])
+		}
+		resources {
+			setSrcDirs([rootProject.file('src/main/resources'), file('src/main/resources')])
+		}
+	}
+}
+
+neoForge {
+	version = project.neoforge_version
+	accessTransformers.from(file('src/main/resources/META-INF/accesstransformer.cfg'))
+
+	runs {
+		client {
+			client()
+			gameDirectory = file('runs/client')
+		}
+	}
+
+	mods {
+		tritium_music {
+			sourceSet sourceSets.main
+		}
+	}
+}
+
+def harfbuzzNatives = configurations.create('harfbuzzNatives')
+def harfbuzzNativesJar = tasks.register('harfbuzzNativesJar', Jar) {
+	archiveBaseName = 'tritium-music-harfbuzz-natives'
+	archiveVersion = project.lwjgl_version
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	from {
+		harfbuzzNatives.collect { zipTree(it) }
+	}
+	include '**/*.dll'
+	include '**/*.so'
+	include '**/*.dylib'
+	manifest {
+		attributes 'Automatic-Module-Name': 'tritium.music.harfBuzzNatives'
+	}
+}
+
+dependencies {
+	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
+	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
+
+	implementation "com.google.code.gson:gson:${project.gson_version}"
+	jarJar(implementation("com.google.zxing:core:${project.zxing_version}")) {
+		version {
+			strictly "[${project.zxing_version}]"
+			prefer project.zxing_version
+		}
+	}
+	implementation "net.java.dev.jna:jna:${project.jna_version}"
+	implementation "net.java.dev.jna:jna-platform:${project.jna_version}"
+	jarJar(implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")) {
+		version {
+			strictly "[${project.lwjgl_version}]"
+			prefer project.lwjgl_version
+		}
+	}
+
+	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
+		add(harfbuzzNatives.name, "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it")
+	}
+
+	jarJar files(harfbuzzNativesJar)
+}
+
+processResources {
+	def properties = [
+			version: project.version,
+			neoforge_version: project.neoforge_version,
+			neoforge_loader_version_range: project.neoforge_loader_version_range
+	]
+	inputs.properties properties
+	filesMatching('META-INF/neoforge.mods.toml') {
+		expand properties
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 25
+	options.encoding = 'UTF-8'
+}
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}_${rootProject.name}" }
+	}
+}
+
+publishing {
+	publications {
+		create('mavenJava', MavenPublication) {
+			from components.java
+		}
+	}
+}

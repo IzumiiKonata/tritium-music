@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "${neoforge_loader_version_range}"
+license = "CC0-1.0"
+
+[[mods]]
+modId = "tritium_music"
+version = "${version}"
+displayName = "Tritium Music"
+authors = "IzumiiKonata"
+description = '''NetEase Cloud Music player'''
+
+[[mixins]]
+config = "tritium-music.mixins.json"
+
+[[dependencies.tritium_music]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.tritium_music]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.2]"
+ordering = "NONE"
+side = "CLIENT"

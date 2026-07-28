@@ -14,11 +14,13 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tritium.music.client.config.WidgetConfig;
+import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.shader.EffectPipelines;
 import tritium.music.client.render.RoundedPipeline;
 import tritium.music.client.render.ClipPipeline;
+import tritium.music.client.render.LinePipeline;
 import tritium.music.client.render.VerticalFadePipeline;
 import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.hud.HudWidget;
@@ -55,10 +57,11 @@ public class TritiumMusicMod implements ClientModInitializer {
     public void onInitializeClient() {
         EffectPipelines.initialize();
         ClipPipeline.initialize();
+        LinePipeline.initialize();
         RoundedPipeline.initialize();
         VerticalFadePipeline.initialize();
         StencilCompositePipeline.initialize();
-        Platform.set(new FabricMusicPlatform());
+        Platform.set(new MinecraftMusicPlatform());
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             FontManager.loadFonts();

@@ -50,6 +50,35 @@ public final class Render {
         submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
     }
 
+    public static void lineStrip(GuiGraphicsExtractor g, float[] points, int count,
+                                 float offsetX, float offsetY, float yScale, int color) {
+        if (count < 2) {
+            return;
+        }
+        List<MeshElement.Vertex> verts = new ArrayList<>((count - 1) * 2);
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        float previousX = offsetX + points[0];
+        float previousY = offsetY + points[1] * yScale;
+        for (int i = 1; i < count; i++) {
+            int index = i * 2;
+            float x = offsetX + points[index];
+            float y = offsetY + points[index + 1] * yScale;
+            verts.add(new MeshElement.Vertex(previousX, previousY, 0, 0, color));
+            verts.add(new MeshElement.Vertex(x, y, 0, 0, color));
+            minX = Math.min(minX, Math.min(previousX, x));
+            minY = Math.min(minY, Math.min(previousY, y));
+            maxX = Math.max(maxX, Math.max(previousX, x));
+            maxY = Math.max(maxY, Math.max(previousY, y));
+            previousX = x;
+            previousY = y;
+        }
+        submit(g, LinePipeline.PIPELINE, TextureSetup.noTexture(), verts,
+                minX - 1, minY - 1, maxX + 1, maxY + 1);
+    }
+
     public static void gradientV(GuiGraphicsExtractor g, float x, float y, float w, float h, int top, int bottom) {
         List<MeshElement.Vertex> verts = new ArrayList<>(4);
         verts.add(new MeshElement.Vertex(x, y, 0, 0, top));

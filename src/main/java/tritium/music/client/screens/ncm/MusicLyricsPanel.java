@@ -37,6 +37,9 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     static double scrollOffset, scrollTarget;
 
     double fftScale = 0;
+    double bassBaseline = 0;
+    double bassDeviation = 0.03;
+    float[] previousBassSpectrum = new float[0];
     float musicBgAlpha = 1.0f;
     static Music prevMusic = null;
     TextureHandle previousBackground;
@@ -795,16 +798,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         }
 
         if (hasBg) {
-            float lowFreqEnergy = calculateLowFrequencyEnergy();
-
-            if (!Double.isFinite(fftScale)) fftScale = 0;
-            if (!Float.isFinite(lowFreqEnergy) || lowFreqEnergy <= 0.01f) lowFreqEnergy = 0;
-
-            float scaledEnergy = (float) Math.log1p(lowFreqEnergy * 10) * 0.05f;
-            float damping = lowFreqEnergy > fftScale ? 0.3f : 0.6f;
-            fftScale = Interpolations.interpolate(fftScale, scaledEnergy * 0.75f, damping);
-
-            double backgroundScale = 1 + Math.max(0, fftScale);
+            updateFftScale();
+            double backgroundScale = 1 + Math.max(0, fftScale) * 0.05;
 
             if (coverFloatTimer.isDelayed(4000)) {
                 coverFloatTargetX = Math.random();
@@ -860,38 +855,85 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
     }
 
-    private float calculateLowFrequencyEnergy() {
-        if (AudioPlayer.bandValues == null || AudioPlayer.bandValues.length == 0) {
-            return 0.0f;
+    private void updateFftScale() {
+        BassFrame frame = sampleBassFrame();
+        double deltaSeconds = Mth.limit(RenderSystem.getFrameDeltaTime() * 0.01, 1.0 / 240.0, 0.05);
+        boolean playing = CloudMusic.player != null && !CloudMusic.player.isPausing();
+
+        if (!playing || !Double.isFinite(frame.energy) || frame.energy < 0.008) {
+            fftScale += (0 - fftScale) * expResponse(5.0, deltaSeconds);
+            return;
         }
 
-        int lowFreqBands = Math.min(12, AudioPlayer.bandValues.length);
+        if (bassBaseline <= 0 || !Double.isFinite(bassBaseline)) {
+            bassBaseline = frame.energy;
+        }
 
-        float totalWeight = 0.0f;
-        float weightedSum = 0.0f;
+        double baselineRate = frame.energy > bassBaseline ? 0.7 : 2.8;
+        bassBaseline += (frame.energy - bassBaseline) * expResponse(baselineRate, deltaSeconds);
 
-        for (int i = 0; i < lowFreqBands; i++) {
-            float weight = (float) Math.exp(-i * 0.2f);
-            float bandValue = AudioPlayer.bandValues[i];
-            bandValue = Math.min(bandValue, 2.0f);
-            weightedSum += bandValue * weight;
+        double deviation = Math.abs(frame.energy - bassBaseline);
+        bassDeviation += (deviation - bassDeviation) * expResponse(1.8, deltaSeconds);
+        bassDeviation = Mth.limit(bassDeviation, 0.008, 0.25);
+
+        double relativeRise = Math.max(0, frame.energy - bassBaseline) / (bassDeviation * 1.6 + 0.012);
+        double spectralAttack = frame.flux / (bassDeviation + 0.01);
+        double drive = relativeRise * 0.85 + spectralAttack * 2.4;
+        double activityGate = Mth.limit((frame.energy - 0.015) / 0.10, 0, 1);
+        double target = Mth.limit((1.0 - Math.exp(-drive)) * activityGate, 0, 1);
+        double response = target > fftScale ? 18.0 : 5.5;
+
+        fftScale += (target - fftScale) * expResponse(response, deltaSeconds);
+        if (!Double.isFinite(fftScale)) {
+            fftScale = 0;
+        }
+    }
+
+    private BassFrame sampleBassFrame() {
+        float[] bands = AudioPlayer.bandValues;
+        if (bands == null || bands.length == 0) {
+            return new BassFrame(0, 0);
+        }
+
+        if (previousBassSpectrum.length != bands.length) {
+            previousBassSpectrum = new float[bands.length];
+        }
+
+        int start = frequencyBand(35, bands.length);
+        int end = Math.max(start + 1, frequencyBand(220, bands.length));
+        end = Math.min(end, bands.length - 1);
+
+        double energy = 0;
+        double flux = 0;
+        double totalWeight = 0;
+
+        for (int i = start; i <= end; i++) {
+            double frequency = 20.0 * Math.pow(1000.0, (i + 0.5) / bands.length);
+            double octaveDistance = Math.log(frequency / 90.0) / Math.log(2.0);
+            double weight = Math.exp(-0.5 * Math.pow(octaveDistance / 0.9, 2));
+            float value = Float.isFinite(bands[i]) ? (float) Mth.limit(bands[i], 0, 1) : 0;
+            double rise = Math.max(0, value - previousBassSpectrum[i]);
+            energy += value * value * weight;
+            flux += rise * rise * weight;
             totalWeight += weight;
+            previousBassSpectrum[i] = value;
         }
 
-        if (totalWeight <= 0.0f) {
-            return 0.0f;
+        if (totalWeight <= 0) {
+            return new BassFrame(0, 0);
         }
+        return new BassFrame(Math.sqrt(energy / totalWeight), Math.sqrt(flux / totalWeight));
+    }
 
-        float weightedAverage = weightedSum / totalWeight;
+    private static int frequencyBand(double frequency, int bandCount) {
+        double position = Math.log(frequency / 20.0) / Math.log(1000.0);
+        return (int) Mth.limit(Math.floor(position * bandCount), 0, bandCount - 1);
+    }
 
-        float rms = 0.0f;
-        for (int i = 0; i < lowFreqBands; i++) {
-            float bandValue = AudioPlayer.bandValues[i];
-            bandValue = Math.min(bandValue, 2.0f);
-            rms += bandValue * bandValue;
-        }
-        rms = (float) Math.sqrt(rms / lowFreqBands);
+    private static double expResponse(double rate, double deltaSeconds) {
+        return 1.0 - Math.exp(-rate * deltaSeconds);
+    }
 
-        return (weightedAverage * 0.7f + rms * 0.3f);
+    private record BassFrame(double energy, double flux) {
     }
 }

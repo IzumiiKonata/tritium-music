@@ -122,28 +122,8 @@ public class MusicSpectrumWidget extends HudWidget {
 
         int color = RGBA.color(0.92f, 0.98f, 1.0f, 0.95f);
 
-        double prevX = startX + vertexes[0];
-        double prevY = centerY + vertexes[1] * gain;
-
-        for (int i = 1; i < vertCount; i++) {
-            int a = i * 2;
-            double x = startX + vertexes[a];
-            double y = centerY + vertexes[a + 1] * gain;
-
-            double left = Math.min(prevX, x);
-            double top = Math.min(prevY, y);
-            double dx = Math.abs(x - prevX);
-            double dy = Math.abs(y - prevY);
-
-            if (dx >= dy) {
-                Rect.draw(left, (prevY + y) * 0.5 - 0.5, Math.max(1.0, dx), 1.0, color);
-            } else {
-                Rect.draw((prevX + x) * 0.5 - 0.5, top, 1.0, Math.max(1.0, dy), color);
-            }
-
-            prevX = x;
-            prevY = y;
-        }
+        Render.lineStrip(RenderContext.graphics(), vertexes, vertCount,
+                (float) startX, (float) centerY, gain, color);
     }
 
     private void updateSpectrum() {

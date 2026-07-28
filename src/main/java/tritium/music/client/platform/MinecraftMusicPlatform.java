@@ -1,4 +1,4 @@
-package tritium.music.fabric;
+package tritium.music.client.platform;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
@@ -6,6 +6,8 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tritium.music.platform.MusicPlatform;
 import tritium.music.platform.TextureHandle;
 
@@ -16,14 +18,16 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
-public class FabricMusicPlatform implements MusicPlatform {
+public class MinecraftMusicPlatform implements MusicPlatform {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("tritium-music");
 
     private final java.util.concurrent.ExecutorService executor;
     private final Set<TextureHandle> uploaded = ConcurrentHashMap.newKeySet();
     private final Map<Identifier, DynamicTexture> textureCache = new ConcurrentHashMap<>();
     private final Map<Identifier, NativeImage> imageCache = new ConcurrentHashMap<>();
 
-    public FabricMusicPlatform() {
+    public MinecraftMusicPlatform() {
         this.executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("tritium-music-worker-", 1).factory());
     }
 
@@ -115,7 +119,7 @@ public class FabricMusicPlatform implements MusicPlatform {
 
     @Override
     public void log(String message) {
-        TritiumMusicMod.LOGGER.info(stripFormatting(message));
+        LOGGER.info(stripFormatting(message));
     }
 
     private static void copyPixels(NativeImage src, NativeImage dst) {

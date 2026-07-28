@@ -1,9 +1,37 @@
 # Tritium Music
 
-## Setup
+Tritium Music is a NetEase Cloud Music client mod for Minecraft 26.2.
 
-For setup instructions, please see the [Fabric Documentation page](https://docs.fabricmc.net/develop/getting-started/creating-a-project#setting-up) related to the IDE that you are using.
+## Loaders
+
+- Fabric 26.2
+- NeoForge 26.2
+
+The Minecraft-independent backend, audio engine, UI implementation, Mixins, and assets are shared. Loader modules contain the loader-specific entrypoints, lifecycle wiring, key registration, HUD registration, metadata, and access configuration.
+
+## Build
+
+Java 25 is required.
+
+```bash
+./gradlew :fabric:build
+./gradlew :neoforge:build
+```
+
+Artifacts are written to:
+
+```text
+fabric/build/libs/
+neoforge/build/libs/
+```
+
+Development clients:
+
+```bash
+./gradlew :fabric:runClient
+./gradlew :neoforge:runClient
+```
 
 ## License
 
-This template is available under the CC0 license. Feel free to learn from it and incorporate it in your own projects.
+This project is available under the CC0 license.

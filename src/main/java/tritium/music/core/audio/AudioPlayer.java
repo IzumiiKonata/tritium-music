@@ -19,9 +19,11 @@ public class AudioPlayer {
     /**
      * Spectrum band magnitudes, updated by the FFT analysis. Empty until the first FFT frame.
      */
-    public static float[] bandValues = new float[0];
+    public static volatile float[] bandValues = new float[0];
 
     private static final int BAR_COUNT = 128;
+    private static final int FFT_HOP_SAMPLES = BAR_COUNT * 5;
+    private static final float[] FFT_WINDOW = createFftWindow();
 
     /**
      * Gate for the FFT callback so analysis only runs when something consumes the bands
@@ -51,8 +53,6 @@ public class AudioPlayer {
     /** Pixel region the client draws the waveform into, pushed each frame before doDetections(). */
     public static volatile double waveRegionWidth = 200;
     public static volatile double waveRegionHeight = 80;
-
-    private static int skipCount = 0;
 
     private final SpectrumVisualizer visualizer = new SpectrumVisualizer(JSynFFT.FFT_SIZE, BAR_COUNT);
     private final float[] fftWindow = new float[JSynFFT.FFT_SIZE];
@@ -359,13 +359,6 @@ public class AudioPlayer {
             return;
         }
 
-        int skipAmount = 4;
-        if (skipCount < skipAmount) {
-            skipCount++;
-            return;
-        }
-        skipCount = 0;
-
         visualizer.setVolume(this.volume);
         visualizer.setSpectrumTilt(spectrumTilt);
         visualizer.setAbsoluteVolume(absoluteVolume);
@@ -377,13 +370,16 @@ public class AudioPlayer {
         int frameSize = format.getFrameSize();
         int bytesPerSample = frameSize / channels;
         int frameCount = length / frameSize;
+        float playbackVolume = volume;
         lockL.lock();
         lockR.lock();
         try {
             for (int frame = 0; frame < frameCount; frame++) {
                 int base = offset + frame * frameSize;
-                float left = readSample(data, base, bytesPerSample, format.isBigEndian());
-                float right = channels > 1 ? readSample(data, base + bytesPerSample, bytesPerSample, format.isBigEndian()) : left;
+                float left = readSample(data, base, bytesPerSample, format.isBigEndian()) * playbackVolume;
+                float right = channels > 1
+                        ? readSample(data, base + bytesPerSample, bytesPerSample, format.isBigEndian()) * playbackVolume
+                        : left;
                 wave[waveWriteIndex] = left;
                 waveRight[waveWriteIndex] = right;
                 waveWriteIndex = (waveWriteIndex + 1) % wave.length;
@@ -391,20 +387,43 @@ public class AudioPlayer {
                 if (fftWindowOffset == fftWindow.length) {
                     fftWindowOffset = 0;
                 }
-                fftSamplesSinceAnalysis++;
-            }
-            if (spectrumEnabled && fftSamplesSinceAnalysis >= BAR_COUNT) {
-                float[] ordered = new float[fftWindow.length];
-                int tail = fftWindow.length - fftWindowOffset;
-                System.arraycopy(fftWindow, fftWindowOffset, ordered, 0, tail);
-                System.arraycopy(fftWindow, 0, ordered, tail, fftWindowOffset);
-                onFFT(FFT.analyzeSample(ordered, fftWindow.length));
-                fftSamplesSinceAnalysis = 0;
+                if (spectrumEnabled) {
+                    fftSamplesSinceAnalysis++;
+                    if (fftSamplesSinceAnalysis >= FFT_HOP_SAMPLES) {
+                        publishSpectrum();
+                        fftSamplesSinceAnalysis -= FFT_HOP_SAMPLES;
+                    }
+                } else {
+                    fftSamplesSinceAnalysis = 0;
+                }
             }
         } finally {
             lockR.unlock();
             lockL.unlock();
         }
+    }
+
+    private void publishSpectrum() {
+        float[] ordered = new float[fftWindow.length];
+        int tail = fftWindow.length - fftWindowOffset;
+        System.arraycopy(fftWindow, fftWindowOffset, ordered, 0, tail);
+        System.arraycopy(fftWindow, 0, ordered, tail, fftWindowOffset);
+        for (int i = 0; i < ordered.length; i++) {
+            ordered[i] *= FFT_WINDOW[i];
+        }
+        float[] magnitudes = FFT.analyzeSample(ordered, fftWindow.length);
+        for (int i = 0; i < magnitudes.length; i++) {
+            magnitudes[i] *= 2.0f;
+        }
+        onFFT(magnitudes);
+    }
+
+    private static float[] createFftWindow() {
+        float[] window = new float[JSynFFT.FFT_SIZE];
+        for (int i = 0; i < window.length; i++) {
+            window[i] = (float) (0.5 - 0.5 * Math.cos(2.0 * Math.PI * i / (window.length - 1)));
+        }
+        return window;
     }
 
     private static float readSample(byte[] data, int offset, int bytes, boolean bigEndian) {

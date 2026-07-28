@@ -1,122 +1,24 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version "${loom_version}"
-	id 'maven-publish'
+	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
+	id 'net.neoforged.moddev' version "${moddev_version}" apply false
 }
 
-version = project.mod_version
-group = project.maven_group
+allprojects {
+	version = project.mod_version
+	group = project.maven_group
 
-loom {
-	accessWidenerPath = file("src/main/resources/tritium-music.accesswidener")
-}
-
-repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
-
-	exclusiveContent {
-		forRepository {
-			maven {
-				name = "Modrinth"
-				url = "https://api.modrinth.com/maven"
+	repositories {
+		mavenCentral()
+		exclusiveContent {
+			forRepository {
+				maven {
+					name = 'Modrinth'
+					url = 'https://api.modrinth.com/maven'
+				}
+			}
+			filter {
+				includeGroup 'maven.modrinth'
 			}
 		}
-		filter {
-			includeGroup "maven.modrinth"
-		}
-	}
-}
-
-dependencies {
-	// To change the versions see the gradle.properties file
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
-	// Fabric API. This is technically optional, but you probably want it anyway.
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-
-	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
-	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
-
-	implementation "com.google.code.gson:gson:${project.gson_version}"
-	include implementation("com.google.zxing:core:${project.zxing_version}")
-	include implementation("net.java.dev.jna:jna:${project.jna_version}")
-	include implementation("net.java.dev.jna:jna-platform:${project.jna_version}")
-
-	// HarfBuzz for font kerning (FreeType is already bundled by Minecraft, but without HarfBuzz
-	// symbols, so the standalone HarfBuzz native is required). NOTE: do NOT touch the LWJGL
-	// `OpenType` class — its 3.4.1 binding batch-loads a misspelled symbol
-	// (hb_ot_ot_layout_get_font_extents) that aborts its <clinit>. FontKerning uses default font
-	// funcs instead of hb_ot_font_set_funcs to avoid it.
-	include implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")
-	["natives-windows", "natives-windows-arm64", "natives-linux", "natives-macos", "natives-macos-arm64"].each {
-		include "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it"
-	}
-
-	// The natives jar for the current platform must also be on the dev runtime classpath so
-	// LWJGL's SharedLibraryLoader can extract harfbuzz.dll/.so/.dylib at dev time.
-	def lwjglNatives = {
-		def os = System.getProperty("os.name").toLowerCase()
-		def arch = System.getProperty("os.arch").toLowerCase()
-		def aarch64 = arch.startsWith("aarch64") || arch.startsWith("arm64")
-		if (os.contains("win")) return aarch64 ? "natives-windows-arm64" : "natives-windows"
-		if (os.contains("mac")) return aarch64 ? "natives-macos-arm64" : "natives-macos"
-		return "natives-linux"
-	}()
-	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
-
-	// ModMenu
-	implementation "maven.modrinth:mOgUt4GM:gKOCZzz9"
-}
-
-processResources {
-	def version = project.version
-	inputs.property "version", version
-
-	filesMatching("fabric.mod.json") {
-		expand "version": version
-	}
-}
-
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
-}
-
-java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
-	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
-}
-
-jar {
-	def projectName = project.name
-	inputs.property "projectName", projectName
-
-	from("LICENSE") {
-		rename { "${it}_$projectName"}
-	}
-}
-
-// configure the maven publication
-publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			from components.java
-		}
-	}
-
-	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-	repositories {
-		// Add repositories to publish to here.
-		// Notice: This block does NOT have the same function as the block in the top level.
-		// The repositories here will be used for publishing your artifact, not for
-		// retrieving dependencies.
 	}
 }

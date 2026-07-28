@@ -28,6 +28,8 @@ import java.util.concurrent.atomic.AtomicLong;
 final class StreamingSoundPlayer {
     private static final int MAX_STREAM_RETRIES = 3;
     private static final int MAX_CONSECUTIVE_INVALID_MP3_FRAMES = 32;
+    private static final int PCM_UPDATE_MILLIS = 10;
+    private static final int OUTPUT_BUFFER_MILLIS = 100;
 
     interface PcmListener {
         void accept(byte[] data, int offset, int length, AudioFormat format);
@@ -217,10 +219,24 @@ final class StreamingSoundPlayer {
                             break;
                         }
                         int playable = read - offset;
-                        currentLine.write(buffer, offset, playable);
-                        pcmListener.accept(buffer, offset, playable, pcm.format());
-                        seekingPositionMillis.compareAndSet(startMillis, -1);
-                        positionMillis = positionMillis();
+                        int chunkSize = (int) Math.max(pcm.format().getFrameSize(),
+                                millisToBytes(PCM_UPDATE_MILLIS, pcm.format()));
+                        int end = offset + playable;
+                        while (offset < end && !closed && requestedPositionMillis.get() < 0) {
+                            waitWhilePaused();
+                            if (closed || requestedPositionMillis.get() >= 0) {
+                                break;
+                            }
+                            int length = Math.min(chunkSize, end - offset);
+                            int written = currentLine.write(buffer, offset, length);
+                            if (written <= 0) {
+                                continue;
+                            }
+                            pcmListener.accept(buffer, offset, written, pcm.format());
+                            offset += written;
+                            seekingPositionMillis.compareAndSet(startMillis, -1);
+                            positionMillis = positionMillis();
+                        }
                         streamFailures = 0;
                     }
                     if (!closed && requestedPositionMillis.get() < 0) {
@@ -272,7 +288,7 @@ final class StreamingSoundPlayer {
 
     private SourceDataLine openLine(AudioFormat format) throws LineUnavailableException {
         SourceDataLine result = AudioSystem.getSourceDataLine(format);
-        result.open(format, Math.max(16 * 1024, (int) format.getFrameRate() * format.getFrameSize() / 2));
+        result.open(format, (int) Math.max(16 * 1024, millisToBytes(OUTPUT_BUFFER_MILLIS, format)));
         return result;
     }
 

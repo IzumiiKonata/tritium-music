@@ -1,0 +1,83 @@
+plugins {
+	id 'net.fabricmc.fabric-loom'
+	id 'maven-publish'
+}
+
+base {
+	archivesName = "${rootProject.name}-fabric-${project.minecraft_version}"
+}
+
+sourceSets {
+	main {
+		java.setSrcDirs([rootProject.file('src/main/java'), file('src/main/java')])
+		resources.setSrcDirs([rootProject.file('src/main/resources'), file('src/main/resources')])
+	}
+}
+
+loom {
+	accessWidenerPath = file('src/main/resources/tritium-music.accesswidener')
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
+	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
+
+	implementation "com.google.code.gson:gson:${project.gson_version}"
+	include implementation("com.google.zxing:core:${project.zxing_version}")
+	include implementation("net.java.dev.jna:jna:${project.jna_version}")
+	include implementation("net.java.dev.jna:jna-platform:${project.jna_version}")
+
+	include implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")
+	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
+		include "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it"
+	}
+
+	def osName = System.getProperty('os.name').toLowerCase()
+	def archName = System.getProperty('os.arch').toLowerCase()
+	def aarch64 = archName.startsWith('aarch64') || archName.startsWith('arm64')
+	def lwjglNatives = osName.contains('win')
+			? (aarch64 ? 'natives-windows-arm64' : 'natives-windows')
+			: osName.contains('mac')
+			? (aarch64 ? 'natives-macos-arm64' : 'natives-macos')
+			: 'natives-linux'
+	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
+
+	implementation "maven.modrinth:mOgUt4GM:gKOCZzz9"
+}
+
+processResources {
+	inputs.property 'version', project.version
+	filesMatching('fabric.mod.json') {
+		expand 'version': project.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 25
+	options.encoding = 'UTF-8'
+}
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}_${rootProject.name}" }
+	}
+}
+
+publishing {
+	publications {
+		create('mavenJava', MavenPublication) {
+			from components.java
+		}
+	}
+}
