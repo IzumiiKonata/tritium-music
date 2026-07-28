@@ -31,4 +31,5 @@ jobs:
             fabric/build/libs/
             !fabric/build/libs/*-sources.jar
             neoforge/build/libs/
+            !neoforge/build/libs/tritium-music-harfbuzz-natives-*.jar
             !neoforge/build/libs/*-sources.jar
