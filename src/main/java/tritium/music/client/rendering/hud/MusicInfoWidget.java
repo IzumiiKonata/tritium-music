@@ -1,5 +1,6 @@
 package tritium.music.client.rendering.hud;
 
+import net.minecraft.client.Minecraft;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
@@ -8,6 +9,7 @@ import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.lyric.LyricLine;
@@ -52,8 +54,11 @@ public class MusicInfoWidget extends HudWidget {
         double height = 56;
 
         Music playingMusic = CloudMusic.currentlyPlaying;
+        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
+        boolean realPlayback = playingMusic != null && CloudMusic.player != null && !CloudMusic.player.isFinished();
+        boolean hasMusic = playingMusic != null;
 
-        boolean playing = playingMusic != null && CloudMusic.player != null && !CloudMusic.player.isFinished();
+        boolean playing = realPlayback || editorPreview;
 
         alpha = Interpolations.interpolate(alpha, playing ? 1 : 0, playing ? 0.15f : 0.2f);
 
@@ -64,9 +69,9 @@ public class MusicInfoWidget extends HudWidget {
         this.downloadProgHeight = Interpolations.interpolate(this.downloadProgHeight, downloading ? (playing ? 26 : -26) : 0, 0.2f);
         this.downloadPanelAlpha = Interpolations.interpolate(this.downloadPanelAlpha, downloading ? 1.0f : 0.0f, 0.4f);
 
-        if (playingMusic != null) {
+        if (hasMusic || editorPreview) {
 
-            TextureHandle cover = playingMusic.getSmallCoverLocation();
+            TextureHandle cover = hasMusic ? playingMusic.getSmallCoverLocation() : null;
 
             double imgSpacing = 4;
 
@@ -85,8 +90,8 @@ public class MusicInfoWidget extends HudWidget {
                 double posX = this.getX();
                 double posY = this.getY();
 
-                TextureHandle musicCoverBlured = playingMusic.getBlurredCoverLocation();
-                boolean hasBg = Platform.hasTexture(musicCoverBlured);
+                TextureHandle musicCoverBlured = hasMusic ? playingMusic.getBlurredCoverLocation() : null;
+                boolean hasBg = musicCoverBlured != null && Platform.hasTexture(musicCoverBlured);
 
                 if (hasBg || prevBlurredBg) {
 
@@ -138,12 +143,14 @@ public class MusicInfoWidget extends HudWidget {
                 this.roundedRectTextured(imgX, imgY, imgSize, imgSize, coverRound, alpha);
             }
 
-            if (Platform.hasTexture(cover)) {
+            if (cover != null && Platform.hasTexture(cover)) {
                 RenderSystem.bindTexture(Identifiers.of(cover));
                 this.roundedRectTextured(imgX, imgY, imgSize, imgSize, coverRound, this.musicBgAlpha * alpha);
+            } else if (editorPreview) {
+                this.roundedRect(imgX, imgY, imgSize, imgSize, coverRound, 195, 2, 24, (int) (alpha * 255));
             }
 
-            String secondaryText = playingMusic.getArtistsName();
+            String secondaryText = hasMusic ? playingMusic.getArtistsName() : "正在等待播放";
 
             if (this.turnComposerIntoLyric && CloudMusic.player != null) {
                 LyricLine currentDisplaying = CloudMusic.currentLyric;
@@ -180,7 +187,7 @@ public class MusicInfoWidget extends HudWidget {
 
             double progressBarWidth = width - (imgSize + imgSpacing * 3.25);
 
-            String name1 = playingMusic.getName();
+            String name1 = hasMusic ? playingMusic.getName() : "Tritium Music";
 
             double musicNameY = imgY + 3;
             musicName.render(FontManager.pf25bold, name1, imgX + imgSize + imgSpacing, musicNameY, progressBarWidth, new Color(1f, 1f, 1f, alpha).getRGB());
@@ -191,16 +198,21 @@ public class MusicInfoWidget extends HudWidget {
 
             this.roundedRect(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth, 5, 1, 1f, 1f, 1f, alpha * 0.3f);
 
-            if (CloudMusic.player != null) {
-                StencilClipManager.beginClip(() -> Rect.draw(imgX + imgSize + imgSpacing, progressBarOffsetY, (progressBarWidth) * ((double) CloudMusic.player.getCurrentTimeMillis() / CloudMusic.player.getTotalTimeMillis()), 6, -1));
+            if (CloudMusic.player != null || editorPreview) {
+                double playbackProgress = CloudMusic.player != null
+                        ? (double) CloudMusic.player.getCurrentTimeMillis() / CloudMusic.player.getTotalTimeMillis()
+                        : 0.42;
+                StencilClipManager.beginClip(() -> Rect.draw(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth * playbackProgress, 6, -1));
                 this.roundedRect(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth, 5, 1, 233, 233, 233, (int) (alpha * 255));
                 StencilClipManager.endClip();
 
-                int cMin = (int) (CloudMusic.player.getCurrentTimeSeconds() / 60);
-                int cSec = (int) (CloudMusic.player.getCurrentTimeSeconds() - cMin * 60);
+                double currentSeconds = CloudMusic.player != null ? CloudMusic.player.getCurrentTimeSeconds() : 87;
+                double totalSeconds = CloudMusic.player != null ? CloudMusic.player.getTotalTimeSeconds() : 206;
+                int cMin = (int) (currentSeconds / 60);
+                int cSec = (int) (currentSeconds - cMin * 60);
                 String currentTime = (cMin < 10 ? "0" + cMin : cMin) + ":" + (cSec < 10 ? "0" + cSec : cSec);
-                int tMin = (int) (CloudMusic.player.getTotalTimeSeconds() / 60);
-                int tSec = (int) (CloudMusic.player.getTotalTimeSeconds() - tMin * 60);
+                int tMin = (int) (totalSeconds / 60);
+                int tSec = (int) (totalSeconds - tMin * 60);
                 String totalTime = (tMin < 10 ? "0" + tMin : tMin) + ":" + (tSec < 10 ? "0" + tSec : tSec);
 
                 int textColor = RGBA.color(255, 255, 255, (int) (alpha * 128));

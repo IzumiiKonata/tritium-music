@@ -19,7 +19,12 @@ public class RoundedButtonWidget extends RoundedRectWidget {
         this.addChild(lw);
         lw.setClickable(false);
 
-        lw.setBeforeRenderCallback(() -> lw.center());
+        lw.setBeforeRenderCallback(() -> {
+            String text = lw.getLabel();
+            double textWidth = lw.getFont().getStringWidthD(text);
+            double textHeight = lw.getFont().getStringHeight(text);
+            lw.setPosition((lw.getParentWidth() - textWidth) * 0.5, (lw.getParentHeight() - textHeight) * 0.5);
+        });
 
         this.setShouldOverrideMouseCursor(true);
 

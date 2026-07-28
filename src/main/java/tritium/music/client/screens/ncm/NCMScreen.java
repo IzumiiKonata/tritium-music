@@ -2,6 +2,7 @@ package tritium.music.client.screens.ncm;
 
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.Rect;
@@ -55,12 +56,25 @@ public class NCMScreen extends BaseScreen {
     public MusicLyricsPanel musicLyricsPanel = null;
 
     private boolean dirty = true;
+    private NCMPanel pendingPanel;
+    private Screen returnScreen;
+    private boolean showLogin = true;
 
     public NCMScreen() {
     }
 
     public static void open() {
+        instance.pendingPanel = null;
+        instance.returnScreen = null;
+        instance.showLogin = true;
         Minecraft.getInstance().setScreenAndShow(instance);
+    }
+
+    public static NCMScreen withPanel(NCMPanel panel, Screen returnScreen) {
+        instance.pendingPanel = panel;
+        instance.returnScreen = returnScreen;
+        instance.showLogin = false;
+        return instance;
     }
 
     @Override
@@ -68,8 +82,16 @@ public class NCMScreen extends BaseScreen {
         alpha = 0f;
         closing = false;
         this.musicLyricsPanel = null;
+        if (!showLogin) {
+            loginRenderer = null;
+        }
 
         this.checkDirty();
+        if (pendingPanel != null) {
+            NCMPanel panel = pendingPanel;
+            pendingPanel = null;
+            setCurrentPanel(panel);
+        }
     }
 
     public void markDirty() {
@@ -122,8 +144,11 @@ public class NCMScreen extends BaseScreen {
 
     @Override
     public void drawScreen(double mouseX, double mouseY) {
-        if (closing && alpha <= 0.02f)
-            Minecraft.getInstance().setScreenAndShow(null);
+        if (closing && alpha <= 0.02f) {
+            Screen target = returnScreen;
+            returnScreen = null;
+            Minecraft.getInstance().setScreenAndShow(target);
+        }
 
         alpha = Interpolations.interpolate(alpha, closing ? 0f : 1f, 0.4f);
 
@@ -198,7 +223,7 @@ public class NCMScreen extends BaseScreen {
 
         boolean loggedIn = !OptionsUtil.getCookie().isEmpty();
 
-        if (!loggedIn && this.loginRenderer == null) {
+        if (showLogin && !loggedIn && this.loginRenderer == null) {
             this.loginRenderer = new LoginRenderer();
         }
 

@@ -1,6 +1,7 @@
 package tritium.music.client.screens;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.RGBA;
@@ -23,14 +24,20 @@ public class WidgetEditorScreen extends BaseScreen {
             new MusicSpectrumWidget()
     );
 
+    private final Screen parent;
     private HudWidget dragging = null;
     private double dragOffsetX, dragOffsetY;
     private HudWidget hovered = null;
 
     private static final double SNAP = 6;
 
+    public WidgetEditorScreen(Screen parent) {
+        this.parent = parent;
+    }
+
     public static void open() {
-        Minecraft.getInstance().setScreenAndShow(new WidgetEditorScreen());
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.setScreenAndShow(new WidgetEditorScreen(minecraft.gui.screen()));
     }
 
     @Override
@@ -42,9 +49,7 @@ public class WidgetEditorScreen extends BaseScreen {
         hovered = null;
         for (HudWidget widget : widgets) {
             boolean enabled = widget.isEnabled();
-            if (enabled) {
-                widget.onRender();
-            }
+            widget.onRender();
 
             double wx = widget.getX(), wy = widget.getY();
             double ww = widget.editorWidth();
@@ -57,13 +62,16 @@ public class WidgetEditorScreen extends BaseScreen {
 
             if (!enabled) {
                 Rect.draw(wx, wy, ww, wh, RGBA.color(40, 40, 48, 160));
-                FontManager.pf14bold.drawCenteredString(widget.getName() + " (关闭)", wx + ww / 2.0, wy + wh / 2.0 - FontManager.pf14bold.getHeight() / 2.0, RGBA.color(160, 160, 160, 220));
+                String disabledText = widget.getName() + " (关闭)";
+                double disabledTextY = wy + (wh - FontManager.pf14bold.getStringHeight(disabledText)) * 0.5;
+                FontManager.pf14bold.drawCenteredString(disabledText, wx + ww / 2.0, disabledTextY, RGBA.color(160, 160, 160, 220));
             }
 
             int outline = (widget == dragging || widget == hovered) ? RGBA.color(120, 200, 255, 255)
                     : (enabled ? RGBA.color(255, 255, 255, 120) : RGBA.color(120, 120, 120, 120));
             RenderSystem.drawOutLine(wx, wy, ww, wh, 1, outline);
-            FontManager.pf14bold.drawString(widget.getName(), wx + 2, wy - FontManager.pf14bold.getHeight() - 2, RGBA.color(255, 255, 255, 220));
+            String name = widget.getName();
+            FontManager.pf14bold.drawString(name, wx + 2, wy - FontManager.pf14bold.getStringHeight(name) - 2, RGBA.color(255, 255, 255, 220));
         }
 
         if (dragging != null) {
@@ -87,8 +95,9 @@ public class WidgetEditorScreen extends BaseScreen {
                 && mouseY >= SETTINGS_BTN_Y && mouseY <= SETTINGS_BTN_Y + SETTINGS_BTN_H;
         roundedRect(settingsBtnX(), SETTINGS_BTN_Y, SETTINGS_BTN_W, SETTINGS_BTN_H, 4,
                 overSettings ? RGBA.color(120, 200, 255, 230) : RGBA.color(60, 60, 70, 230));
-        FontManager.pf16bold.drawCenteredString("设置", settingsBtnX() + SETTINGS_BTN_W / 2.0,
-                SETTINGS_BTN_Y + SETTINGS_BTN_H / 2.0 - FontManager.pf16bold.getHeight() / 2.0, -1);
+        String settingsText = "设置";
+        double settingsTextY = SETTINGS_BTN_Y + (SETTINGS_BTN_H - FontManager.pf16bold.getStringHeight(settingsText)) * 0.5;
+        FontManager.pf16bold.drawCenteredString(settingsText, settingsBtnX() + SETTINGS_BTN_W / 2.0, settingsTextY, -1);
     }
 
     private static final double SETTINGS_BTN_W = 70, SETTINGS_BTN_H = 22, SETTINGS_BTN_Y = 10;
@@ -108,8 +117,7 @@ public class WidgetEditorScreen extends BaseScreen {
     public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (mouseButton == 0 && mouseX >= settingsBtnX() && mouseX <= settingsBtnX() + SETTINGS_BTN_W
                 && mouseY >= SETTINGS_BTN_Y && mouseY <= SETTINGS_BTN_Y + SETTINGS_BTN_H) {
-            WidgetConfig.get().save();
-            WidgetSettingsScreen.open();
+            close();
             return;
         }
 
@@ -172,7 +180,7 @@ public class WidgetEditorScreen extends BaseScreen {
 
     private void close() {
         WidgetConfig.get().save();
-        NCMScreen.open();
+        minecraft.setScreenAndShow(parent == null ? NCMScreen.getInstance() : parent);
     }
 
     @Override

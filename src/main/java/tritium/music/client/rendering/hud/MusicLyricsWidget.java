@@ -1,5 +1,6 @@
 package tritium.music.client.rendering.hud;
 
+import net.minecraft.client.Minecraft;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
@@ -8,6 +9,7 @@ import tritium.music.client.rendering.animation.Easing;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.util.ClientSettings;
 import tritium.music.client.util.Mth;
 import tritium.music.core.CloudMusic;
@@ -16,6 +18,7 @@ import tritium.music.core.lyric.LyricLine;
 public class MusicLyricsWidget extends HudWidget {
 
     private static double scrollOffset = 0;
+    private final LyricLine[] editorLyrics = createEditorLyrics();
 
     private double fontH, lyricH;
 
@@ -67,8 +70,12 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     public static double getLyricHeight() {
+        return getLyricHeight(hasSecondaryLyrics());
+    }
+
+    private static double getLyricHeight(boolean hasSecondaryLyrics) {
         double baseHeight = getFontRenderer().getHeight();
-        double adjustment = CloudMusic.hasSecondaryLyrics() ? 0 : -getSmallFontRenderer().getHeight() - 4;
+        double adjustment = hasSecondaryLyrics ? 0 : -getSmallFontRenderer().getHeight() - 4;
         return baseHeight + adjustment + cfg().lyricHeight;
     }
 
@@ -84,6 +91,9 @@ public class MusicLyricsWidget extends HudWidget {
     public void onRender() {
 
         if (!shouldRender()) {
+            if (Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen) {
+                renderEditorData();
+            }
             return;
         }
 
@@ -124,6 +134,69 @@ public class MusicLyricsWidget extends HudWidget {
 
     private boolean shouldRender() {
         return CloudMusic.player != null && !CloudMusic.player.isFinished() && !CloudMusic.lyrics.isEmpty();
+    }
+
+    private void renderEditorData() {
+        setWidth(cfg().width);
+        setHeight(cfg().height);
+        fontH = getFontRenderer().getHeight();
+        lyricH = getLyricHeight(true);
+
+        String[] secondaryLyrics = {"让音乐在此刻响起", "Tritium Music", "拖动组件调整位置"};
+        int currentIndex = 1;
+        float progress = System.currentTimeMillis() % 3200;
+        double startY = getY() + getHeight() * 0.5 - fontH * 0.5 - lyricH;
+        double pivotX = alignPivotX(cfg().alignMode);
+
+        StencilClipManager.beginClip(() -> Rect.draw(getX() - 2, getY(), getWidth() + 4, getHeight(), -1));
+        for (int index = 0; index < editorLyrics.length; index++) {
+            LyricLine line = editorLyrics[index];
+            boolean current = index == currentIndex;
+            updateLyricAnimation(line, current);
+
+            LyricRenderInfo renderInfo = new LyricRenderInfo();
+            renderInfo.yPosition = startY + index * lyricH;
+            renderInfo.fade = computeEdgeFade(renderInfo.yPosition);
+
+            boolean hasWords = !line.words.isEmpty();
+            boolean selfRenderedEffect = current && hasWords
+                    && (cfg().scrollEffect == ScrollEffects.SlideIn || cfg().scrollEffect == ScrollEffects.Aurora);
+            int primaryColor = withFade(
+                    RGBA.color(255, 255, 255, calculateAlpha(line, index, currentIndex, hasWords)),
+                    renderInfo.fade);
+            int secondaryColor = withFade(
+                    RGBA.color(255, 255, 255, index <= currentIndex ? (int) (line.lineAlpha * 255) : 100),
+                    renderInfo.fade);
+
+            double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
+            RenderContext.graphics().pose().pushMatrix();
+            scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+            renderByAlignment(
+                    line,
+                    renderInfo,
+                    secondaryLyrics[index],
+                    false,
+                    !selfRenderedEffect,
+                    primaryColor,
+                    secondaryColor);
+            if (current && hasWords) {
+                handleScrollEffects(line, renderInfo, progress);
+            }
+            RenderContext.graphics().pose().popMatrix();
+        }
+        StencilClipManager.endClip();
+    }
+
+    private static LyricLine[] createEditorLyrics() {
+        LyricLine previous = new LyricLine(0, "欢迎使用网易云音乐");
+        LyricLine current = new LyricLine(0, "正在播放的歌词");
+        current.duration = 3200;
+        current.words.add(new LyricLine.Word("正在", 0, 800));
+        current.words.add(new LyricLine.Word("播放", 800, 800));
+        current.words.add(new LyricLine.Word("的", 1600, 500));
+        current.words.add(new LyricLine.Word("歌词", 2100, 1100));
+        LyricLine next = new LyricLine(3200, "下一句歌词将在这里显示");
+        return new LyricLine[]{previous, current, next};
     }
 
     private void handleSingleLineMode(boolean shouldNotDisplayOtherLyrics) {

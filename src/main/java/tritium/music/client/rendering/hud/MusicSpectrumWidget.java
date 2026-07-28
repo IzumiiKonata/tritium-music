@@ -1,11 +1,13 @@
 package tritium.music.client.rendering.hud;
 
+import net.minecraft.client.Minecraft;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.animation.Interpolations;
+import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.audio.AudioPlayer;
 
@@ -40,6 +42,7 @@ public class MusicSpectrumWidget extends HudWidget {
         Style style = cfg().style;
 
         boolean compatMode = cfg().compatMode;
+        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
 
         if (CloudMusic.player != null) {
 
@@ -72,6 +75,59 @@ public class MusicSpectrumWidget extends HudWidget {
             } else if (oscilloscope) {
                 this.drawWaveform();
             }
+        } else if (editorPreview) {
+            boolean rect = style == Style.Rect;
+            boolean oscilloscope = style == Style.Oscilloscope;
+
+            if (compatMode || oscilloscope) {
+                this.setWidth(200);
+                this.setHeight(80);
+                this.roundedRect(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 6, 0, 0, 0, 0.4f);
+            }
+
+            if (rect) {
+                updateEditorSpectrum();
+                drawBars(compatMode);
+                if (!compatMode) {
+                    this.setWidth(RenderSystem.getWidth());
+                    this.setHeight(RenderSystem.getHeight() * 0.33);
+                }
+            } else {
+                drawEditorWaveform();
+            }
+        }
+    }
+
+    private void drawEditorWaveform() {
+        int count = 96;
+        float[] points = new float[count * 2];
+        double phase = System.currentTimeMillis() * 0.004;
+        double width = getWidth() - 8;
+        for (int index = 0; index < count; index++) {
+            double progress = index / (double) (count - 1);
+            points[index * 2] = (float) (progress * width);
+            points[index * 2 + 1] = (float) (Math.sin(progress * Math.PI * 8 + phase) * 0.72
+                    + Math.sin(progress * Math.PI * 19 - phase * 0.7) * 0.28);
+        }
+        drawWaveSub(getHeight(), false, points, count);
+    }
+
+    private void updateEditorSpectrum() {
+        int count = cfg().compatMode ? 32 : 96;
+        if (renderSpectrum.length != count) {
+            renderSpectrum = new float[count];
+            renderSpectrumIndicator = new float[count];
+            indicatorTimeStamp = new long[count];
+        }
+        double phase = System.currentTimeMillis() * 0.003;
+        for (int index = 0; index < count; index++) {
+            float energy = (float) (0.18
+                    + Math.abs(Math.sin(index * 0.31 + phase)) * 0.48
+                    + Math.abs(Math.sin(index * 0.11 - phase * 0.7)) * 0.22);
+            renderSpectrum[index] = Interpolations.interpolate(renderSpectrum[index], Math.min(1, energy), 0.24f);
+            renderSpectrumIndicator[index] = Math.max(
+                    Interpolations.interpolate(renderSpectrumIndicator[index], 0, 0.08f),
+                    renderSpectrum[index]);
         }
     }
 

@@ -15,6 +15,7 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.lifecycle.ClientStartedEvent;
 import net.neoforged.neoforge.client.event.lifecycle.ClientStoppingEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.platform.MinecraftMusicPlatform;
@@ -30,8 +31,8 @@ import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
 import tritium.music.client.rendering.hud.MusicSpectrumWidget;
 import tritium.music.client.rendering.shader.EffectPipelines;
-import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMScreen;
+import tritium.music.client.screens.ncm.panels.HudSettingsPanel;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicListener;
 import tritium.music.core.audio.AudioPlayer;
@@ -66,7 +67,7 @@ public final class TritiumMusicNeoForge {
         Platform.set(new MinecraftMusicPlatform());
         modContainer.registerExtensionPoint(
                 IConfigScreenFactory.class,
-                (container, parent) -> new tritium.music.client.screens.WidgetSettingsScreen(parent));
+                (container, parent) -> NCMScreen.withPanel(new HudSettingsPanel(), parent));
 
         CloudMusic.addListener(new MusicListener() {
             @Override
@@ -100,9 +101,12 @@ public final class TritiumMusicNeoForge {
 
     @SubscribeEvent
     private static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
-        registerWidget(event, "music_info", MUSIC_INFO);
-        registerWidget(event, "music_lyrics", MUSIC_LYRICS);
-        registerWidget(event, "music_spectrum", MUSIC_SPECTRUM);
+        Identifier infoId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_info");
+        Identifier lyricsId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_lyrics");
+        Identifier spectrumId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_spectrum");
+        registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, infoId, MUSIC_INFO);
+        registerWidgetAbove(event, infoId, lyricsId, MUSIC_LYRICS);
+        registerWidgetAbove(event, lyricsId, spectrumId, MUSIC_SPECTRUM);
     }
 
     @SubscribeEvent
@@ -126,12 +130,39 @@ public final class TritiumMusicNeoForge {
         }
     }
 
-    private static void registerWidget(RegisterGuiLayersEvent event, String id, HudWidget widget) {
-        event.registerAboveAll(
-                Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, id),
+    private static void registerWidgetBelow(
+            RegisterGuiLayersEvent event,
+            Identifier anchor,
+            Identifier id,
+            HudWidget widget) {
+        event.registerBelow(
+                anchor,
+                id,
                 (graphics, deltaTracker) -> {
                     updateSpectrumSettings();
-                    if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen) {
+                    if (!widget.isEnabled()
+                            || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+                        return;
+                    }
+                    HudWidget.renderInFrame(
+                            graphics,
+                            deltaTracker.getGameTimeDeltaPartialTick(false),
+                            widget::onRender);
+                });
+    }
+
+    private static void registerWidgetAbove(
+            RegisterGuiLayersEvent event,
+            Identifier anchor,
+            Identifier id,
+            HudWidget widget) {
+        event.registerAbove(
+                anchor,
+                id,
+                (graphics, deltaTracker) -> {
+                    updateSpectrumSettings();
+                    if (!widget.isEnabled()
+                            || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                         return;
                     }
                     HudWidget.renderInFrame(

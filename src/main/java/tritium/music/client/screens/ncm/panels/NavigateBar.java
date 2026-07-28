@@ -177,8 +177,8 @@ public class NavigateBar extends NCMPanel {
         }
 
         {
-            PlaylistItem item = new PlaylistItem("L", Color.GRAY::getRGB, () -> "编辑 HUD",
-                    () -> tritium.music.client.screens.WidgetEditorScreen.open());
+            PlaylistItem item = new PlaylistItem("L", Color.GRAY::getRGB, () -> "HUD 设置",
+                    () -> NCMScreen.getInstance().setCurrentPanel(new HudSettingsPanel()));
             item.setShouldOverrideMouseCursor(true);
             this.playlistPanel.addChild(item);
         }

@@ -112,7 +112,8 @@ public class TritiumMusicMod implements ClientModInitializer {
             AudioPlayer.windowTime = (float) spectrum.windowTime;
             AudioPlayer.stereo = spectrum.stereo;
 
-            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled()
+                    || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
 
