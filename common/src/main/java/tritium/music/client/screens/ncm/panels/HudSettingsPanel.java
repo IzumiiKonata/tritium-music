@@ -18,6 +18,7 @@ import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.screens.widget.ColorPickerWidget;
+import tritium.music.core.model.Quality;
 
 import java.awt.Color;
 import java.util.function.BooleanSupplier;
@@ -132,6 +133,16 @@ public class HudSettingsPanel extends NCMPanel {
 
     private void buildGeneralPage() {
         WidgetConfig config = WidgetConfig.get();
+        content.addChild(new SectionRow("播放"));
+        content.addChild(row(
+                "音乐品质",
+                "控制后续播放歌曲使用的音源品质",
+                dropdown(
+                        () -> config.quality,
+                        value -> config.quality = value,
+                        Quality.values(),
+                        HudSettingsPanel::qualityName)));
+
         content.addChild(new SectionRow("音乐信息"));
         content.addChild(row(
                 "显示组件",
@@ -285,6 +296,7 @@ public class HudSettingsPanel extends NCMPanel {
         switch (page) {
             case GENERAL -> {
                 config.volume = 0.25;
+                config.quality = Quality.STANDARD;
                 config.musicInfo = new WidgetConfig.WidgetSettings(8f / 1920f, 8f / 1080f, 1, true);
             }
             case LYRICS -> {
@@ -422,6 +434,19 @@ public class HudSettingsPanel extends NCMPanel {
             case Left -> "左对齐";
             case Center -> "居中";
             case Right -> "右对齐";
+        };
+    }
+
+    private static String qualityName(Quality quality) {
+        return switch (quality) {
+            case STANDARD -> "标准";
+            case HIGHER -> "较高";
+            case EXHIGH -> "极高";
+            case LOSSLESS -> "无损";
+            case HIRES -> "Hi-Res";
+            case JYEFFECT -> "高清环绕声";
+            case SKY -> "沉浸环绕声";
+            case JYMASTER -> "超清母带";
         };
     }
 

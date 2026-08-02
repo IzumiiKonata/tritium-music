@@ -1,7 +1,9 @@
 package tritium.music.client.config;
 
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
+import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
+import tritium.music.core.model.Quality;
 import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.Platform;
 
@@ -29,6 +31,7 @@ public class WidgetConfig {
     public Spectrum spectrum = new Spectrum();
 
     public double volume = 0.25;
+    public Quality quality = Quality.STANDARD;
 
     public static class WidgetSettings {
         public double x;
@@ -116,6 +119,7 @@ public class WidgetConfig {
         if (musicSpectrum == null) musicSpectrum = new WidgetSettings(0f, 0f, 1.0, false);
         if (lyrics == null) lyrics = new Lyrics();
         if (spectrum == null) spectrum = new Spectrum();
+        if (quality == null) quality = Quality.STANDARD;
     }
 
     public void applyToState() {
@@ -123,5 +127,6 @@ public class WidgetConfig {
         state.setShowTranslation(lyrics.showTranslation);
         state.setShowRoman(lyrics.showRoman);
         state.setVolume((float) volume);
+        CloudMusic.quality = quality;
     }
 }
