@@ -11,6 +11,9 @@ import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.audio.AudioPlayer;
 import tritium.music.core.lyric.LyricLine;
 import tritium.music.core.lyric.LyricParser;
+import tritium.music.core.lyric.provider.LyricsFetcher;
+import tritium.music.core.lyric.provider.LyricsQuery;
+import tritium.music.core.lyric.provider.LyricsResult;
 import tritium.music.core.model.Music;
 import tritium.music.core.model.PlayList;
 import tritium.music.core.model.Quality;
@@ -47,6 +50,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -97,7 +101,8 @@ public class CloudMusic {
 
     public static void initLyrics(JsonObject rawLyricData, Music music, List<LyricLine> parsedLyrics) {
         resetLyricFlags();
-        detectTranslations(rawLyricData);
+        if (rawLyricData != null) detectTranslations(rawLyricData);
+        if (rawLyricData == null) detectTranslations(parsedLyrics);
 
         synchronized (lyrics) {
             updateLyricsList(parsedLyrics);
@@ -128,6 +133,11 @@ public class CloudMusic {
     private static void detectTranslations(JsonObject lyric) {
         if (hasLyricsType(lyric, "tlyric") || hasLyricsType(lyric, "ytlrc")) hasTransLyrics = true;
         if (hasLyricsType(lyric, "romalrc") || hasLyricsType(lyric, "yromalrc")) hasRomanization = true;
+    }
+
+    private static void detectTranslations(List<LyricLine> lyricLines) {
+        hasTransLyrics = lyricLines.stream().anyMatch(line -> line.translationText != null && !line.translationText.isBlank());
+        hasRomanization = lyricLines.stream().anyMatch(line -> line.romanizationText != null && !line.romanizationText.isBlank());
     }
 
     private static boolean hasLyricsType(JsonObject lyric, String type) {
@@ -622,6 +632,7 @@ public class CloudMusic {
                 }
 
                 preloadNextCover();
+                preloadNextLyric();
                 waitForPlaybackCompletion();
                 if (!isCurrentPlayback()) {
                     return;
@@ -653,8 +664,8 @@ public class CloudMusic {
         }
 
         private boolean playSong(Music song) {
-            loadLyric(song);
             currentlyPlaying = song;
+            loadLyric(song);
 
             Pair<String, String> playUrl = song.getPlayUrl();
 
@@ -748,6 +759,20 @@ public class CloudMusic {
             if (curIdx + 1 < playList.size()) {
                 loadMusicCover(playList.get(curIdx + 1));
             }
+        }
+
+        private void preloadNextLyric() {
+            Music nextSong = nextSong();
+            if (nextSong != null) LyricsFetcher.getDefault().prefetch(lyricsQuery(nextSong));
+        }
+
+        private Music nextSong() {
+            if (playList.isEmpty()) return null;
+            if (playMode == PlayMode.LoopSingle) return playList.get(curIdx);
+            int nextIndex = curIdx + 1;
+            if (nextIndex < playList.size()) return playList.get(nextIndex);
+            if (playMode == PlayMode.LoopInList || playMode == PlayMode.Random) return playList.getFirst();
+            return null;
         }
 
         private void updateCurrentIndex() {
@@ -926,22 +951,22 @@ public class CloudMusic {
     public static void loadLyric(Music music) {
         AsyncUtil.runAsync(() -> {
 
-            String string = CloudMusicApi.lyricNew(music.getId()).toString();
-
-            string = string.replaceAll("[ - ]", " ");
-
-            JsonObject json = JsonUtils.toJsonObject(string);
-
-            List<LyricLine> parsed = LyricParser.parse(json);
+            LyricsQuery query = lyricsQuery(music);
+            System.out.println("query = " + query);
+            Optional<LyricsResult> fetched = LyricsFetcher.getDefault().fetch(query);
+            System.out.println("fetched = " + fetched);
+            LyricsResult result = fetched.orElse(new LyricsResult("", "plain", "none"));
+            List<LyricLine> parsed = LyricParser.parse(result);
+            JsonObject json = "netease".equals(result.format()) ? JsonUtils.toJsonObject(result.lyrics()) : null;
 
             InputStream stream = CloudMusic.class.getResourceAsStream("/assets/tritium-music/yrc/" + music.getId() + ".yrc");
-            if (stream != null) {
+            if (stream != null && json != null) {
                 try {
                     String s = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
                     List<LyricLine> newLines = new ArrayList<>();
                     LyricParser.parseYrc(s, newLines);
 
-                    for (int i = 0; i < newLines.size(); i++) {
+                    for (int i = 0; i < Math.min(newLines.size(), parsed.size()); i++) {
                         LyricLine newLine = newLines.get(i);
                         LyricLine oldLine = parsed.get(i);
                         oldLine.words.clear();
@@ -956,9 +981,14 @@ public class CloudMusic {
                 }
             }
 
-            initLyrics(json, music, parsed);
+            if (music.equals(currentlyPlaying)) initLyrics(json, music, parsed);
 
         });
+    }
+
+    private static LyricsQuery lyricsQuery(Music music) {
+        String album = music.getAlbum() == null || music.getAlbum().getName() == null ? "" : music.getAlbum().getName();
+        return new LyricsQuery(music.getId(), music.getArtistsName(), music.getName(), album);
     }
 
     public static String qrCodeLogin() {
