@@ -1,5 +1,6 @@
 package tritium.music.neoforge;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethodStage;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -106,9 +107,12 @@ public final class TritiumMusicNeoForge {
         Identifier infoId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_info");
         Identifier lyricsId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_lyrics");
         Identifier spectrumId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_spectrum");
-        registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, infoId, MUSIC_INFO);
-        registerWidgetAbove(event, infoId, lyricsId, MUSIC_LYRICS);
-        registerWidgetAbove(event, lyricsId, spectrumId, MUSIC_SPECTRUM);
+        registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, spectrumId, MUSIC_SPECTRUM);
+        registerWidgetAbove(event, spectrumId, lyricsId, MUSIC_LYRICS);
+        registerWidgetAbove(event, lyricsId, infoId, MUSIC_INFO);
+//        registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, infoId, MUSIC_INFO);
+//        registerWidgetAbove(event, infoId, lyricsId, MUSIC_LYRICS);
+//        registerWidgetAbove(event, lyricsId, spectrumId, MUSIC_SPECTRUM);
     }
 
     @SubscribeEvent
