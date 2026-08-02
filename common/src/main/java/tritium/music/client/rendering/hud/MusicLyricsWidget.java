@@ -604,9 +604,6 @@ public class MusicLyricsWidget extends HudWidget {
             x += cw;
         }
 
-        if (cfg().auroraSpark && sweep > 0.001 && sweep < 0.999) {
-            renderAuroraSpark(headX, baseY, fade, beat);
-        }
     }
 
     private double computeSungTotal(CFontRenderer fr, LyricLine line) {
@@ -675,23 +672,6 @@ public class MusicLyricsWidget extends HudWidget {
         double leftX = calculateAlignmentX(text, cfg().alignMode);
         double headX = leftX + fr.getStringWidthD(text);
         renderAuroraGlow(fr, text, leftX, renderInfo.yPosition, headX, renderInfo.fade, auroraEnergy, line.auroraGlow);
-    }
-
-    private void renderAuroraSpark(double headX, double baseY, double fade, double beat) {
-        double centerY = baseY + fontH * 0.5;
-        double pulse = 0.6 + 0.4 * beat;
-        int rgb = cfg().glowColor & 0xFFFFFF;
-
-        double haloW = Math.max(2.0, fontH * 0.42) * (0.85 + beat * 0.3);
-        double haloH = fontH * 1.05;
-        roundedRect(headX - haloW * 0.5, centerY - haloH * 0.5, haloW, haloH, haloW * 0.5, RGBA.color(rgb, (int) (fade * pulse * 90.0)));
-
-        double coreW = Math.max(1.0, fontH * 0.13);
-        double coreH = fontH * 0.92;
-        roundedRect(headX - coreW * 0.5, centerY - coreH * 0.5, coreW, coreH, coreW * 0.5, RGBA.white((int) (fade * pulse * 230.0)));
-
-        double dot = Math.max(1.5, fontH * 0.2) * (0.9 + beat * 0.4);
-        roundedRect(headX - dot * 0.5, centerY - dot * 0.5, dot, dot, dot * 0.5, RGBA.white((int) (fade * Math.min(1.0, 0.8 + beat) * 255.0)));
     }
 
     private double lowFrequencyEnergy() {

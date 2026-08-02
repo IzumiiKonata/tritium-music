@@ -131,12 +131,6 @@ public class HudSettingsPanel extends NCMPanel {
 
     private void buildGeneralPage() {
         WidgetConfig config = WidgetConfig.get();
-        content.addChild(new SectionRow("播放器"));
-        content.addChild(row(
-                "播放音量",
-                "控制音乐播放器的输出音量",
-                slider(() -> config.volume, value -> config.volume = value, 0, 1, 0.01, HudSettingsPanel::percent)));
-
         content.addChild(new SectionRow("音乐信息"));
         content.addChild(row(
                 "显示组件",
@@ -157,7 +151,7 @@ public class HudSettingsPanel extends NCMPanel {
                 toggle(() -> config.musicLyrics.enabled, value -> config.musicLyrics.enabled = value)));
         content.addChild(row("组件缩放", "调整歌词组件的整体尺寸",
                 slider(() -> config.musicLyrics.scale, value -> config.musicLyrics.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
-        content.addChild(row("切换动画", "选择歌词行进入时的动画",
+        content.addChild(row("逐字歌词动效", "选择歌词行进入时的动画",
                 dropdown(
                         () -> lyrics.scrollEffect,
                         value -> lyrics.scrollEffect = value,
@@ -193,8 +187,6 @@ public class HudSettingsPanel extends NCMPanel {
         content.addChild(new SectionRow("极光"));
         content.addChild(row("极光辉光", "显示当前歌词的背景辉光",
                 toggle(() -> lyrics.auroraBloom, value -> lyrics.auroraBloom = value)));
-        content.addChild(row("极光粒子", "在极光模式中显示动态光点",
-                toggle(() -> lyrics.auroraSpark, value -> lyrics.auroraSpark = value)));
         content.addChild(row("音频响应", "让极光强度跟随音乐变化",
                 toggle(() -> lyrics.audioReactive, value -> lyrics.audioReactive = value)));
         content.addChild(row("未唱部分亮度", "控制未播放文字的可见度",
@@ -314,10 +306,10 @@ public class HudSettingsPanel extends NCMPanel {
             setBounds(720, 40);
 
             title.setColor(HudSettingsPanel.this.getColor(NCMScreen.ColorType.PRIMARY_TEXT));
-            description.setColor(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT));
+//            description.setColor(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT));
             title.setClickable(false);
-            description.setClickable(false);
-            addChild(title, description, control);
+//            description.setClickable(false);
+            addChild(title/*, description*/, control);
 
             setBeforeRenderCallback(() -> {
                 setWidth(getParentWidth());
@@ -325,14 +317,14 @@ public class HudSettingsPanel extends NCMPanel {
             });
             title.setBeforeRenderCallback(() -> {
                 double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
-                double descriptionHeight = FontManager.pf12.getStringHeight(description.getLabel());
-                double blockHeight = titleHeight + 2 + descriptionHeight;
+//                double descriptionHeight = FontManager.pf12.getStringHeight(description.getLabel());
+                double blockHeight = titleHeight + 2;
                 title.setPosition(16, (40 - blockHeight) * 0.5);
             });
-            description.setBeforeRenderCallback(() -> {
-                double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
-                description.setPosition(16, title.getRelativeY() + titleHeight + 2);
-            });
+//            description.setBeforeRenderCallback(() -> {
+//                double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
+//                description.setPosition(16, title.getRelativeY() + titleHeight + 2);
+//            });
             control.setBeforeRenderCallback(() -> control.setPosition(
                     control.getParentWidth() - control.getWidth() - 16,
                     (40 - Math.min(control.getHeight(), 22)) * 0.5));

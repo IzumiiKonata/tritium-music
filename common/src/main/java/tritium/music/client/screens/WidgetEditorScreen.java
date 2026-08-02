@@ -88,9 +88,6 @@ public class WidgetEditorScreen extends BaseScreen {
             dragging.setY(ny);
         }
 
-        String hint = "拖动移动 · 滚轮缩放 · 右键开关 · ESC 保存返回";
-        FontManager.pf16bold.drawCenteredString(hint, screenW / 2.0, screenH - 18, RGBA.color(255, 255, 255, 220));
-
         boolean overSettings = mouseX >= settingsBtnX() && mouseX <= settingsBtnX() + SETTINGS_BTN_W
                 && mouseY >= SETTINGS_BTN_Y && mouseY <= SETTINGS_BTN_Y + SETTINGS_BTN_H;
         roundedRect(settingsBtnX(), SETTINGS_BTN_Y, SETTINGS_BTN_W, SETTINGS_BTN_H, 4,

@@ -60,7 +60,6 @@ public class WidgetConfig {
         public int width = 450;
         public int height = 120;
         public boolean auroraBloom = true;
-        public boolean auroraSpark = true;
         public boolean audioReactive = true;
         public double auroraUnsungOpacity = 0.35;
         public int glowColor = new Color(140, 215, 255).getRGB();
