@@ -201,7 +201,7 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private static LyricLine[] createEditorLyrics() {
-        LyricLine previous = new LyricLine(0, "欢迎使用网易云音乐");
+        LyricLine previous = new LyricLine(0, "欢迎使用 Tritium Music");
         LyricLine current = new LyricLine(0, "正在播放的歌词");
         current.duration = 3200;
         current.words.add(new LyricLine.Word("正在", 0, 800));
