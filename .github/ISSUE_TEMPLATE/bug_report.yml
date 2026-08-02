@@ -1,0 +1,83 @@
+name: Bug 报告
+description: 报告程序中的问题或异常行为
+title: "[Bug] "
+labels:
+  - bug
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提交 Bug 报告。
+        请尽可能完整地填写以下信息，以帮助我们快速定位问题。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 请详细描述遇到的问题。
+      placeholder: |
+        例如：
+        打开某功能后程序崩溃 / 显示异常 / 功能无法正常工作
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 请提供可以稳定复现问题的操作步骤。
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: 描述你认为正常情况下应该发生什么。
+      placeholder: |
+        应该显示……
+        应该执行……
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 错误日志
+      description: 如果有崩溃日志、控制台输出，请粘贴在这里。
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Mod 版本
+      description: 请填写使用的版本号。
+      placeholder: "例如：1.0.0"
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      description: 问题出现在哪个平台？
+      options:
+        - Fabric
+        - NeoForge
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏
+      description: 如果可以，请提供截图或录屏帮助说明问题。
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: 检查事项
+      options:
+        - label: 我已经搜索过已有 Issue，确认没有重复问题
+          required: true
+        - label: 我已经确认使用的是最新版本
+          required: false
