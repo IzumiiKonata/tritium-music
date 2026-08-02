@@ -13,6 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LyricParser {
+    private static final long QQ_QRC_ADVANCE_MILLIS = 150;
     private static final Pattern QQ_CREDIT_LINE = Pattern.compile(
             "(?i)^\\s*(?:歌曲(?:名称)?|歌名|曲名|歌手|演唱|主唱|作词|填词|词|作曲|谱曲|曲|编曲|制作人?|监制|混音|录音|母带|吉他|贝斯|鼓|和声|弦乐|音乐总监|发行|出品|制作|配唱|title|artist|singer|vocal|lyrics?|lyricist|composer|arranger|producer|mix(?:ing)?|master(?:ing)?|recording|guitar|bass|drums?|chorus|op|sp)(?:\\s*[:：/]|\\s+-\\s+|\\s+).+$");
     private static final Pattern QQ_TITLE_ARTIST_LINE = Pattern.compile("^.{1,80}\\s[-–—]\\s.{1,80}$");
@@ -34,6 +35,7 @@ public class LyricParser {
             if (result.romanization() != null && !result.romanization().isBlank()) {
                 applySecondaryLyrics(lines, parseQqSecondary(result.romanization()), false, 100);
             }
+            advanceQqTimeline(lines);
             return lines;
         }
         if ("plain".equals(result.format())) {
@@ -76,6 +78,22 @@ public class LyricParser {
         }
         lines.sort(Comparator.comparingLong(LyricLine::getTimestamp));
         return lines;
+    }
+
+    private static void advanceQqTimeline(List<LyricLine> lines) {
+        for (LyricLine line : lines) {
+            line.timestamp = Math.max(0, line.timestamp - QQ_QRC_ADVANCE_MILLIS);
+            List<LyricLine.Word> shiftedWords = new ArrayList<>(line.words.size());
+            for (LyricLine.Word word : line.words) {
+                shiftedWords.add(new LyricLine.Word(
+                        word.word,
+                        Math.max(0, word.timestamp - QQ_QRC_ADVANCE_MILLIS),
+                        word.duration
+                ));
+            }
+            line.words.clear();
+            line.words.addAll(shiftedWords);
+        }
     }
 
     private static void removeQqCredits(List<LyricLine> lines) {
