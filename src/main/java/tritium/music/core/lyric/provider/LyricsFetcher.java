@@ -16,6 +16,7 @@ public final class LyricsFetcher {
     private final List<LyricsProvider> providers;
     private final Map<LyricsQuery, CompletableFuture<Optional<LyricsResult>>> cache = new LinkedHashMap<>(32, .75f, true);
     private final Map<ProviderQuery, CompletableFuture<Optional<LyricsResult>>> providerCache = new LinkedHashMap<>(128, .75f, true);
+    private final Map<LyricsQuery, CompletableFuture<List<AvailableLyrics>>> availabilityCache = new LinkedHashMap<>(32, .75f, true);
 
     public record AvailableLyrics(String id, String displayName, LyricsResult result, boolean wordTimed) {
     }
@@ -50,6 +51,23 @@ public final class LyricsFetcher {
     }
 
     public List<AvailableLyrics> available(LyricsQuery query) {
+        try {
+            return requestAvailability(query).join();
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    private synchronized CompletableFuture<List<AvailableLyrics>> requestAvailability(LyricsQuery query) {
+        CompletableFuture<List<AvailableLyrics>> existing = availabilityCache.get(query);
+        if (existing != null) return existing;
+        CompletableFuture<List<AvailableLyrics>> created = CompletableFuture.supplyAsync(() -> findAvailable(query), EXECUTOR);
+        availabilityCache.put(query, created);
+        while (availabilityCache.size() > 32) availabilityCache.remove(availabilityCache.keySet().iterator().next());
+        return created;
+    }
+
+    private List<AvailableLyrics> findAvailable(LyricsQuery query) {
         List<CompletableFuture<Optional<LyricsResult>>> futures = providers.stream()
                 .map(provider -> requestProvider(provider, query))
                 .toList();
