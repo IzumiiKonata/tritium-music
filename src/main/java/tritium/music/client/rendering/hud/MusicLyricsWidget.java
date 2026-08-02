@@ -4,9 +4,12 @@ import net.minecraft.client.Minecraft;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
+import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.animation.Easing;
 import tritium.music.client.rendering.animation.Interpolations;
+import tritium.music.client.rendering.animation.spring.SpringAnimation;
+import tritium.music.client.rendering.animation.spring.SpringParams;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.screens.WidgetEditorScreen;
@@ -15,10 +18,19 @@ import tritium.music.client.util.Mth;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.lyric.LyricLine;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 public class MusicLyricsWidget extends HudWidget {
 
     private static double scrollOffset = 0;
+    private static final SpringAnimation scrollSpring = createSpring();
+    private static LyricLine scrollLyricsFirst;
+    private static LyricLine scrollLyricsLast;
+    private static int scrollLyricsSize = -1;
+    private static double scrollLyricHeight = Double.NaN;
     private final LyricLine[] editorLyrics = createEditorLyrics();
+    private final Map<LyricLine, SpringAnimation> graceScrollSprings = new WeakHashMap<>();
 
     private double fontH, lyricH;
 
@@ -63,7 +75,8 @@ public class MusicLyricsWidget extends HudWidget {
 
         try {
             CloudMusic.setLyricsProgress(progress);
-            scrollOffset = (CloudMusic.lyrics.indexOf(currentLyric())) * getLyricHeight();
+            double lyricHeight = getLyricHeight();
+            setScrollPosition(Math.max(0, CloudMusic.lyrics.indexOf(currentLyric())) * lyricHeight, lyricHeight);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -209,14 +222,51 @@ public class MusicLyricsWidget extends HudWidget {
 
     private void updateScrollOffset(boolean shouldNotDisplayOtherLyrics) {
         int indexOf = CloudMusic.lyrics.indexOf(currentLyric());
+        double target = Math.max(0, indexOf) * lyricH;
 
-        if (!shouldNotDisplayOtherLyrics) {
-            if (currentLyric() == null) {
-                scrollOffset = 0;
-            } else {
-                scrollOffset = Interpolations.interpolate(scrollOffset, indexOf * lyricH, 0.2f);
-            }
+        if (currentLyric() == null || indexOf < 0 || lyricSetChanged()) {
+            setScrollPosition(target, lyricH);
+            return;
         }
+
+        if (shouldNotDisplayOtherLyrics) {
+            scrollSpring.setPosition(target);
+            scrollOffset = target;
+            return;
+        }
+
+        scrollSpring.setTargetPosition(target);
+        scrollSpring.update(RenderSystem.getFrameDeltaTime() * .0125);
+        scrollOffset = scrollSpring.getCurrentPosition();
+    }
+
+    private static boolean lyricSetChanged() {
+        synchronized (CloudMusic.lyrics) {
+            int size = CloudMusic.lyrics.size();
+            LyricLine first = size == 0 ? null : CloudMusic.lyrics.getFirst();
+            LyricLine last = size == 0 ? null : CloudMusic.lyrics.getLast();
+            return size != scrollLyricsSize || first != scrollLyricsFirst || last != scrollLyricsLast
+                    || Double.compare(lyricHStatic(), scrollLyricHeight) != 0;
+        }
+    }
+
+    private static double lyricHStatic() {
+        return getLyricHeight();
+    }
+
+    private static void setScrollPosition(double position, double lyricHeight) {
+        scrollSpring.setPosition(position);
+        scrollOffset = position;
+        synchronized (CloudMusic.lyrics) {
+            scrollLyricsSize = CloudMusic.lyrics.size();
+            scrollLyricsFirst = scrollLyricsSize == 0 ? null : CloudMusic.lyrics.getFirst();
+            scrollLyricsLast = scrollLyricsSize == 0 ? null : CloudMusic.lyrics.getLast();
+        }
+        scrollLyricHeight = lyricHeight;
+    }
+
+    private static SpringAnimation createSpring() {
+        return new SpringAnimation(new SpringParams(.9, 14, 90, false));
     }
 
     private void renderAllLyrics(boolean shouldNotDisplayOtherLyrics, float songProgress) {
@@ -335,7 +385,6 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private void applyGraceScroll(LyricLine line, int index, int currentIndex, double dest) {
-        float speed = 0.15f;
         LyricLine prevLrc = null;
 
         try {
@@ -344,16 +393,30 @@ public class MusicLyricsWidget extends HudWidget {
             }
         } catch (Exception ignored) {}
 
+        boolean shouldUpdate;
         if (prevLrc != null) {
             double prevDest = this.getY() + this.getHeight() / 2.0 - fontH / 2.0 +
                     (index - 1) * lyricH - (currentIndex * lyricH);
             double v = prevLrc.offsetY - prevDest;
-
-            if (v < lyricH * 0.55f) {
-                line.offsetY = Interpolations.interpolate(line.offsetY, dest, speed);
-            }
+            shouldUpdate = v < lyricH * 0.55f;
         } else {
-            line.offsetY = Interpolations.interpolate(line.offsetY, dest, speed);
+            shouldUpdate = true;
+        }
+
+        SpringAnimation spring = graceScrollSprings.computeIfAbsent(line, ignored -> {
+            SpringAnimation animation = createSpring();
+            animation.setPosition(line.offsetY);
+            return animation;
+        });
+
+        if (Math.abs(spring.getCurrentPosition() - line.offsetY) > 100) {
+            spring.setPosition(line.offsetY);
+        }
+
+        if (shouldUpdate) {
+            spring.setTargetPosition(dest);
+            spring.update(RenderSystem.getFrameDeltaTime() * .0125);
+            line.offsetY = spring.getCurrentPosition();
         }
     }
 

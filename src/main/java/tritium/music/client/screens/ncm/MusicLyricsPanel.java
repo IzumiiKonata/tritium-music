@@ -276,6 +276,19 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         double songProgress = playerNotReady ? 0 : (progressBarDragging ? overridePlaybackProgress : CloudMusic.player.getCurrentTimeMillis());
 
         double lyricsWidth = width * getLyricWidthFactor();
+        LyricLine layoutLyric = progressBarDragging
+                ? CloudMusic.findCurrentLyric(overridePlaybackProgress)
+                : CloudMusic.currentLyric;
+        if (layoutLyric == null || !CloudMusic.lyrics.contains(layoutLyric)) return;
+
+        if (CloudMusic.lyrics.stream().anyMatch(lyric -> lyric.spring == null || lyric.height <= 0)) {
+            if (progressBarDragging) {
+                updateLyricPositionsImmediate(lyricsWidth, overridePlaybackProgress);
+            } else {
+                updateLyricPositionsImmediate(lyricsWidth);
+            }
+        }
+
         if (progressBarDragging) {
             updateLyricPositions(lyricsWidth, overridePlaybackProgress);
         } else {
