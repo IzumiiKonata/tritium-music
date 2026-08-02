@@ -17,6 +17,7 @@ import tritium.music.client.rendering.ui.widgets.ToggleWidget;
 import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
+import tritium.music.client.screens.widget.ColorPickerWidget;
 
 import java.awt.Color;
 import java.util.function.BooleanSupplier;
@@ -219,7 +220,8 @@ public class HudSettingsPanel extends NCMPanel {
                 toggle(() -> spectrum.absVol, value -> spectrum.absVol = value)));
 
         content.addChild(new SectionRow("颜色"));
-        addColorRows("频谱", () -> spectrum.rectColor, value -> spectrum.rectColor = value);
+        content.addChild(row("频谱颜色", "点击色板直接选择颜色，并实时预览结果",
+                colorPicker(() -> spectrum.rectColor, value -> spectrum.rectColor = value, true)));
     }
 
     private void addColorRows(String prefix, java.util.function.IntSupplier getter, java.util.function.IntConsumer setter) {
@@ -255,6 +257,16 @@ public class HudSettingsPanel extends NCMPanel {
             setter.accept(value);
             save();
         }, min, max, step, formatter);
+    }
+
+    private ColorPickerWidget colorPicker(
+            java.util.function.IntSupplier getter,
+            java.util.function.IntConsumer setter,
+            boolean withAlpha) {
+        return new ColorPickerWidget(getter, value -> {
+            setter.accept(value);
+            save();
+        }, withAlpha);
     }
 
     private <T> DropdownWidget<T> dropdown(

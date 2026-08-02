@@ -180,7 +180,7 @@ public class NavigateBar extends NCMPanel {
         }
 
         {
-            PlaylistItem item = new PlaylistItem("L", Color.GRAY::getRGB, () -> "HUD 设置",
+            PlaylistItem item = new PlaylistItem("", Color.GRAY::getRGB, () -> "HUD 设置",
                     () -> NCMScreen.getInstance().setCurrentPanel(new HudSettingsPanel()));
             item.setShouldOverrideMouseCursor(true);
             this.playlistPanel.addChild(item);
