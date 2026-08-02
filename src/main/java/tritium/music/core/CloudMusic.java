@@ -14,6 +14,7 @@ import tritium.music.core.lyric.LyricParser;
 import tritium.music.core.lyric.provider.LyricsFetcher;
 import tritium.music.core.lyric.provider.LyricsQuery;
 import tritium.music.core.lyric.provider.LyricsResult;
+import tritium.music.core.lyric.provider.LyricProviderPreferences;
 import tritium.music.core.model.Music;
 import tritium.music.core.model.PlayList;
 import tritium.music.core.model.Quality;
@@ -84,6 +85,8 @@ public class CloudMusic {
     public static boolean hasTransLyrics = false;
     public static boolean hasRomanization = false;
     public static boolean haveNoWords = false;
+    public static volatile String currentLyricsSource = "";
+    public static volatile long currentLyricsSongId = -1;
 
     private static final List<MusicListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -427,6 +430,17 @@ public class CloudMusic {
         return userPlaylists;
     }
 
+    public static synchronized void refreshLibrary() {
+        if (profile == null) return;
+        List<PlayList> refreshedPlaylists = loadUserPlaylists();
+        if (!refreshedPlaylists.isEmpty()) playLists = refreshedPlaylists;
+        try {
+            likeList = likeList();
+        } catch (Exception e) {
+            Platform.log("[NCM] Failed to refresh liked songs: " + e.getMessage());
+        }
+    }
+
     private static List<PlayList> fetchPlaylistsPage(int page) {
         try {
             return profile.playLists(page, 30);
@@ -517,6 +531,17 @@ public class CloudMusic {
         }
     }
 
+    public static synchronized void playNext(Music music) {
+        if (music == null) return;
+        if (currentlyPlaying == null || player == null || playList.isEmpty()) {
+            play(List.of(music), 0);
+            return;
+        }
+        int nextIndex = Math.min(curIdx + 1, playList.size());
+        playList.add(nextIndex, music);
+        loadMusicCover(music);
+    }
+
     private static boolean canPlayNext() {
         return curIdx + 1 <= playList.size() - 1 || playMode != PlayMode.Sequential;
     }
@@ -552,7 +577,7 @@ public class CloudMusic {
      */
     @SneakyThrows
     public static void play(List<Music> songs, int startIdx) {
-        List<Music> safeSongList = new ArrayList<>(songs);
+        List<Music> safeSongList = new CopyOnWriteArrayList<>(songs);
 
         stopExistingPlayThread();
 
@@ -950,40 +975,59 @@ public class CloudMusic {
 
     public static void loadLyric(Music music) {
         AsyncUtil.runAsync(() -> {
-
             LyricsQuery query = lyricsQuery(music);
-            System.out.println("query = " + query);
-            Optional<LyricsResult> fetched = LyricsFetcher.getDefault().fetch(query);
-            System.out.println("fetched = " + fetched);
+            String selectedProvider = LyricProviderPreferences.get().provider(music.getId());
+            Optional<LyricsResult> fetched = LyricsFetcher.getDefault().fetch(query, selectedProvider);
+            if (!selectedProvider.equals(LyricProviderPreferences.get().provider(music.getId()))) return;
             LyricsResult result = fetched.orElse(new LyricsResult("", "plain", "none"));
-            List<LyricLine> parsed = LyricParser.parse(result);
-            JsonObject json = "netease".equals(result.format()) ? JsonUtils.toJsonObject(result.lyrics()) : null;
-
-            InputStream stream = CloudMusic.class.getResourceAsStream("/assets/tritium-music/yrc/" + music.getId() + ".yrc");
-            if (stream != null && json != null) {
-                try {
-                    String s = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-                    List<LyricLine> newLines = new ArrayList<>();
-                    LyricParser.parseYrc(s, newLines);
-
-                    for (int i = 0; i < Math.min(newLines.size(), parsed.size()); i++) {
-                        LyricLine newLine = newLines.get(i);
-                        LyricLine oldLine = parsed.get(i);
-                        oldLine.words.clear();
-                        oldLine.words.addAll(newLine.words);
-                        oldLine.timestamp = newLine.timestamp;
-                        oldLine.lyric = newLine.lyric;
-                        oldLine.duration = newLine.duration;
-                    }
-
-                    stream.close();
-                } catch (IOException ignored) {
-                }
-            }
-
-            if (music.equals(currentlyPlaying)) initLyrics(json, music, parsed);
-
+            applyLyrics(music, result);
         });
+    }
+
+    public static List<LyricsFetcher.AvailableLyrics> availableLyrics(Music music) {
+        return LyricsFetcher.getDefault().available(lyricsQuery(music));
+    }
+
+    public static void selectLyricsProvider(Music music, String providerId) {
+        LyricProviderPreferences.get().select(music.getId(), providerId);
+        loadLyric(music);
+    }
+
+    public static String selectedLyricsProvider(Music music) {
+        return LyricProviderPreferences.get().provider(music.getId());
+    }
+
+    private static void applyLyrics(Music music, LyricsResult result) {
+        List<LyricLine> parsed = LyricParser.parse(result);
+        JsonObject json = "netease".equals(result.format()) ? JsonUtils.toJsonObject(result.lyrics()) : null;
+
+        InputStream stream = CloudMusic.class.getResourceAsStream("/assets/tritium-music/yrc/" + music.getId() + ".yrc");
+        if (stream != null && json != null) {
+            try {
+                String s = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+                List<LyricLine> newLines = new ArrayList<>();
+                LyricParser.parseYrc(s, newLines);
+
+                for (int i = 0; i < Math.min(newLines.size(), parsed.size()); i++) {
+                    LyricLine newLine = newLines.get(i);
+                    LyricLine oldLine = parsed.get(i);
+                    oldLine.words.clear();
+                    oldLine.words.addAll(newLine.words);
+                    oldLine.timestamp = newLine.timestamp;
+                    oldLine.lyric = newLine.lyric;
+                    oldLine.duration = newLine.duration;
+                }
+
+                stream.close();
+            } catch (IOException ignored) {
+            }
+        }
+
+        if (music.equals(currentlyPlaying)) {
+            currentLyricsSource = result.source();
+            currentLyricsSongId = music.getId();
+            initLyrics(json, music, parsed);
+        }
     }
 
     private static LyricsQuery lyricsQuery(Music music) {

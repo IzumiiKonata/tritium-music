@@ -12,6 +12,7 @@ import tritium.music.client.rendering.ui.widgets.RoundedButtonWidget;
 import tritium.music.client.rendering.ui.widgets.RoundedImageWidget;
 import tritium.music.client.rendering.ui.widgets.RoundedRectWidget;
 import tritium.music.client.rendering.ui.widgets.TextFieldWidget;
+import tritium.music.client.rendering.ui.widgets.ContextMenuWidget;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.CloudMusic;
@@ -35,6 +36,7 @@ public class PlaylistPanel extends NCMPanel {
     }
 
     private TextFieldWidget tfSearch;
+    private final ContextMenuWidget contextMenu = new ContextMenuWidget();
     private double tfOpenAnimation = 20;
 
     private static boolean isCtrlDown() {
@@ -239,7 +241,7 @@ public class PlaylistPanel extends NCMPanel {
 
         playList.loadMusicsWithCallback(musics -> {
             long revealStart = System.currentTimeMillis();
-            musicsPanel.addChild(musics.stream().map(music -> new MusicWidget(music, playList, playList.getMusics().indexOf(music), revealStart).setShouldOverrideMouseCursor(true)).collect(Collectors.toList()));
+            musicsPanel.addChild(musics.stream().map(music -> new MusicWidget(music, playList, playList.getMusics().indexOf(music), revealStart, this).setShouldOverrideMouseCursor(true)).collect(Collectors.toList()));
         });
 
         if (this.tfSearch != null) {
@@ -266,10 +268,67 @@ public class PlaylistPanel extends NCMPanel {
                 }
             });
         }
+
+        this.addChild(contextMenu);
+    }
+
+    public void openMusicMenu(MusicWidget widget, double mouseX, double mouseY) {
+        List<ContextMenuWidget.Item> items = new ArrayList<>();
+        boolean liked = CloudMusic.likeList != null && CloudMusic.likeList.contains(widget.music.getId());
+        items.add(new ContextMenuWidget.Item("播放", () -> {
+            int index = playList.getMusics().indexOf(widget.music);
+            if (index >= 0) CloudMusic.play(playList.getMusics(), index);
+        }));
+        items.add(new ContextMenuWidget.Item("下一首播放", () -> CloudMusic.playNext(widget.music)));
+        items.add(new ContextMenuWidget.Item(liked ? "取消喜欢" : "喜欢",
+                () -> runLibraryOperation(() -> widget.music.setLike(!liked))));
+        items.add(new ContextMenuWidget.Item("添加到歌单", () -> openAddToPlaylistMenu(widget, mouseX, mouseY)));
+        items.add(new ContextMenuWidget.Item("复制 ID", () -> {
+            Minecraft.getInstance().keyboardHandler.setClipboard(String.valueOf(widget.music.getId()));
+        }));
+        if (!playList.isSearchMode()) {
+            items.add(new ContextMenuWidget.Item("从歌单中删除", () -> removeMusic(widget)));
+        }
+        contextMenu.open(mouseX - getX(), mouseY - getY(), items);
+    }
+
+    private void openAddToPlaylistMenu(MusicWidget widget, double mouseX, double mouseY) {
+        List<PlayList> playlists = CloudMusic.playLists == null
+                ? List.of()
+                : CloudMusic.playLists.stream().filter(candidate -> !candidate.isSubscribed()).toList();
+        if (playlists.isEmpty()) {
+            contextMenu.open(mouseX - getX(), mouseY - getY(), List.of(
+                    new ContextMenuWidget.Item("没有可用的歌单", null, false, false)));
+            return;
+        }
+        contextMenu.open(mouseX - getX(), mouseY - getY(), playlists.stream()
+                .map(target -> new ContextMenuWidget.Item(target.getName(),
+                        () -> runLibraryOperation(() -> target.addToList(widget.music.getId()))))
+                .toList());
+    }
+
+    private void removeMusic(MusicWidget widget) {
+        runLibraryOperation(() -> {
+            playList.removeFromList(widget.music.getId());
+            playList.getMusics().remove(widget.music);
+        });
+    }
+
+    private void runLibraryOperation(Runnable operation) {
+        Platform.runAsync(() -> {
+            try {
+                operation.run();
+            } finally {
+                CloudMusic.refreshLibrary();
+                Platform.runOnRenderThread(() -> NCMScreen.getInstance().refreshLibraryView());
+            }
+        });
     }
 
     @Override
     public void onMouseClickReceived(double mouseX, double mouseY, int mouseButton) {
+        if (contextMenu.handleClick(mouseX, mouseY, mouseButton)) return;
+
         if (this.tfSearch != null && this.tfSearch.isFocused()) {
             var searchBar = this.tfSearch.getParent();
             if (searchBar == null || !RenderSystem.isHovered(mouseX, mouseY,
@@ -279,6 +338,12 @@ public class PlaylistPanel extends NCMPanel {
         }
 
         super.onMouseClickReceived(mouseX, mouseY, mouseButton);
+    }
+
+    @Override
+    public void renderWidget(double mouseX, double mouseY, int dWheel) {
+        if (contextMenu.handleWheel(mouseX, mouseY, dWheel)) dWheel = 0;
+        super.renderWidget(mouseX, mouseY, dWheel);
     }
 
     private String formatDuration(long totalMillis) {

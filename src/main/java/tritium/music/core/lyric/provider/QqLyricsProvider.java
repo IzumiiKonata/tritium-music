@@ -19,6 +19,16 @@ public final class QqLyricsProvider implements LyricsProvider {
     );
 
     @Override
+    public String id() {
+        return "qq";
+    }
+
+    @Override
+    public String displayName() {
+        return "QQ 音乐";
+    }
+
+    @Override
     public Optional<LyricsResult> search(LyricsQuery query) {
         try {
             String term = String.join(" ", query.artists(), query.title(), query.album()).trim();

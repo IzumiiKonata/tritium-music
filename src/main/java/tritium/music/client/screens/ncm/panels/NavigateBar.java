@@ -6,6 +6,7 @@ import org.lwjgl.glfw.GLFW;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.ui.AbstractWidget;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.container.ScrollPanel;
 import tritium.music.client.rendering.ui.widgets.LabelWidget;
@@ -25,6 +26,7 @@ import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
@@ -33,6 +35,7 @@ public class NavigateBar extends NCMPanel {
 
     TextFieldWidget searchField = new TextFieldWidget(FontManager.pf14bold);
     ScrollPanel playlistPanel = new ScrollPanel();
+    private final List<AbstractWidget<?>> libraryItems = new ArrayList<>();
 
     public NavigateBar() {
         this.layout();
@@ -183,41 +186,7 @@ public class NavigateBar extends NCMPanel {
             this.playlistPanel.addChild(item);
         }
 
-        LabelWidget lblPlaylists = new LabelWidget("我的歌单", FontManager.pf14bold);
-        lblPlaylists.setBeforeRenderCallback(() -> {
-            lblPlaylists.setColor(Color.GRAY);
-            lblPlaylists.setPosition(6, lblPlaylists.getRelativeY());
-        });
-
-        this.playlistPanel.addChild(lblPlaylists);
-
-        List<PlayList> pl = CloudMusic.playLists;
-
-        if (pl != null) {
-            List<PlayList> playLists = pl.stream().filter(playList -> !playList.isSubscribed()).toList();
-            for (int i = 0; i < playLists.size(); i++) {
-                PlayList playList = playLists.get(i);
-                PlaylistItem item = new PlaylistItem(i == 0 ? "C" : "D", Color.GRAY::getRGB, playList::getName, () -> NCMScreen.getInstance().setCurrentPanel(new PlaylistPanel(playList)));
-                item.setShouldOverrideMouseCursor(true);
-                this.playlistPanel.addChild(item);
-            }
-        }
-
-        LabelWidget lblSubscribed = new LabelWidget("收藏歌单", FontManager.pf14bold);
-        lblSubscribed.setBeforeRenderCallback(() -> {
-            lblSubscribed.setColor(Color.GRAY);
-            lblSubscribed.setPosition(6, lblSubscribed.getRelativeY());
-        });
-
-        this.playlistPanel.addChild(lblSubscribed);
-
-        if (pl != null) {
-            pl.stream().filter(PlayList::isSubscribed).forEach(playList -> {
-                PlaylistItem item = new PlaylistItem("D", Color.GRAY::getRGB, playList::getName, () -> NCMScreen.getInstance().setCurrentPanel(new PlaylistPanel(playList)));
-                item.setShouldOverrideMouseCursor(true);
-                this.playlistPanel.addChild(item);
-            });
-        }
+        populatePlaylists(-1);
 
         RoundedImageWidget creatorAvatar = new RoundedImageWidget(this::getUserAvatarLocation, 0, 0, 0, 0);
         this.addChild(creatorAvatar);
@@ -239,6 +208,57 @@ public class NavigateBar extends NCMPanel {
             lblCreator.setPosition(creatorAvatar.getRelativeX() + creatorAvatar.getWidth() + 4, creatorAvatar.getRelativeY() + creatorAvatar.getHeight() * .5 - lblCreator.getHeight() * .5);
             lblCreator.setColor(NCMScreen.getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         });
+    }
+
+    public void refreshPlaylists(long selectedPlaylistId) {
+        playlistPanel.getChildren().removeAll(libraryItems);
+        libraryItems.clear();
+        populatePlaylists(selectedPlaylistId);
+    }
+
+    private void populatePlaylists(long selectedPlaylistId) {
+        LabelWidget lblPlaylists = new LabelWidget("我的歌单", FontManager.pf14bold);
+        lblPlaylists.setBeforeRenderCallback(() -> {
+            lblPlaylists.setColor(Color.GRAY);
+            lblPlaylists.setPosition(6, lblPlaylists.getRelativeY());
+        });
+
+        addLibraryItem(lblPlaylists);
+
+        List<PlayList> pl = CloudMusic.playLists;
+
+        if (pl != null) {
+            List<PlayList> playLists = pl.stream().filter(playList -> !playList.isSubscribed()).toList();
+            for (int i = 0; i < playLists.size(); i++) {
+                PlayList playList = playLists.get(i);
+                PlaylistItem item = new PlaylistItem(i == 0 ? "C" : "D", Color.GRAY::getRGB, playList::getName, () -> NCMScreen.getInstance().setCurrentPanel(new PlaylistPanel(playList)));
+                item.setSelected(playList.getId() == selectedPlaylistId);
+                item.setShouldOverrideMouseCursor(true);
+                addLibraryItem(item);
+            }
+        }
+
+        LabelWidget lblSubscribed = new LabelWidget("收藏歌单", FontManager.pf14bold);
+        lblSubscribed.setBeforeRenderCallback(() -> {
+            lblSubscribed.setColor(Color.GRAY);
+            lblSubscribed.setPosition(6, lblSubscribed.getRelativeY());
+        });
+
+        addLibraryItem(lblSubscribed);
+
+        if (pl != null) {
+            pl.stream().filter(PlayList::isSubscribed).forEach(playList -> {
+                PlaylistItem item = new PlaylistItem("D", Color.GRAY::getRGB, playList::getName, () -> NCMScreen.getInstance().setCurrentPanel(new PlaylistPanel(playList)));
+                item.setSelected(playList.getId() == selectedPlaylistId);
+                item.setShouldOverrideMouseCursor(true);
+                addLibraryItem(item);
+            });
+        }
+    }
+
+    private void addLibraryItem(AbstractWidget<?> item) {
+        libraryItems.add(item);
+        playlistPanel.addChild(item);
     }
 
     @Override

@@ -24,6 +24,16 @@ public final class LocalLyricsProvider implements LyricsProvider {
     }
 
     @Override
+    public String id() {
+        return "local";
+    }
+
+    @Override
+    public String displayName() {
+        return "本地歌词";
+    }
+
+    @Override
     public Optional<LyricsResult> search(LyricsQuery query) {
         try {
             Files.createDirectories(root);

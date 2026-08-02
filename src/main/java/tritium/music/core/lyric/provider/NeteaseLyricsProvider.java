@@ -18,6 +18,16 @@ public final class NeteaseLyricsProvider implements LyricsProvider {
     );
 
     @Override
+    public String id() {
+        return "netease";
+    }
+
+    @Override
+    public String displayName() {
+        return "网易云音乐";
+    }
+
+    @Override
     public Optional<LyricsResult> search(LyricsQuery query) {
         try {
             long songId = query.songId() > 0 ? query.songId() : searchSongId(query);

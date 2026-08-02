@@ -15,6 +15,13 @@ public final class LyricsFetcher {
 
     private final List<LyricsProvider> providers;
     private final Map<LyricsQuery, CompletableFuture<Optional<LyricsResult>>> cache = new LinkedHashMap<>(32, .75f, true);
+    private final Map<ProviderQuery, CompletableFuture<Optional<LyricsResult>>> providerCache = new LinkedHashMap<>(128, .75f, true);
+
+    public record AvailableLyrics(String id, String displayName, LyricsResult result, boolean wordTimed) {
+    }
+
+    private record ProviderQuery(String providerId, LyricsQuery query) {
+    }
 
     public LyricsFetcher(List<LyricsProvider> providers) {
         this.providers = List.copyOf(providers);
@@ -32,6 +39,33 @@ public final class LyricsFetcher {
             removeFailed(query, future);
             return Optional.empty();
         }
+    }
+
+    public Optional<LyricsResult> fetch(LyricsQuery query, String providerId) {
+        if (providerId == null || providerId.isBlank()) return fetch(query);
+        LyricsProvider provider = provider(providerId);
+        if (provider == null) return fetch(query);
+        Optional<LyricsResult> selected = requestProvider(provider, query).join();
+        return selected.isPresent() ? selected : fetch(query);
+    }
+
+    public List<AvailableLyrics> available(LyricsQuery query) {
+        List<CompletableFuture<Optional<LyricsResult>>> futures = providers.stream()
+                .map(provider -> requestProvider(provider, query))
+                .toList();
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+                .completeOnTimeout(null, TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
+                .join();
+        List<AvailableLyrics> available = new ArrayList<>();
+        for (int index = 0; index < providers.size(); index++) {
+            Optional<LyricsResult> result = futures.get(index).getNow(Optional.empty());
+            if (result.isPresent() && !result.get().isEmpty()) {
+                LyricsProvider provider = providers.get(index);
+                available.add(new AvailableLyrics(
+                        provider.id(), provider.displayName(), result.get(), hasWordTimings(result.get())));
+            }
+        }
+        return List.copyOf(available);
     }
 
     public void prefetch(LyricsQuery query) {
@@ -64,7 +98,7 @@ public final class LyricsFetcher {
     private Optional<LyricsResult> fetchUncached(LyricsQuery query) {
         long started = System.nanoTime();
         List<CompletableFuture<Optional<LyricsResult>>> futures = providers.stream()
-                .map(provider -> CompletableFuture.supplyAsync(() -> search(provider, query), EXECUTOR))
+                .map(provider -> requestProvider(provider, query))
                 .toList();
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         List<Optional<LyricsResult>> completed = new ArrayList<>(providers.size());
@@ -83,7 +117,6 @@ public final class LyricsFetcher {
                 int timedIndex = firstTimedResult(completed);
                 if (timedIndex >= 0 && higherPrioritiesCompleted(completed, timedIndex)) {
                     Optional<LyricsResult> result = completed.get(timedIndex);
-                    futures.forEach(future -> future.cancel(true));
                     log("selected timed lyrics from " + result.orElseThrow().source() + " after " + elapsedMillis(started) + "ms, " + describe(query));
                     return result;
                 }
@@ -96,7 +129,6 @@ public final class LyricsFetcher {
                 break;
             }
         }
-        futures.forEach(future -> future.cancel(true));
         int timedIndex = firstTimedResult(completed);
         if (timedIndex >= 0) {
             LyricsResult result = completed.get(timedIndex).orElseThrow();
@@ -111,6 +143,27 @@ public final class LyricsFetcher {
         }
         log("no provider returned usable lyrics after " + elapsedMillis(started) + "ms, " + describe(query));
         return Optional.empty();
+    }
+
+    private synchronized CompletableFuture<Optional<LyricsResult>> requestProvider(LyricsProvider provider, LyricsQuery query) {
+        ProviderQuery key = new ProviderQuery(provider.id(), query);
+        CompletableFuture<Optional<LyricsResult>> existing = providerCache.get(key);
+        if (existing != null) return existing;
+        CompletableFuture<Optional<LyricsResult>> created = CompletableFuture.supplyAsync(() -> search(provider, query), EXECUTOR);
+        providerCache.put(key, created);
+        while (providerCache.size() > 128) providerCache.remove(providerCache.keySet().iterator().next());
+        created.whenComplete((result, error) -> {
+            if (error != null || result == null || result.isEmpty()) removeFailedProvider(key, created);
+        });
+        return created;
+    }
+
+    private synchronized void removeFailedProvider(ProviderQuery key, CompletableFuture<Optional<LyricsResult>> future) {
+        if (providerCache.get(key) == future) providerCache.remove(key);
+    }
+
+    private LyricsProvider provider(String providerId) {
+        return providers.stream().filter(provider -> provider.id().equals(providerId)).findFirst().orElse(null);
     }
 
     private static Optional<LyricsResult> search(LyricsProvider provider, LyricsQuery query) {

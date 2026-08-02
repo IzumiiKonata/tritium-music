@@ -17,6 +17,7 @@ import tritium.music.client.screens.clickgui.music.LoginRenderer;
 import tritium.music.client.screens.ncm.panels.ControlsBar;
 import tritium.music.client.screens.ncm.panels.HomePanel;
 import tritium.music.client.screens.ncm.panels.NavigateBar;
+import tritium.music.client.screens.ncm.panels.PlaylistPanel;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.ncm.OptionsUtil;
@@ -304,6 +305,25 @@ public class NCMScreen extends BaseScreen {
                     actions.add(action);
                 }
             }
+        }
+    }
+
+    public void refreshLibraryView() {
+        long selectedPlaylistId = this.currentPanel instanceof PlaylistPanel panel && !panel.playList.isSearchMode()
+                ? panel.playList.getId()
+                : -1;
+        this.playlistsPanel.refreshPlaylists(selectedPlaylistId);
+        if (this.currentPanel instanceof PlaylistPanel panel && !panel.playList.isSearchMode()) {
+            CloudMusic.playLists.stream()
+                    .filter(playList -> playList.getId() == panel.playList.getId())
+                    .findFirst()
+                    .ifPresent(playList -> {
+                        PlaylistPanel refreshedPanel = new PlaylistPanel(playList);
+                        this.innerSetCurrentPanel(refreshedPanel, true);
+                        if (currentActionPointer >= 0 && currentActionPointer < actions.size()) {
+                            actions.set(currentActionPointer, () -> this.innerSetCurrentPanel(refreshedPanel, false));
+                        }
+                    });
         }
     }
 

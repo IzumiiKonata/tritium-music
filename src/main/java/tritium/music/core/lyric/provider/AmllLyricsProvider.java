@@ -10,6 +10,16 @@ public final class AmllLyricsProvider implements LyricsProvider {
     private static final String BASE_URL = "https://raw.githubusercontent.com/amll-dev/amll-ttml-db/refs/heads/main/";
 
     @Override
+    public String id() {
+        return "amll";
+    }
+
+    @Override
+    public String displayName() {
+        return "AMLL";
+    }
+
+    @Override
     public Optional<LyricsResult> search(LyricsQuery query) {
         if (query.songId() > 0) {
             Optional<LyricsResult> byId = fetch(BASE_URL + "ncm-lyrics/" + query.songId() + ".ttml", query);

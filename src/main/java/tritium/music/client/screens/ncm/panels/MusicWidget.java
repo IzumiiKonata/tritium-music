@@ -32,7 +32,7 @@ public class MusicWidget extends RoundedRectWidget {
     private static final int ENTRANCE_INDEX_CAP = 16;
     private static final double ENTRANCE_SLIDE = 12;
 
-    public MusicWidget(Music music, PlayList playList, int index, long revealStart) {
+    public MusicWidget(Music music, PlayList playList, int index, long revealStart, PlaylistPanel owner) {
         super(0, 0, 0, 30);
         this.music = music;
         this.playList = playList;
@@ -109,8 +109,11 @@ public class MusicWidget extends RoundedRectWidget {
         });
 
         this.setOnClickCallback((x, y, i) -> {
-            if (i == 0)
+            if (i == 0) {
                 CloudMusic.play(playList.getMusics(), index);
+            } else if (i == 1) {
+                owner.openMusicMenu(this, this.getX() + x, this.getY() + y);
+            }
             return true;
         });
 

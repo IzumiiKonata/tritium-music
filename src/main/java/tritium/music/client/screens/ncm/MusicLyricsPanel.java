@@ -14,12 +14,14 @@ import tritium.music.client.rendering.shader.BloomShader;
 import tritium.music.client.rendering.shader.Shaders;
 import tritium.music.client.rendering.shader.StencilShader;
 import tritium.music.client.rendering.ui.widgets.IconWidget;
+import tritium.music.client.rendering.ui.widgets.ContextMenuWidget;
 import tritium.music.client.util.CursorUtils;
 import tritium.music.client.util.MouseUtil;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.audio.AudioPlayer;
 import tritium.music.core.lyric.LyricLine;
+import tritium.music.core.lyric.provider.LyricsFetcher;
 import tritium.music.client.util.Mth;
 import tritium.music.core.model.Music;
 import tritium.music.core.util.Timer;
@@ -71,6 +73,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     IconWidget playPauseButton = new IconWidget("G", FontManager.music40, 0, 0, 24, 24);
     IconWidget prev = new IconWidget("E", FontManager.music40, 0, 0, 32, 32);
     IconWidget next = new IconWidget("H", FontManager.music40, 0, 0, 32, 32);
+    private final ContextMenuWidget contextMenu = new ContextMenuWidget();
+    private long providerMenuRequest;
 
     private final Music music;
 
@@ -241,6 +245,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         this.renderControlsPart(mouseX, mouseY, posX, posY, width, height, alpha);
         this.renderLyrics(mouseX, mouseY, posX, posY, width, height, dWheel, alpha);
         RenderContext.graphics().pose().popMatrix();
+        contextMenu.setAlpha(alpha);
+        contextMenu.renderWidget(mouseX, mouseY, 0);
     }
 
     private static boolean isShiftDown() {
@@ -775,9 +781,43 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     }
 
     public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
+        if (contextMenu.handleClick(mouseX, mouseY, mouseButton)) return;
+        if (mouseButton == 1) {
+            openLyricsProviderMenu(mouseX, mouseY);
+            return;
+        }
         playPauseButton.onMouseClickReceived(mouseX, mouseY, mouseButton);
         prev.onMouseClickReceived(mouseX, mouseY, mouseButton);
         next.onMouseClickReceived(mouseX, mouseY, mouseButton);
+    }
+
+    private void openLyricsProviderMenu(double mouseX, double mouseY) {
+        Music current = CloudMusic.currentlyPlaying == null ? music : CloudMusic.currentlyPlaying;
+        long request = ++providerMenuRequest;
+        contextMenu.open(mouseX, mouseY, List.of(
+                new ContextMenuWidget.Item("正在检测可用歌词源…", null, false, false)));
+        Platform.runAsync(() -> {
+            List<LyricsFetcher.AvailableLyrics> available = CloudMusic.availableLyrics(current);
+            String selected = CloudMusic.selectedLyricsProvider(current);
+            Platform.runOnRenderThread(() -> {
+                if (request != providerMenuRequest || !contextMenu.isOpen()
+                        || CloudMusic.currentlyPlaying == null || CloudMusic.currentlyPlaying.getId() != current.getId()) return;
+                if (available.isEmpty()) {
+                    contextMenu.updateItems(List.of(
+                            new ContextMenuWidget.Item("没有可用的歌词源", null, false, false)));
+                    return;
+                }
+                contextMenu.updateItems(available.stream()
+                        .map(provider -> new ContextMenuWidget.Item(
+                                provider.displayName() + (provider.wordTimed() ? "（逐字歌词）" : ""),
+                                () -> CloudMusic.selectLyricsProvider(current, provider.id()),
+                                provider.id().equals(selected) || selected.isBlank()
+                                        && CloudMusic.currentLyricsSongId == current.getId()
+                                        && provider.id().equals(CloudMusic.currentLyricsSource),
+                                true))
+                        .toList());
+            });
+        });
     }
 
     private String formatDuration(float totalMillis) {
