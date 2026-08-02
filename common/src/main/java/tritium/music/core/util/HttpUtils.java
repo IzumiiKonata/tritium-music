@@ -35,7 +35,6 @@ public class HttpUtils {
             throw new IOException("HTTP request failed, response code is " + conn.getResponseCode());
         }
 
-        int contentLength = conn.getContentLength();
         InputStream inputStream = conn.getInputStream();
 
         return new InputStream() {
@@ -45,13 +44,27 @@ public class HttpUtils {
             }
 
             @Override
-            public int available() {
-                return contentLength;
+            public int read(byte[] buffer, int offset, int length) throws IOException {
+                return inputStream.read(buffer, offset, length);
+            }
+
+            @Override
+            public long skip(long length) throws IOException {
+                return inputStream.skip(length);
+            }
+
+            @Override
+            public int available() throws IOException {
+                return inputStream.available();
             }
 
             @Override
             public void close() throws IOException {
-                inputStream.close();
+                try {
+                    inputStream.close();
+                } finally {
+                    conn.disconnect();
+                }
             }
         };
     }

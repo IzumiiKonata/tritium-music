@@ -78,7 +78,7 @@ public class MusicSpectrumWidget extends HudWidget {
                     + Math.abs(Math.sin(index * 0.11 - phase * 0.7)) * 0.22);
             renderSpectrum[index] = Interpolations.interpolate(renderSpectrum[index], Math.min(1, energy), 0.24f);
             renderSpectrumIndicator[index] = Math.max(
-                    Interpolations.interpolate(renderSpectrumIndicator[index], 0, 0.08f),
+                    Interpolations.interpolateLinear(renderSpectrumIndicator[index], 0, 0.08f),
                     renderSpectrum[index]);
         }
     }
@@ -116,7 +116,7 @@ public class MusicSpectrumWidget extends HudWidget {
                     renderSpectrumIndicator[i] = current;
                     indicatorTimeStamp[i] = now;
                 } else if (now - indicatorTimeStamp[i] > 450) {
-                    float fallen = Interpolations.interpolate(renderSpectrumIndicator[i], 0.0f, 0.12f);
+                    float fallen = Interpolations.interpolateLinear(renderSpectrumIndicator[i], 0.0f, 0.08f);
                     renderSpectrumIndicator[i] = Math.max(fallen, current);
                 }
             }

@@ -30,6 +30,7 @@ final class StreamingSoundPlayer {
     private static final int MAX_CONSECUTIVE_INVALID_MP3_FRAMES = 32;
     private static final int PCM_UPDATE_MILLIS = 10;
     private static final int OUTPUT_BUFFER_MILLIS = 100;
+    private static final int PREFETCH_BUFFER_BYTES = 8 * 1024 * 1024;
 
     interface PcmListener {
         void accept(byte[] data, int offset, int length, AudioFormat format);
@@ -183,9 +184,10 @@ final class StreamingSoundPlayer {
                 positionMillis = requested;
             }
 
-            try (InputStream opened = streamFactory.open()) {
-                input = opened;
-                try (PcmStream pcm = openPcmStream(new BufferedInputStream(opened), type)) {
+            try (InputStream opened = streamFactory.open();
+                 InputStream prefetched = new PrefetchInputStream(opened, PREFETCH_BUFFER_BYTES)) {
+                input = prefetched;
+                try (PcmStream pcm = openPcmStream(new BufferedInputStream(prefetched), type)) {
                     SourceDataLine currentLine = openLine(pcm.format());
                     line = currentLine;
                     lineStartMillis = startMillis;
