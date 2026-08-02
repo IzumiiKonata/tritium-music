@@ -62,9 +62,9 @@ public class CloudMusic {
     private static final Map<String, String> headers = new HashMap<>();
     public static AudioPlayer player;
     public static List<Music> playList = new ArrayList<>();
-    public static int curIdx = 0;
+    public static volatile int curIdx = 0;
     public static Music currentlyPlaying;
-    public static Thread playThread;
+    public static volatile Thread playThread;
 
     public static User profile;
     public static List<PlayList> playLists;
@@ -434,8 +434,10 @@ public class CloudMusic {
         doBreak = true;
         playing.set(false);
 
-        if (playThread != null) {
-            playThread.interrupt();
+        Thread currentPlayThread = playThread;
+        playThread = null;
+        if (currentPlayThread != null) {
+            currentPlayThread.interrupt();
         }
 
         if (player != null) {
@@ -549,17 +551,19 @@ public class CloudMusic {
         }
 
         startIdx = normalizeStartIndex(startIdx);
-        loadMusicCover(safeSongList.getFirst());
+        loadMusicCover(safeSongList.get(startIdx));
 
         playList = safeSongList;
         startNewPlayThread(safeSongList, startIdx);
     }
 
     private static void stopExistingPlayThread() {
-        if (playThread != null) {
+        Thread currentPlayThread = playThread;
+        playThread = null;
+        if (currentPlayThread != null) {
             doBreak = true;
             playing.set(false);
-            playThread.interrupt();
+            currentPlayThread.interrupt();
         }
     }
 
@@ -579,10 +583,11 @@ public class CloudMusic {
     }
 
     private static void startNewPlayThread(List<Music> songs, int startIdx) {
-        playThread = new PlayThread(songs, startIdx);
+        PlayThread newPlayThread = new PlayThread(songs, startIdx);
         doBreak = false;
         playing.set(false);
-        playThread.start();
+        playThread = newPlayThread;
+        newPlayThread.start();
     }
 
     static volatile boolean doBreak = false;
@@ -618,6 +623,9 @@ public class CloudMusic {
 
                 preloadNextCover();
                 waitForPlaybackCompletion();
+                if (!isCurrentPlayback()) {
+                    return;
+                }
                 handlePlaybackCompletion();
                 if (player.isFailed()) {
                     Platform.log("[NCM] Playback stopped after the audio stream could not recover.");
@@ -628,7 +636,11 @@ public class CloudMusic {
         }
 
         private boolean shouldContinuePlayback() {
-            return curIdx < playList.size() && !doBreak && !this.isInterrupted();
+            return isCurrentPlayback() && curIdx < playList.size() && !doBreak && !this.isInterrupted();
+        }
+
+        private boolean isCurrentPlayback() {
+            return playThread == this;
         }
 
         private boolean playListChanged() {
@@ -645,6 +657,10 @@ public class CloudMusic {
             currentlyPlaying = song;
 
             Pair<String, String> playUrl = song.getPlayUrl();
+
+            if (!isCurrentPlayback()) {
+                return false;
+            }
 
             if (playUrl == null) {
                 handleUnplayableSong(song);
@@ -670,7 +686,7 @@ public class CloudMusic {
         }
 
         private void waitForPlaybackCompletion() {
-            while (playing.get()) {
+            while (playing.get() && isCurrentPlayback()) {
                 if (this.isInterrupted() || doBreak) {
                     break;
                 }
@@ -720,8 +736,10 @@ public class CloudMusic {
         private void startPlayback() {
             playing.set(true);
             player.setAfterPlayed(() -> {
-                this.notifyWaitLock();
-                playing.set(false);
+                if (isCurrentPlayback()) {
+                    this.notifyWaitLock();
+                    playing.set(false);
+                }
             });
             player.play();
         }

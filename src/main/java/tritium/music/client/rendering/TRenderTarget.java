@@ -1,18 +1,21 @@
 package tritium.music.client.rendering;
 
 import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.textures.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Vector4f;
 
 import java.util.OptionalDouble;
+import java.nio.ByteBuffer;
 
 public final class TRenderTarget implements AutoCloseable {
 
         private TTexture colorTexture;
         private GpuTexture depthTexture;
         private GpuTextureView depthView;
+        private GpuBuffer vertexBuffer;
         private final Identifier identifier;
         private int width;
         private int height;
@@ -93,6 +96,20 @@ public final class TRenderTarget implements AutoCloseable {
             return colorTexture.getSampler();
         }
 
+        GpuBuffer uploadVertices(ByteBuffer data) {
+            var device = com.mojang.blaze3d.systems.RenderSystem.getDevice();
+            if (vertexBuffer == null || vertexBuffer.size() < data.remaining()) {
+                if (vertexBuffer != null) vertexBuffer.close();
+                vertexBuffer = device.createBuffer(
+                        () -> identifier + " vertices",
+                        GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST,
+                        data.remaining()
+                );
+            }
+            device.createCommandEncoder().writeToBuffer(vertexBuffer.slice(0, data.remaining()), data);
+            return vertexBuffer;
+        }
+
         public int width() {
             return width;
         }
@@ -114,5 +131,6 @@ public final class TRenderTarget implements AutoCloseable {
         @Override
         public void close() {
             destroyTextures();
+            if (vertexBuffer != null) vertexBuffer.close();
         }
     }

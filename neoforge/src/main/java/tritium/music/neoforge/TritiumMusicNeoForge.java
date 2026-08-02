@@ -25,6 +25,7 @@ import tritium.music.client.render.RoundedPipeline;
 import tritium.music.client.render.VerticalFadePipeline;
 import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.StencilCompositePipeline;
+import tritium.music.client.rendering.LyricOffscreen;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
@@ -64,6 +65,7 @@ public final class TritiumMusicNeoForge {
         RoundedPipeline.initialize();
         VerticalFadePipeline.initialize();
         StencilCompositePipeline.initialize();
+        LyricOffscreen.initialize();
         Platform.set(new MinecraftMusicPlatform());
         modContainer.registerExtensionPoint(
                 IConfigScreenFactory.class,

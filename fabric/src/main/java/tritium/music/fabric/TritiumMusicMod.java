@@ -23,6 +23,7 @@ import tritium.music.client.render.ClipPipeline;
 import tritium.music.client.render.LinePipeline;
 import tritium.music.client.render.VerticalFadePipeline;
 import tritium.music.client.rendering.StencilCompositePipeline;
+import tritium.music.client.rendering.LyricOffscreen;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -61,6 +62,7 @@ public class TritiumMusicMod implements ClientModInitializer {
         RoundedPipeline.initialize();
         VerticalFadePipeline.initialize();
         StencilCompositePipeline.initialize();
+        LyricOffscreen.initialize();
         Platform.set(new MinecraftMusicPlatform());
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
