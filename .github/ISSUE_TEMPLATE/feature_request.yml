@@ -1,0 +1,72 @@
+name: 功能建议
+description: 提交新功能或改进建议
+title: "[Feature] "
+labels:
+  - enhancement
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你的功能建议。
+
+        在提交前，请确认：
+        - 该功能尚未存在于当前版本
+        - 已搜索已有 Issue，避免重复提交
+        - 尽可能描述实际使用场景，而不仅是功能名称
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 功能背景
+      description: 请描述你遇到的问题，或者为什么需要这个功能。
+      placeholder: |
+        当前存在的问题：
+        例如：
+        - 某个操作步骤较为繁琐
+        - 某个平台缺少对应支持
+        - 当前功能无法满足某种使用场景
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: 功能描述
+      description: 请详细描述希望新增或改进的功能。
+      placeholder: |
+        希望新增：
+        - 
+        - 
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: 使用场景
+      description: 请说明该功能在什么情况下会被使用。
+      placeholder: |
+        例如：
+        当我进行……时，希望能够……
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议实现方案
+      description: 如果你有具体想法，可以描述可能的实现方式。
+      placeholder: |
+        例如：
+        增加一个设置选项：
+        添加一个新的菜单：
+        提供 API：
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 检查事项
+      options:
+        - label: 我已经搜索过已有 Issue，确认没有重复请求
+          required: true
+        - label: 我理解该功能是否实现由维护者决定
+          required: true
