@@ -10,17 +10,17 @@ base {
 sourceSets {
 	main {
 		java {
-			setSrcDirs([rootProject.file('src/main/java'), file('src/main/java')])
+			setSrcDirs([project(':common').file('src/main/java'), file('src/main/java')])
 		}
 		resources {
-			setSrcDirs([rootProject.file('src/main/resources'), file('src/main/resources')])
+			setSrcDirs([project(':common').file('src/main/resources'), file('src/main/resources')])
 		}
 	}
 }
 
 neoForge {
 	version = project.neoforge_version
-	accessTransformers.from(file('src/main/resources/META-INF/accesstransformer.cfg'))
+	accessTransformers.from(project(':common').file('src/main/resources/META-INF/accesstransformer.cfg'))
 
 	runs {
 		client {

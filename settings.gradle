@@ -15,5 +15,6 @@ pluginManagement {
 
 rootProject.name = 'tritium-music'
 
+include 'common'
 include 'fabric'
 include 'neoforge'

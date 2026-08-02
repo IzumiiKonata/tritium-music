@@ -9,13 +9,13 @@ base {
 
 sourceSets {
 	main {
-		java.setSrcDirs([rootProject.file('src/main/java'), file('src/main/java')])
-		resources.setSrcDirs([rootProject.file('src/main/resources'), file('src/main/resources')])
+		java.setSrcDirs([project(':common').file('src/main/java'), file('src/main/java')])
+		resources.setSrcDirs([project(':common').file('src/main/resources'), file('src/main/resources')])
 	}
 }
 
 loom {
-	accessWidenerPath = file('src/main/resources/tritium-music.accesswidener')
+	accessWidenerPath = project(':common').file('src/main/resources/tritium-music.accesswidener')
 }
 
 dependencies {

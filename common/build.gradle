@@ -1,0 +1,57 @@
+plugins {
+	id 'java-library'
+	id 'net.neoforged.moddev'
+}
+
+base {
+	archivesName = "${rootProject.name}-common-${project.minecraft_version}"
+}
+
+repositories {
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = 'Sponge'
+				url = 'https://repo.spongepowered.org/repository/maven-public/'
+			}
+		}
+		filter {
+			includeGroup 'org.spongepowered'
+		}
+	}
+}
+
+neoForge {
+	neoFormVersion = project.neoform_version
+	accessTransformers.from(file('src/main/resources/META-INF/accesstransformer.cfg'))
+}
+
+dependencies {
+	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
+	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
+	compileOnly "org.spongepowered:mixin:${project.mixin_version}"
+
+	api "com.google.code.gson:gson:${project.gson_version}"
+	api "com.google.zxing:core:${project.zxing_version}"
+	api "net.java.dev.jna:jna:${project.jna_version}"
+	api "net.java.dev.jna:jna-platform:${project.jna_version}"
+	api "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 25
+	options.encoding = 'UTF-8'
+}
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}_${rootProject.name}" }
+	}
+}
