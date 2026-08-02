@@ -104,7 +104,7 @@ java {
 }
 
 jar {
-	from(rootProject.file('LICENSE')) {
+	from(rootProject.files('LICENSE', 'COPYING', 'THIRD_PARTY_NOTICES.md')) {
 		rename { "${it}_${rootProject.name}" }
 	}
 }
