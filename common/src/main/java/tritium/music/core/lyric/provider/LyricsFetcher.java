@@ -248,8 +248,8 @@ public final class LyricsFetcher {
         private static final LyricsFetcher INSTANCE = new LyricsFetcher(List.of(
                 new LocalLyricsProvider(),
                 new AmllLyricsProvider(),
-                new QqLyricsProvider(),
-                new NeteaseLyricsProvider()
+                new NeteaseLyricsProvider(),
+                new QqLyricsProvider()
         ));
     }
 }
