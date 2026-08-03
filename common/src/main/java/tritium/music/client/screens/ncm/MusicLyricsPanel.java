@@ -853,7 +853,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
         if (hasBg) {
             updateFftScale();
-            double backgroundScale = 1 + Math.max(0, fftScale) * 0.05;
+            double backgroundScale = 1 + Math.max(0, fftScale) * 0.1;
 
             if (coverFloatTimer.isDelayed(4000)) {
                 coverFloatTargetX = Math.random();
