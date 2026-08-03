@@ -44,20 +44,27 @@ final class TtmlLyricParser {
     private static LyricLine parseParagraph(Element paragraph) {
         long begin = time(attribute(paragraph, "begin"));
         long end = time(attribute(paragraph, "end"));
-        List<Element> spans = descendants(paragraph, "span");
         List<LyricLine.Word> words = new ArrayList<>();
         StringBuilder text = new StringBuilder();
-        for (Element span : spans) {
-            String role = attribute(span, "role");
-            if (role.equals("x-bg") || role.equals("x-translation") || hasTimedSpanChild(span)) continue;
-            String value = directText(span);
-            String spanBegin = attribute(span, "begin");
-            String spanEnd = attribute(span, "end");
+        boolean seenWord = false;
+        NodeList children = paragraph.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) continue;
+            if (!(node instanceof Element element)) continue;
+            if (!localName(element).equals("span")) continue;
+            String role = attribute(element, "role");
+            if (role.equals("x-bg") || role.equals("x-translation") || hasTimedSpanChild(element)) continue;
+            String value = directText(element);
+            String spanBegin = attribute(element, "begin");
+            String spanEnd = attribute(element, "end");
             if (value.isEmpty() || spanBegin.isEmpty() || spanEnd.isEmpty()) continue;
             long wordBegin = time(spanBegin);
             long wordEnd = time(spanEnd);
-            words.add(new LyricLine.Word(value, wordBegin, Math.max(0, wordEnd - wordBegin)));
-            text.append(value);
+            String spaced = seenWord && hasLeadingWhitespace(node) ? " " + value : value;
+            words.add(new LyricLine.Word(spaced, wordBegin, Math.max(0, wordEnd - wordBegin)));
+            text.append(spaced);
+            seenWord = true;
         }
         String lyric = text.isEmpty() ? normalizedText(paragraph) : text.toString();
         if (lyric.isBlank()) return null;
@@ -67,6 +74,15 @@ final class TtmlLyricParser {
         String translation = translation(paragraph);
         if (!translation.isBlank()) line.translationText = translation;
         return line;
+    }
+
+    private static boolean hasLeadingWhitespace(Node node) {
+        Node prev = node.getPreviousSibling();
+        if (prev != null && prev.getNodeType() == Node.TEXT_NODE) {
+            String text = prev.getNodeValue();
+            return text != null && !text.isEmpty() && text.trim().isEmpty();
+        }
+        return false;
     }
 
     private static String translation(Element paragraph) {
