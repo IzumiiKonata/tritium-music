@@ -50,15 +50,12 @@ public class FlacAudioFileReader extends AudioFileReader {
      * Obtains the audio file format of the File provided. The File must point
      * to valid audio file data.
      *
-     * @param file
-     *            the File from which file format information should be
-     *            extracted.
+     * @param file the File from which file format information should be
+     *             extracted.
      * @return an AudioFileFormat object describing the audio file format.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     public AudioFileFormat getAudioFileFormat(File file) throws UnsupportedAudioFileException, IOException {
         try (InputStream inputStream = new FileInputStream(file)) {
@@ -70,15 +67,12 @@ public class FlacAudioFileReader extends AudioFileReader {
      * Obtains an audio input stream from the URL provided. The URL must point
      * to valid audio file data.
      *
-     * @param url
-     *            the URL for which the AudioInputStream should be constructed.
+     * @param url the URL for which the AudioInputStream should be constructed.
      * @return an AudioInputStream object based on the audio file data pointed
-     *         to by the URL.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * to by the URL.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     public AudioFileFormat getAudioFileFormat(URL url) throws UnsupportedAudioFileException, IOException {
         try (InputStream inputStream = url.openStream()) {
@@ -89,16 +83,13 @@ public class FlacAudioFileReader extends AudioFileReader {
     /**
      * Obtains an audio input stream from the input stream provided.
      *
-     * @param stream
-     *            the input stream from which the AudioInputStream should be
-     *            constructed.
+     * @param stream the input stream from which the AudioInputStream should be
+     *               constructed.
      * @return an AudioInputStream object based on the audio file data contained
-     *         in the input stream.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * in the input stream.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     public AudioFileFormat getAudioFileFormat(InputStream stream) throws UnsupportedAudioFileException, IOException {
         return getAudioFileFormat(stream, AudioSystem.NOT_SPECIFIED);
@@ -127,12 +118,10 @@ public class FlacAudioFileReader extends AudioFileReader {
      * @param baos
      * @param mediaLength
      * @return an AudioInputStream object based on the audio file data contained
-     *         in the input stream.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * in the input stream.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     protected AudioFileFormat getAudioFileFormat(InputStream bitStream, int mediaLength) throws UnsupportedAudioFileException {
         AudioFormat format;
@@ -212,15 +201,12 @@ public class FlacAudioFileReader extends AudioFileReader {
      * Obtains an audio input stream from the File provided. The File must point
      * to valid audio file data.
      *
-     * @param file
-     *            the File for which the AudioInputStream should be constructed.
+     * @param file the File for which the AudioInputStream should be constructed.
      * @return an AudioInputStream object based on the audio file data pointed
-     *         to by the File.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * to by the File.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     public AudioInputStream getAudioInputStream(File file) throws UnsupportedAudioFileException, IOException {
         InputStream inputStream = new FileInputStream(file);
@@ -236,15 +222,12 @@ public class FlacAudioFileReader extends AudioFileReader {
      * Obtains an audio input stream from the URL provided. The URL must point
      * to valid audio file data.
      *
-     * @param url
-     *            the URL for which the AudioInputStream should be constructed.
+     * @param url the URL for which the AudioInputStream should be constructed.
      * @return an AudioInputStream object based on the audio file data pointed
-     *         to by the URL.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * to by the URL.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     public AudioInputStream getAudioInputStream(URL url) throws UnsupportedAudioFileException, IOException {
         InputStream inputStream = url.openStream();
@@ -260,16 +243,13 @@ public class FlacAudioFileReader extends AudioFileReader {
      * Obtains an audio input stream from the input stream provided. The stream
      * must point to valid audio file data.
      *
-     * @param stream
-     *            the input stream from which the AudioInputStream should be
-     *            constructed.
+     * @param stream the input stream from which the AudioInputStream should be
+     *               constructed.
      * @return an AudioInputStream object based on the audio file data contained
-     *         in the input stream.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * in the input stream.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     public AudioInputStream getAudioInputStream(InputStream stream) throws UnsupportedAudioFileException, IOException {
         return getAudioInputStream(stream, AudioSystem.NOT_SPECIFIED);
@@ -279,17 +259,14 @@ public class FlacAudioFileReader extends AudioFileReader {
      * Obtains an audio input stream from the input stream provided. The stream
      * must point to valid audio file data.
      *
-     * @param inputStream
-     *            the input stream from which the AudioInputStream should be
-     *            constructed.
+     * @param inputStream the input stream from which the AudioInputStream should be
+     *                    constructed.
      * @param medialength
      * @return an AudioInputStream object based on the audio file data contained
-     *         in the input stream.
-     * @exception UnsupportedAudioFileException
-     *                if the File does not point to a valid audio file data
-     *                recognized by the system.
-     * @exception IOException
-     *                if an I/O exception occurs.
+     * in the input stream.
+     * @throws UnsupportedAudioFileException if the File does not point to a valid audio file data
+     *                                       recognized by the system.
+     * @throws IOException                   if an I/O exception occurs.
      */
     protected AudioInputStream getAudioInputStream(InputStream inputStream, int medialength) throws UnsupportedAudioFileException, IOException {
         AudioFileFormat audioFileFormat = getAudioFileFormat(inputStream, medialength);

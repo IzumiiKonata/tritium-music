@@ -29,12 +29,12 @@ public class UnitInputPort extends UnitBlockPort implements ConnectableInput, Se
     private double minimum = 0.0;
     private double maximum = 1.0;
     private double defaultValue = 0.0;
-    private double[] setValues;
+    private final double[] setValues;
     private boolean valueAdded = false;
 
     /**
-     * @param numParts typically 1, use 2 for stereo ports
-     * @param name name that may be used in GUIs
+     * @param numParts     typically 1, use 2 for stereo ports
+     * @param name         name that may be used in GUIs
      * @param defaultValue
      */
     public UnitInputPort(int numParts, String name, double defaultValue) {
@@ -161,7 +161,7 @@ public class UnitInputPort extends UnitBlockPort implements ConnectableInput, Se
      * setting up a GUI. It is possible to set a port to a value outside these limits.
      *
      * @param minimum
-     * @param value default value, will be clipped to min/max
+     * @param value   default value, will be clipped to min/max
      * @param maximum
      */
     public void setup(double minimum, double value, double maximum) {
@@ -183,10 +183,10 @@ public class UnitInputPort extends UnitBlockPort implements ConnectableInput, Se
     /**
      * If set false then the set() value will be ignored when other ports are connected to this port.
      * The sum of the connected port values will be used instead.
-     *
+     * <p>
      * If set true then the set() value will be added to the sum of the connected port values.
      * This is useful when you want to modulate the set value.
-     *
+     * <p>
      * The default is false.
      *
      * @param valueAdded
@@ -196,11 +196,13 @@ public class UnitInputPort extends UnitBlockPort implements ConnectableInput, Se
     }
 
     public void connect(int thisPartNum, UnitOutputPort otherPort, int otherPartNum,
-            TimeStamp timeStamp) {
+                        TimeStamp timeStamp) {
         otherPort.connect(otherPartNum, this, thisPartNum, timeStamp);
     }
 
-    /** Connect an input to an output port. */
+    /**
+     * Connect an input to an output port.
+     */
     public void connect(int thisPartNum, UnitOutputPort otherPort, int otherPartNum) {
         // Typically connections are made from output to input because it is
         // more intuitive.

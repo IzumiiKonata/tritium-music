@@ -25,9 +25,9 @@ import tritium.music.repackage.com.jsyn.ports.UnitOutputPort;
  * {@link FloatSample samples}.
  *
  * <pre><code>
-	// Queue an envelope to the dataQueue port.
-	ampEnv.dataQueue.queue(ampEnvelope);
-</code></pre>
+ * // Queue an envelope to the dataQueue port.
+ * ampEnv.dataQueue.queue(ampEnvelope);
+ * </code></pre>
  *
  * @author Phil Burk (C) 2009 Mobileer Inc
  * @see FloatSample

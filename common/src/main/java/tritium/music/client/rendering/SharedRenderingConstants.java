@@ -4,7 +4,7 @@ import net.minecraft.resources.Identifier;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 

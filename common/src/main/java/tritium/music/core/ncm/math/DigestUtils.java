@@ -70,8 +70,8 @@ public class DigestUtils {
      *                  <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/security/crypto/CryptoSpec.html#AppA">Appendix A in the Java
      *                  Cryptography Architecture Reference Guide</a> for information about standard algorithm names.
      * @return A digest instance.
-     * @see MessageDigest#getInstance(String)
      * @throws IllegalArgumentException when a {@link NoSuchAlgorithmException} is caught.
+     * @see MessageDigest#getInstance(String)
      */
     public static MessageDigest getDigest(final String algorithm) {
         try {
@@ -99,8 +99,8 @@ public class DigestUtils {
      *                  <a href="https://docs.oracle.com/javase/6/docs/technotes/guides/security/crypto/CryptoSpec.html#AppA"> Appendix A in the Java
      *                  Cryptography Architecture Reference Guide</a> for information about standard algorithm names.
      * @return A digest instance.
-     * @see MessageDigest#getInstance(String)
      * @throws NoSuchAlgorithmException if no Provider supports a MessageDigestSpi implementation for the specified algorithm.
+     * @see MessageDigest#getInstance(String)
      */
     private static MessageDigest getMessageDigest(final String algorithm) throws NoSuchAlgorithmException {
         return MessageDigest.getInstance(algorithm);
@@ -264,6 +264,7 @@ public class DigestUtils {
     public static String sha1Hex(final String data) {
         return Hex.encodeHexString(sha1(data));
     }
+
     /**
      * Calculates the SHA-1 digest and returns the value as a hexadecimal string.
      *

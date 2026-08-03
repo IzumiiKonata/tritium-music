@@ -1,8 +1,8 @@
 package tritium.music.repackage.com.jsyn.util.soundfile.streamed.raf;
 
+import lombok.SneakyThrows;
 import tritium.music.repackage.com.jsyn.util.soundfile.ChunkHandler;
 import tritium.music.repackage.com.jsyn.util.soundfile.IFFParser;
-import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -33,14 +33,18 @@ public class RafIFFParser extends IFFParser {
         return raf.getFilePointer();
     }
 
-    /** @return Next byte from stream. Increment offset by 1. */
+    /**
+     * @return Next byte from stream. Increment offset by 1.
+     */
     @Override
     public int read() throws IOException {
         numBytesRead++;
         return raf.read();
     }
 
-    /** @return Next byte array from stream. Increment offset by len. */
+    /**
+     * @return Next byte array from stream. Increment offset by len.
+     */
     @Override
     public int read(byte[] bar, int off, int len) throws IOException {
         // Reading from a URL can return before all the bytes are available.
@@ -61,7 +65,9 @@ public class RafIFFParser extends IFFParser {
         return cursor - off;
     }
 
-    /** @return Skip forward in stream and add numBytes to offset. */
+    /**
+     * @return Skip forward in stream and add numBytes to offset.
+     */
     @Override
     public long skip(long numBytes) throws IOException {
         numBytesRead += numBytes;

@@ -22,7 +22,7 @@ import tritium.music.repackage.com.jsyn.ports.UnitInputPort;
 /**
  * Simple stereo sample writer. Write two samples per audio frame with no interpolation. This can be
  * used to record audio or to build delay lines.
- *
+ * <p>
  * Note that you must call start() on this unit because it does not have an output for pulling data.
  *
  * @author Phil Burk (C) 2009 Mobileer Inc

@@ -152,8 +152,8 @@ public class Converter {
     }
 
     public synchronized byte[] convert(InputStream sourceStream,
-                                     ProgressListener progressListener,
-                                     Decoder.Params decoderParams) throws JavaLayerException {
+                                       ProgressListener progressListener,
+                                       Decoder.Params decoderParams) throws JavaLayerException {
         if (progressListener == null)
             progressListener = PrintWriterProgressListener.newStdOut(PrintWriterProgressListener.NO_DETAIL);
         try {
@@ -346,9 +346,9 @@ public class Converter {
 
         static public final int MAX_DETAIL = 10;
 
-        private PrintWriter pw;
+        private final PrintWriter pw;
 
-        private int detailLevel;
+        private final int detailLevel;
 
         static public PrintWriterProgressListener newStdOut(int detail) {
             return new PrintWriterProgressListener(new PrintWriter(System.out, true), detail);

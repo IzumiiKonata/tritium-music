@@ -10,36 +10,9 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.lwjgl.system.MemoryUtil.NULL;
-import static org.lwjgl.system.MemoryUtil.memAlloc;
-import static org.lwjgl.system.MemoryUtil.memFree;
-import static org.lwjgl.util.freetype.FreeType.FT_ENCODING_UNICODE;
-import static org.lwjgl.util.freetype.FreeType.FT_Done_Face;
-import static org.lwjgl.util.freetype.FreeType.FT_Done_FreeType;
-import static org.lwjgl.util.freetype.FreeType.FT_Err_Ok;
-import static org.lwjgl.util.freetype.FreeType.FT_Init_FreeType;
-import static org.lwjgl.util.freetype.FreeType.FT_New_Memory_Face;
-import static org.lwjgl.util.freetype.FreeType.FT_Select_Charmap;
-import static org.lwjgl.util.freetype.FreeType.FT_Set_Pixel_Sizes;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.HB_MEMORY_MODE_READONLY;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_blob_create;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_blob_destroy;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_add_utf8;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_allocation_successful;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_create;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_destroy;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_get_glyph_positions;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_guess_segment_properties;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_reset;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_buffer_set_language;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_face_create;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_face_destroy;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_font_create;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_font_destroy;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_font_set_ppem;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_font_set_scale;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_language_from_string;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.hb_shape;
+import static org.lwjgl.system.MemoryUtil.*;
+import static org.lwjgl.util.freetype.FreeType.*;
+import static org.lwjgl.util.harfbuzz.HarfBuzz.*;
 
 public final class FontKerning {
 

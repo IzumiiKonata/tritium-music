@@ -26,6 +26,7 @@ import java.io.IOException;
 
 /**
  * CueSheet Metadata block.
+ *
  * @author kc7bfi
  */
 public class CueSheet extends Metadata {
@@ -51,10 +52,11 @@ public class CueSheet extends Metadata {
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @param length            Length of the record
-     * @param isLast            True if this is the last Metadata block in the chain
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is     The InputBitStream
+     * @param length Length of the record
+     * @param isLast True if this is the last Metadata block in the chain
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public CueSheet(BitInputStream is, int length, boolean isLast) throws IOException {
         super(isLast, length);
@@ -74,8 +76,9 @@ public class CueSheet extends Metadata {
 
     /**
      * Verifies the Cue Sheet.
-     * @param checkCdDaSubset   True for check CD subset
-     * @throws Violation        Thrown if invalid Cue Sheet
+     *
+     * @param checkCdDaSubset True for check CD subset
+     * @throws Violation Thrown if invalid Cue Sheet
      */
     void isLegal(boolean checkCdDaSubset) throws Violation {
 

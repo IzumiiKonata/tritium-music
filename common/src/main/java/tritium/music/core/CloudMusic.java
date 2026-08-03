@@ -11,10 +11,10 @@ import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.audio.AudioPlayer;
 import tritium.music.core.lyric.LyricLine;
 import tritium.music.core.lyric.LyricParser;
+import tritium.music.core.lyric.provider.LyricProviderPreferences;
 import tritium.music.core.lyric.provider.LyricsFetcher;
 import tritium.music.core.lyric.provider.LyricsQuery;
 import tritium.music.core.lyric.provider.LyricsResult;
-import tritium.music.core.lyric.provider.LyricProviderPreferences;
 import tritium.music.core.model.Music;
 import tritium.music.core.model.PlayList;
 import tritium.music.core.model.Quality;
@@ -22,18 +22,11 @@ import tritium.music.core.model.User;
 import tritium.music.core.ncm.OptionsUtil;
 import tritium.music.core.ncm.QRCodeGenerator;
 import tritium.music.core.ncm.api.CloudMusicApi;
-import tritium.music.core.util.AsyncUtil;
-import tritium.music.core.util.GaussianKernel;
-import tritium.music.core.util.HttpUtils;
-import tritium.music.core.util.JsonUtils;
-import tritium.music.core.util.Pair;
-import tritium.music.core.util.StringUtil;
-import tritium.music.core.util.Textures;
+import tritium.music.core.util.*;
 import tritium.music.platform.Platform;
 
 import javax.imageio.ImageIO;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.ConvolveOp;
 import java.awt.image.Kernel;
@@ -44,15 +37,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -400,7 +386,7 @@ public class CloudMusic {
             return;
         }
 
-        Platform.log("[NCM] Logged in as " + profile.getName() + "(" + profile.getId() + ")");
+        Platform.log("[NCM] Logged in as " + profile.name() + "(" + profile.id() + ")");
 
         if (!OptionsUtil.getCookie().isEmpty()) {
             onStop();
@@ -805,17 +791,17 @@ public class CloudMusic {
         }
 
         private AudioPlayer initializePlayer(Pair<String, String> playUrl, Music song) {
-            String type = playUrl.getB().toLowerCase();
+            String type = playUrl.b().toLowerCase();
             if (!type.equals("flac") && !type.equals("wav") && !type.equals("mp3")) {
-                throw new IllegalArgumentException("Unsupported music format, url: " + playUrl.getA() + ", type: " + type);
+                throw new IllegalArgumentException("Unsupported music format, url: " + playUrl.a() + ", type: " + type);
             }
             AudioPlayer player = CloudMusic.player;
             if (player == null) {
-                player = new AudioPlayer(playUrl.getA(), type, song.getDuration());
+                player = new AudioPlayer(playUrl.a(), type, song.getDuration());
                 player.setVolume(MusicState.get().getVolume());
                 CloudMusic.player = player;
             } else {
-                player.setAudio(playUrl.getA(), type, song.getDuration());
+                player.setAudio(playUrl.a(), type, song.getDuration());
             }
             return player;
         }
@@ -1146,7 +1132,7 @@ public class CloudMusic {
     public static List<Long> likeList() {
         List<Long> list = new ArrayList<>();
 
-        JsonObject json = CloudMusicApi.likeList(profile.getId()).toJsonObject();
+        JsonObject json = CloudMusicApi.likeList(profile.id()).toJsonObject();
 
         JsonArray ids = json.getAsJsonArray("ids");
         for (JsonElement id : ids) {

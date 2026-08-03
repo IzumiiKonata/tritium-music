@@ -22,6 +22,7 @@ package tritium.music.repackage.org.kc7bfi.jflac.metadata;
 
 /**
  * Meta data format violation exception.
+ *
  * @author kc7bfi
  */
 public class Violation extends Exception {
@@ -35,7 +36,8 @@ public class Violation extends Exception {
 
     /**
      * Constructor.
-     * @param msg   The error message
+     *
+     * @param msg The error message
      */
     public Violation(String msg) {
         super(msg);
@@ -43,7 +45,8 @@ public class Violation extends Exception {
 
     /**
      * Constructor.
-     * @param err   The causing exception
+     *
+     * @param err The causing exception
      */
     public Violation(Throwable err) {
         super(err);
@@ -51,8 +54,9 @@ public class Violation extends Exception {
 
     /**
      * Constructor.
-     * @param msg   The error message
-     * @param err   The causing exception
+     *
+     * @param msg The error message
+     * @param err The causing exception
      */
     public Violation(String msg, Throwable err) {
         super(msg, err);

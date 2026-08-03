@@ -48,36 +48,60 @@ final class HuffCodeTab {
     private static final int MXOFF = 250;
     private static final int HTN = 34;
 
-    /** string, containing table_description */
+    /**
+     * string, containing table_description
+     */
     private char tablename0 = ' ';
-    /** string, containing table_description */
+    /**
+     * string, containing table_description
+     */
     private char tablename1 = ' ';
-    /** string, containing table_description */
+    /**
+     * string, containing table_description
+     */
     @SuppressWarnings("unused")
     private char tablename2 = ' ';
 
-    /** max. x-index+ */
-    private int xlen;
-    /** max. y-index+ */
-    private int ylen;
-    /** number of linbits */
-    private int linbits;
-    /** max number to be stored in linbits */
+    /**
+     * max. x-index+
+     */
+    private final int xlen;
+    /**
+     * max. y-index+
+     */
+    private final int ylen;
+    /**
+     * number of linbits
+     */
+    private final int linbits;
+    /**
+     * max number to be stored in linbits
+     */
     @SuppressWarnings("unused")
-    private int linmax;
-    /** a positive value indicates a reference */
+    private final int linmax;
+    /**
+     * a positive value indicates a reference
+     */
     @SuppressWarnings("unused")
-    private int ref;
-    /** pointer to array[xlen][ylen] */
+    private final int ref;
+    /**
+     * pointer to array[xlen][ylen]
+     */
     @SuppressWarnings("unused")
     private int[] table = null;
-    /** pointer to array[xlen][ylen] */
+    /**
+     * pointer to array[xlen][ylen]
+     */
     @SuppressWarnings("unused")
     private int[] hlen = null;
-    /** decoder tree */
+    /**
+     * decoder tree
+     */
     private int[][] val = null;
-    /** length of decoder tree */
-    private int treelen;
+    /**
+     * length of decoder tree
+     */
+    private final int treelen;
 
     private static final int[][] ValTab0 = {
             {0, 0} // dummy
@@ -432,11 +456,13 @@ final class HuffCodeTab {
             {0, 15},
     };
 
-    /** Simulate extern struct */
+    /**
+     * Simulate extern struct
+     */
     public static HuffCodeTab[] ht = null;
 
     @SuppressWarnings("unused")
-    private static int[] bitbuf = new int[32];
+    private static final int[] bitbuf = new int[32];
 
     /**
      * Big Constructor : Computes all Huffman Tables.

@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,7 +19,7 @@ package tritium.music.repackage.com.jsyn.devices;
 /**
  * Interface for an audio system. This may be implemented using JavaSound, or a native device
  * wrapper.
- * 
+ *
  * @author Phil Burk (C) 2010 Mobileer Inc
  */
 public interface AudioDeviceManager {
@@ -35,7 +35,7 @@ public interface AudioDeviceManager {
 
     /**
      * Get the name of an audio device.
-     * 
+     *
      * @param deviceID An index between 0 to deviceCount-1.
      * @return A name that can be shown to the user.
      */
@@ -49,7 +49,7 @@ public interface AudioDeviceManager {
     /**
      * The user can generally select a default device using a control panel that is part of the
      * operating system.
-     * 
+     *
      * @return The ID for the input device that the user has selected as the default.
      */
     int getDefaultInputDeviceID();
@@ -57,7 +57,7 @@ public interface AudioDeviceManager {
     /**
      * The user can generally select a default device using a control panel that is part of the
      * operating system.
-     * 
+     *
      * @return The ID for the output device that the user has selected as the default.
      */
     int getDefaultOutputDeviceID();
@@ -77,7 +77,7 @@ public interface AudioDeviceManager {
     /**
      * This the lowest latency that the device can support reliably. It should be used for
      * applications that require low latency such as live processing of guitar signals.
-     * 
+     *
      * @param deviceID An index between 0 to numDevices-1.
      * @return Latency in seconds.
      */
@@ -86,7 +86,7 @@ public interface AudioDeviceManager {
     /**
      * This the highest latency that the device can support. High latency is recommended for
      * applications that are not time critical, such as recording.
-     * 
+     *
      * @param deviceID An index between 0 to numDevices-1.
      * @return Latency in seconds.
      */

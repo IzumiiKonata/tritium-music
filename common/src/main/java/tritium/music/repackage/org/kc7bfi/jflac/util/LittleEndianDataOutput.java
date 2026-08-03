@@ -25,15 +25,17 @@ import java.io.IOException;
 
 /**
  * This class extends DataOutput for writing little-endian data.
+ *
  * @author kc7bfi
  */
 public class LittleEndianDataOutput implements DataOutput {
 
-    private DataOutput out;
+    private final DataOutput out;
 
     /**
      * The constructor.
-     * @param out   The DataOutput to read on
+     *
+     * @param out The DataOutput to read on
      */
     public LittleEndianDataOutput(DataOutput out) {
         this.out = out;

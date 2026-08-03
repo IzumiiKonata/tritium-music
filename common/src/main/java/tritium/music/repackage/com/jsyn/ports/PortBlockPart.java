@@ -30,9 +30,9 @@ import java.util.Arrays;
  */
 public class PortBlockPart implements ConnectableOutput, ConnectableInput {
 
-    private double[] values = new double[Synthesizer.FRAMES_PER_BLOCK];
-    private ArrayList<PortBlockPart> connections = new ArrayList<>();
-    private UnitBlockPort unitBlockPort;
+    private final double[] values = new double[Synthesizer.FRAMES_PER_BLOCK];
+    private final ArrayList<PortBlockPart> connections = new ArrayList<>();
+    private final UnitBlockPort unitBlockPort;
 
     protected PortBlockPart(UnitBlockPort unitBlockPort, double defaultValue) {
         this.unitBlockPort = unitBlockPort;
@@ -94,7 +94,9 @@ public class PortBlockPart implements ConnectableOutput, ConnectableInput {
         return connections.size();
     }
 
-    /** Set all values to the last value. */
+    /**
+     * Set all values to the last value.
+     */
     protected void flatten() {
         double lastValue = values[values.length - 1];
         for (int i = 0; i < values.length - 1; i++) {
@@ -155,7 +157,9 @@ public class PortBlockPart implements ConnectableOutput, ConnectableInput {
         disconnect(other.getPortBlockPart());
     }
 
-    /** To implement ConnectableInput */
+    /**
+     * To implement ConnectableInput
+     */
     @Override
     public PortBlockPart getPortBlockPart() {
         return this;

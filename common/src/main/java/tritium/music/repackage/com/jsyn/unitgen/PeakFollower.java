@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,7 +25,7 @@ import tritium.music.repackage.com.jsyn.ports.UnitVariablePort;
  * signal. The output can be used to drive color organs, vocoders, VUmeters, etc. Output drops
  * exponentially when the input drops below the current output level. The output approaches zero
  * based on the value on the halfLife port.
- * 
+ *
  * @author (C) 1997-2009 Phil Burk, SoftSynth.com
  */
 public class PeakFollower extends UnitGenerator {

@@ -2,7 +2,6 @@ package tritium.music.core.model;
 
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
-import lombok.Data;
 import tritium.music.core.ncm.api.CloudMusicApi;
 import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.TextureHandle;
@@ -14,19 +13,9 @@ import java.util.Objects;
 /**
  * 用户对象
  */
-@Data
-public class User {
-
-    @SerializedName("userId")
-    private final long id;
-    @SerializedName("nickname")
-    private final String name;
-    @SerializedName("signature")
-    private final String signature;
-    @SerializedName("vipType")
-    private final int vip;
-    @SerializedName("avatarUrl")
-    private final String avatarUrl;
+public record User(@SerializedName("userId") long id, @SerializedName("nickname") String name,
+                   @SerializedName("signature") String signature, @SerializedName("vipType") int vip,
+                   @SerializedName("avatarUrl") String avatarUrl) {
 
     public final TextureHandle getAvatarLocation() {
         return TextureHandle.of("textures/user/" + this.id + "/avatar.png");

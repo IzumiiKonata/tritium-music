@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,15 +20,15 @@ package tritium.music.repackage.com.jsyn.data;
 /**
  * Complex spectrum with real and imaginary parts. The frequency associated with each bin of the
  * spectrum is:
- * 
+ *
  * <pre>
  * frequency = binIndex * sampleRate / size
  * </pre>
- * 
+ * <p>
  * Note that the upper half of the spectrum is above the Nyquist frequency. Those frequencies are
  * mirrored around the Nyquist frequency. Note that this spectral API is experimental and may change
  * at any time.
- * 
+ *
  * @author Phil Burk (C) 2013 Mobileer Inc
  * @version 016
  */
@@ -57,7 +57,7 @@ public class Spectrum {
     /**
      * If you change the size of the spectrum then the real and imaginary arrays will be
      * reallocated.
-     * 
+     *
      * @param size
      */
     public void setSize(int size) {
@@ -73,7 +73,7 @@ public class Spectrum {
 
     /**
      * Copy this spectrum to another spectrum of the same length.
-     * 
+     *
      * @param destination
      */
     public void copyTo(Spectrum destination) {

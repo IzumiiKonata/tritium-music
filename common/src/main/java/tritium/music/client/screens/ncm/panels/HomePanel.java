@@ -205,7 +205,7 @@ public class HomePanel extends NCMPanel {
         }
 
         private float entranceProgress() {
-            long delay = (long) (Math.min(index, ENTRANCE_INDEX_CAP) * ENTRANCE_STAGGER_MS);
+            long delay = Math.min(index, ENTRANCE_INDEX_CAP) * ENTRANCE_STAGGER_MS;
             long elapsed = System.currentTimeMillis() - revealStart - delay;
 
             if (elapsed <= 0L) {

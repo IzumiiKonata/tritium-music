@@ -120,8 +120,8 @@ public final class NeteaseLyricsProvider implements LyricsProvider {
 
     private static String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT)
-                .replaceAll("[^\\p{L}\\p{N}]+", " ")
-                .trim()
-                .replaceAll("\\s+", " ");
+                                    .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                                    .trim()
+                                    .replaceAll("\\s+", " ");
     }
 }

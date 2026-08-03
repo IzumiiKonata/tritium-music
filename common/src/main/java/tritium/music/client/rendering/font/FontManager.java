@@ -2,7 +2,7 @@ package tritium.music.client.rendering.font;
 
 import lombok.SneakyThrows;
 
-import java.awt.Font;
+import java.awt.*;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,8 +22,8 @@ public class FontManager {
     private static volatile boolean loaded = false;
 
     private static CFontRenderer[] lyricFonts() {
-        return new CFontRenderer[] {
-            pf18bold, pf28bold, pf34bold, pf65bold
+        return new CFontRenderer[]{
+                pf18bold, pf28bold, pf34bold, pf65bold
         };
     }
 

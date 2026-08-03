@@ -63,7 +63,7 @@ class LayerIIDecoder extends LayerIDecoder implements FrameDecoder {
     static class SubbandLayer2 extends Subband {
         // this table contains 3 requantized samples for each legal codeword
         // when grouped in 5 bits, i.e. 3 quantizationsteps per sample
-        public static final float[] grouping_5bits = new float[] {
+        public static final float[] grouping_5bits = new float[]{
                 -2.0f / 3.0f, -2.0f / 3.0f, -2.0f / 3.0f,
                 0.0f, -2.0f / 3.0f, -2.0f / 3.0f,
                 2.0f / 3.0f, -2.0f / 3.0f, -2.0f / 3.0f,
@@ -95,7 +95,7 @@ class LayerIIDecoder extends LayerIDecoder implements FrameDecoder {
 
         // this table contains 3 requantized samples for each legal codeword
         // when grouped in 7 bits, i.e. 5 quantizationsteps per sample
-        public static final float[] grouping_7bits = new float[] {
+        public static final float[] grouping_7bits = new float[]{
                 -0.8f, -0.8f, -0.8f, -0.4f, -0.8f, -0.8f, 0.0f, -0.8f, -0.8f, 0.4f, -0.8f, -0.8f, 0.8f, -0.8f, -0.8f,
                 -0.8f, -0.4f, -0.8f, -0.4f, -0.4f, -0.8f, 0.0f, -0.4f, -0.8f, 0.4f, -0.4f, -0.8f, 0.8f, -0.4f, -0.8f,
                 -0.8f, 0.0f, -0.8f, -0.4f, 0.0f, -0.8f, 0.0f, 0.0f, -0.8f, 0.4f, 0.0f, -0.8f, 0.8f, 0.0f, -0.8f,
@@ -373,39 +373,51 @@ class LayerIIDecoder extends LayerIDecoder implements FrameDecoder {
 
         // data taken from ISO/IEC DIS 11172, Annexes 3-B.2[abcd] and 3-B.4:
 
-        /** subbands 0-2 in tables 3-B.2a and 2b: (index is allocation) */
+        /**
+         * subbands 0-2 in tables 3-B.2a and 2b: (index is allocation)
+         */
         public static final int[] table_ab1_codelength = {
                 // bits per codeword
                 0, 5, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
         };
 
-        /** pointer to sample grouping table, or NULL-pointer if ungrouped */
+        /**
+         * pointer to sample grouping table, or NULL-pointer if ungrouped
+         */
         public static final float[][] table_ab1_groupingtables = {
                 null, grouping_5bits, null, null, null, null, null, null, null, null, null, null, null, null, null, null
         };
 
-        /** factor for requantization: (real)sample * factor - 1.0 gives requantized sample */
+        /**
+         * factor for requantization: (real)sample * factor - 1.0 gives requantized sample
+         */
         public static final float[] table_ab1_factor = {
                 0.0f, 1.0f / 2.0f, 1.0f / 4.0f, 1.0f / 8.0f, 1.0f / 16.0f, 1.0f / 32.0f, 1.0f / 64.0f,
                 1.0f / 128.0f, 1.0f / 256.0f, 1.0f / 512.0f, 1.0f / 1024.0f, 1.0f / 2048.0f,
                 1.0f / 4096.0f, 1.0f / 8192.0f, 1.0f / 16384.0f, 1.0f / 32768.0f
         };
 
-        /** factor c for requantization from table 3-B.4 */
+        /**
+         * factor c for requantization from table 3-B.4
+         */
         public static final float[] table_ab1_c =
                 {0.0f, 1.33333333333f, 1.14285714286f, 1.06666666666f, 1.03225806452f,
-                1.01587301587f, 1.00787401575f, 1.00392156863f, 1.00195694716f, 1.00097751711f,
-                1.00048851979f, 1.00024420024f, 1.00012208522f, 1.00006103888f, 1.00003051851f,
-                1.00001525902f};
+                        1.01587301587f, 1.00787401575f, 1.00392156863f, 1.00195694716f, 1.00097751711f,
+                        1.00048851979f, 1.00024420024f, 1.00012208522f, 1.00006103888f, 1.00003051851f,
+                        1.00001525902f};
 
-        /** addend d for requantization from table 3-B.4 */
+        /**
+         * addend d for requantization from table 3-B.4
+         */
         public static final float[] table_ab1_d =
                 {0.0f, 0.50000000000f, 0.25000000000f, 0.12500000000f, 0.06250000000f,
-                0.03125000000f, 0.01562500000f, 0.00781250000f, 0.00390625000f, 0.00195312500f,
-                0.00097656250f, 0.00048828125f, 0.00024414063f, 0.00012207031f, 0.00006103516f,
-                0.00003051758f};
+                        0.03125000000f, 0.01562500000f, 0.00781250000f, 0.00390625000f, 0.00195312500f,
+                        0.00097656250f, 0.00048828125f, 0.00024414063f, 0.00012207031f, 0.00006103516f,
+                        0.00003051758f};
 
-        /** subbands 3-... tables 3-B.2a and 2b */
+        /**
+         * subbands 3-... tables 3-B.2a and 2b
+         */
         public static final float[][] table_ab234_groupingtables = {
                 null, grouping_5bits, grouping_7bits, null, grouping_10bits, null, null, null,
                 null, null, null, null, null, null, null, null
@@ -419,8 +431,8 @@ class LayerIIDecoder extends LayerIDecoder implements FrameDecoder {
 
         public static final float[] table_ab2_factor = {
                 0.0f, 1.0f / 2.0f, 1.0f / 4.0f, 1.0f / 4.0f, 1.0f / 8.0f, 1.0f / 8.0f, 1.0f / 16.0f,
-                    1.0f / 32.0f, 1.0f / 64.0f, 1.0f / 128.0f, 1.0f / 256.0f, 1.0f / 512.0f,
-                    1.0f / 1024.0f, 1.0f / 2048.0f, 1.0f / 4096.0f, 1.0f / 32768.0f
+                1.0f / 32.0f, 1.0f / 64.0f, 1.0f / 128.0f, 1.0f / 256.0f, 1.0f / 512.0f,
+                1.0f / 1024.0f, 1.0f / 2048.0f, 1.0f / 4096.0f, 1.0f / 32768.0f
         };
         public static final float[] table_ab2_c = {
                 0.0f, 1.33333333333f, 1.60000000000f, 1.14285714286f, 1.77777777777f,
@@ -626,22 +638,22 @@ class LayerIIDecoder extends LayerIDecoder implements FrameDecoder {
         public void readScaleFactor(Bitstream stream, Header header) {
             if (allocation != 0) {
                 switch (scfsi) {
-                case 0:
-                    scaleFactor1 = scaleFactors[stream.getBits(6)];
-                    scaleFactor2 = scaleFactors[stream.getBits(6)];
-                    scaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
-                case 1:
-                    scaleFactor1 = scaleFactor2 = scaleFactors[stream.getBits(6)];
-                    scaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
-                case 2:
-                    scaleFactor1 = scaleFactor2 = scaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
-                case 3:
-                    scaleFactor1 = scaleFactors[stream.getBits(6)];
-                    scaleFactor2 = scaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 0:
+                        scaleFactor1 = scaleFactors[stream.getBits(6)];
+                        scaleFactor2 = scaleFactors[stream.getBits(6)];
+                        scaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
+                    case 1:
+                        scaleFactor1 = scaleFactor2 = scaleFactors[stream.getBits(6)];
+                        scaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
+                    case 2:
+                        scaleFactor1 = scaleFactor2 = scaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
+                    case 3:
+                        scaleFactor1 = scaleFactors[stream.getBits(6)];
+                        scaleFactor2 = scaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
                 }
                 prepare_sample_reading(header, allocation, 0, factor, codeLength, c, d);
             }
@@ -753,26 +765,26 @@ class LayerIIDecoder extends LayerIDecoder implements FrameDecoder {
             if (allocation != 0) {
                 super.readScaleFactor(stream, header);
                 switch (channel2Scfsi) {
-                case 0:
-                    channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor2 = scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 0:
+                        channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor2 = scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
 
-                case 1:
-                    channel2ScaleFactor1 = channel2ScaleFactor2 = scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 1:
+                        channel2ScaleFactor1 = channel2ScaleFactor2 = scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
 
-                case 2:
-                    channel2ScaleFactor1 = channel2ScaleFactor2 =
-                            channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 2:
+                        channel2ScaleFactor1 = channel2ScaleFactor2 =
+                                channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
 
-                case 3:
-                    channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor2 = channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 3:
+                        channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor2 = channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
                 }
             }
         }
@@ -894,28 +906,28 @@ class LayerIIDecoder extends LayerIDecoder implements FrameDecoder {
             super.readScaleFactor(stream, header);
             if (channel2Allocation != 0) {
                 switch (channel2Scfsi) {
-                case 0:
-                    channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor2 = scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 0:
+                        channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor2 = scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
 
-                case 1:
-                    channel2ScaleFactor1 = channel2ScaleFactor2 =
-                            scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 1:
+                        channel2ScaleFactor1 = channel2ScaleFactor2 =
+                                scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
 
-                case 2:
-                    channel2ScaleFactor1 = channel2ScaleFactor2 =
-                            channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
-                    break;
+                    case 2:
+                        channel2ScaleFactor1 = channel2ScaleFactor2 =
+                                channel2ScaleFactor3 = scaleFactors[stream.getBits(6)];
+                        break;
 
-                case 3:
-                    channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
-                    channel2ScaleFactor2 = channel2ScaleFactor3 =
-                            scaleFactors[stream.getBits(6)];
-                    break;
+                    case 3:
+                        channel2ScaleFactor1 = scaleFactors[stream.getBits(6)];
+                        channel2ScaleFactor2 = channel2ScaleFactor3 =
+                                scaleFactors[stream.getBits(6)];
+                        break;
                 }
                 prepare_sample_reading(header, channel2Allocation, 1,
                         channel2Factor, channel2CodeLength, channel2C,

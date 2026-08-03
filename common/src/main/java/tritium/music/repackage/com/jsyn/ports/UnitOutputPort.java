@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,7 +21,7 @@ import tritium.music.repackage.com.softsynth.shared.time.TimeStamp;
 
 /**
  * Units write to their output port blocks. Other multiple connected input ports read from them.
- * 
+ *
  * @author Phil Burk (C) 2009 Mobileer Inc
  */
 
@@ -55,7 +55,7 @@ public class UnitOutputPort extends UnitBlockPort implements ConnectableOutput, 
     }
 
     public void connect(int thisPartNum, UnitInputPort otherPort, int otherPartNum,
-            TimeStamp timeStamp) {
+                        TimeStamp timeStamp) {
         PortBlockPart source = parts[thisPartNum];
         PortBlockPart destination = otherPort.parts[otherPartNum];
         source.connect(destination, timeStamp);
@@ -81,7 +81,7 @@ public class UnitOutputPort extends UnitBlockPort implements ConnectableOutput, 
     }
 
     public void disconnect(int thisPartNum, UnitInputPort otherPort, int otherPartNum,
-            TimeStamp timeStamp) {
+                           TimeStamp timeStamp) {
         PortBlockPart source = parts[thisPartNum];
         PortBlockPart destination = otherPort.parts[otherPartNum];
         source.disconnect(destination, timeStamp);

@@ -34,43 +34,73 @@ import lombok.Getter;
 public class RiffStream {
 
     static class RiffChunkHeader {
-        /** Four-character chunk ID */
+        /**
+         * Four-character chunk ID
+         */
         public int ckID = 0;
-        /** Length of data in chunk */
+        /**
+         * Length of data in chunk
+         */
         public int ckSize = 0;
     }
 
     // DDCRET
 
-    /** The operation succeeded */
+    /**
+     * The operation succeeded
+     */
     public static final int DDC_SUCCESS = 0;
-    /** The operation failed for unspecified reasons */
+    /**
+     * The operation failed for unspecified reasons
+     */
     public static final int DDC_FAILURE = 1;
-    /** Operation failed due to running out of memory */
+    /**
+     * Operation failed due to running out of memory
+     */
     public static final int DDC_OUT_OF_MEMORY = 2;
-    /** Operation encountered file I/O error */
+    /**
+     * Operation encountered file I/O error
+     */
     public static final int DDC_FILE_ERROR = 3;
-    /** Operation was called with invalid parameters */
+    /**
+     * Operation was called with invalid parameters
+     */
     public static final int DDC_INVALID_CALL = 4;
-    /** Operation was aborted by the user */
+    /**
+     * Operation was aborted by the user
+     */
     public static final int DDC_USER_ABORT = 5;
-    /** File format does not match */
+    /**
+     * File format does not match
+     */
     public static final int DDC_INVALID_FILE = 6;
 
     // RiffFileMode
 
-    /** undefined type (can use to mean "N/A" or "not open") */
+    /**
+     * undefined type (can use to mean "N/A" or "not open")
+     */
     public static final int RFM_UNKNOWN = 0;
-    /** open for write */
+    /**
+     * open for write
+     */
     public static final int RFM_WRITE = 1;
-    /** open for read */
+    /**
+     * open for read
+     */
     public static final int RFM_READ = 2;
 
-    /** header for whole file */
-    private RiffChunkHeader riffHeader;
-    /** current file I/O mode */
+    /**
+     * header for whole file
+     */
+    private final RiffChunkHeader riffHeader;
+    /**
+     * current file I/O mode
+     */
     protected int fmode;
-    /** I/O stream to use */
+    /**
+     * I/O stream to use
+     */
     @Getter
     protected SeekableByteArrayOutputStream stream;
 
@@ -212,8 +242,8 @@ public class RiffStream {
     public final void writeInt(int v) {
         stream.write((v >>> 24) & 0xFF);
         stream.write((v >>> 16) & 0xFF);
-        stream.write((v >>>  8) & 0xFF);
-        stream.write((v >>>  0) & 0xFF);
+        stream.write((v >>> 8) & 0xFF);
+        stream.write((v >>> 0) & 0xFF);
         //written += 4;
     }
 

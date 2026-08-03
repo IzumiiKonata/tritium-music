@@ -22,6 +22,7 @@ package tritium.music.repackage.org.kc7bfi.jflac;
 
 /**
  * Fixed Predictor utility class.
+ *
  * @author kc7bfi
  */
 public class FixedPredictor {
@@ -30,6 +31,7 @@ public class FixedPredictor {
 
     /**
      * Compute the best predictor order.
+     *
      * @param data
      * @param dataLen
      * @param residualBitsPerSample
@@ -90,6 +92,7 @@ public class FixedPredictor {
 
     /**
      * Compute the best predictor order.
+     *
      * @param data
      * @param dataLen
      * @param residualBitsPerSample
@@ -155,6 +158,7 @@ public class FixedPredictor {
 
     /**
      * Compute the residual from the compressed signal.
+     *
      * @param data
      * @param dataLen
      * @param order
@@ -195,17 +199,18 @@ public class FixedPredictor {
 
     /**
      * Restore the signal from the fixed predictor.
-     * @param residual  The residual data
-     * @param dataLen   The length of residual data
-     * @param order     The preicate order
-     * @param data      The restored signal (output)
-     * @param startAt   The starting position in the data array
+     *
+     * @param residual The residual data
+     * @param dataLen  The length of residual data
+     * @param order    The preicate order
+     * @param data     The restored signal (output)
+     * @param startAt  The starting position in the data array
      */
     public static void restoreSignal(int[] residual, int dataLen, int order, int[] data, int startAt) {
 
         switch (order) {
             case 0:
-                if (dataLen >= 0) System.arraycopy(residual, 0, data, 0 + startAt, dataLen);
+                if (dataLen >= 0) System.arraycopy(residual, 0, data, startAt, dataLen);
                 break;
             case 1:
                 for (int i = 0; i < dataLen; i++) {

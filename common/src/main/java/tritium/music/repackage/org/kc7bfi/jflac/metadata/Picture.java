@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Picture Metadata block.
+ *
  * @author BMacNaughton
  */
 public class Picture extends Metadata {
@@ -62,24 +63,25 @@ public class Picture extends Metadata {
     }
 
     private PictureType pictureType;
-    private int mimeTypeByteCount;
-    private String mimeString;      //ASCII 0x20 to 0x7e or --> (data is URL)
-    private int descStringByteCount;
-    private String descString;      // UTF-8
-    private int picPixelWidth;
-    private int picPixelHeight;
-    private int picBitsPerPixel;
-    private int picColorCount;      // for GIF, else 0
-    private int picByteCount;
+    private final int mimeTypeByteCount;
+    private final String mimeString;      //ASCII 0x20 to 0x7e or --> (data is URL)
+    private final int descStringByteCount;
+    private final String descString;      // UTF-8
+    private final int picPixelWidth;
+    private final int picPixelHeight;
+    private final int picBitsPerPixel;
+    private final int picColorCount;      // for GIF, else 0
+    private final int picByteCount;
 
     protected byte[] image;
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @param length            Length of the record
-     * @param isLast            True if this is the last Metadata block in the chain
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is     The InputBitStream
+     * @param length Length of the record
+     * @param isLast True if this is the last Metadata block in the chain
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public Picture(BitInputStream is, int length, boolean isLast) throws IOException {
         super(isLast, length);
@@ -171,6 +173,7 @@ public class Picture extends Metadata {
 
     /**
      * Convert the class to a string representation.
+     *
      * @return A string representation of the Picture metadata
      */
 

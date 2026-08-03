@@ -25,21 +25,29 @@ import tritium.music.repackage.org.kc7bfi.jflac.frame.EntropyPartitionedRiceCont
 /**
  * FLAC channel data.
  * This class holds the data for the channels in a FLAC frame.
+ *
  * @author kc7bfi
  */
 public class ChannelData {
-    /** The output signal. */
-    private int[] output;
+    /**
+     * The output signal.
+     */
+    private final int[] output;
 
-    /** the risidual signal. */
-    private int[] residual;
+    /**
+     * the risidual signal.
+     */
+    private final int[] residual;
 
-    /** The Entropy signal. */
-    private EntropyPartitionedRiceContents partitionedRiceContents;
+    /**
+     * The Entropy signal.
+     */
+    private final EntropyPartitionedRiceContents partitionedRiceContents;
 
     /**
      * The default constructor.
-     * @param size  The block size
+     *
+     * @param size The block size
      */
     public ChannelData(final int size) {
         output = new int[size];

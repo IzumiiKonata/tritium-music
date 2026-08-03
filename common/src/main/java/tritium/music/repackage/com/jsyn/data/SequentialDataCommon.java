@@ -97,7 +97,7 @@ public abstract class SequentialDataCommon implements SequentialData {
      * For a sustain that is modulated, include two or more frames in the loop.
      *
      * @param sustainBegin
-    */
+     */
     public void setSustainBegin(int sustainBegin) {
         this.sustainBegin = sustainBegin;
     }

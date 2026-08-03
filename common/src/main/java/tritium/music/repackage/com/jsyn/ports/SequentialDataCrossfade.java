@@ -33,7 +33,7 @@ import tritium.music.repackage.com.jsyn.data.SequentialDataCommon;
  * SequentialDataCrossfade xfade = new SequentialDataCrossfade(sample, (50000 + 30000), 5000, sample,
  *         50000, 30000);
  * </pre>
- *
+ * <p>
  * After the crossfade you will hear the rest of the target at full volume. There are two regions
  * that determine what is returned from readDouble()
  * <ol>
@@ -60,16 +60,16 @@ class SequentialDataCrossfade extends SequentialDataCommon {
     private double frameScaler;
 
     /**
-     * @param source SequentialData that will be at full volume at the beginning of the crossfade
-     *            region.
+     * @param source           SequentialData that will be at full volume at the beginning of the crossfade
+     *                         region.
      * @param sourceStartFrame Frame in source to begin the crossfade.
-     * @param crossFadeFrames Number of frames in the crossfaded region.
-     * @param target SequentialData that will be at full volume at the end of the crossfade region.
+     * @param crossFadeFrames  Number of frames in the crossfaded region.
+     * @param target           SequentialData that will be at full volume at the end of the crossfade region.
      * @param targetStartFrame Frame in target to begin the crossfade.
-     * @param numFrames total number of frames in this data object.
+     * @param numFrames        total number of frames in this data object.
      */
     public void setup(SequentialData source, int sourceStartFrame, int crossFadeFrames,
-            SequentialData target, int targetStartFrame, int numFrames) {
+                      SequentialData target, int targetStartFrame, int numFrames) {
 
         assert ((sourceStartFrame + crossFadeFrames) <= source.getNumFrames());
         assert ((targetStartFrame + numFrames) <= target.getNumFrames());

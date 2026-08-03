@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,7 +24,7 @@ import java.util.HashMap;
 
 /**
  * Base class for various types of audio specific file parsers.
- * 
+ *
  * @author (C) 2001 Phil Burk, SoftSynth.com
  */
 
@@ -33,8 +33,8 @@ abstract class AudioFileParser implements ChunkHandler {
     public byte[] byteData;
     boolean ifLoadData = true; /* If true, load sound data into memory. */
     public long dataPosition; /*
-                        * Number of bytes from beginning of file where sound data resides.
-                        */
+     * Number of bytes from beginning of file where sound data resides.
+     */
     public int bitsPerSample;
     public int bytesPerFrame; // in the file
     public int bytesPerSample; // in the file

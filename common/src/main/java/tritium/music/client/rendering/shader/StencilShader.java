@@ -7,8 +7,8 @@ import net.minecraft.client.gui.render.TextureSetup;
 import org.joml.Matrix3x2f;
 import tritium.music.client.render.MeshElement;
 import tritium.music.client.render.RenderContext;
-import tritium.music.client.rendering.TRenderTarget;
 import tritium.music.client.rendering.StencilCompositePipeline;
+import tritium.music.client.rendering.TRenderTarget;
 
 import java.util.ArrayList;
 import java.util.List;

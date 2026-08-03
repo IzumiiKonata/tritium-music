@@ -14,7 +14,7 @@ import tritium.music.core.util.Textures;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
-import java.awt.Color;
+import java.awt.*;
 
 public class MusicWidget extends RoundedRectWidget {
 
@@ -211,7 +211,7 @@ public class MusicWidget extends RoundedRectWidget {
     }
 
     private float entranceProgress() {
-        long delay = ENTRANCE_BASE_DELAY_MS + (long) (Math.min(index, ENTRANCE_INDEX_CAP) * ENTRANCE_STAGGER_MS);
+        long delay = ENTRANCE_BASE_DELAY_MS + (Math.min(index, ENTRANCE_INDEX_CAP) * ENTRANCE_STAGGER_MS);
         long elapsed = System.currentTimeMillis() - revealStart - delay;
 
         if (elapsed <= 0L) {

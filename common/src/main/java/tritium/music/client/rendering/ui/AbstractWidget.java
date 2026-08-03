@@ -9,7 +9,7 @@ import tritium.music.client.rendering.SharedRenderingConstants;
 import tritium.music.client.util.ClientSettings;
 import tritium.music.client.util.CursorUtils;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;

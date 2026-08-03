@@ -30,24 +30,35 @@ import java.io.IOException;
 
 /**
  * Frame header class.
+ *
  * @author kc7bfi
  */
 public class Header {
 
-    /** The number of samples per subframe. */
+    /**
+     * The number of samples per subframe.
+     */
     public int blockSize;
-    /** The sample rate in Hz. */
+    /**
+     * The sample rate in Hz.
+     */
     public int sampleRate;
-    /** The number of channels (== number of subframes). */
+    /**
+     * The number of channels (== number of subframes).
+     */
     public int channels;
-    /** The channel assignment for the frame. */
+    /**
+     * The channel assignment for the frame.
+     */
     public int channelAssignment;
-    /** The sample resolution. */
+    /**
+     * The sample resolution.
+     */
     public int bitsPerSample;
 
     /**
      * The frame number or sample number of first sample in frame.
-     * use the number_type value to determine which to use. 
+     * use the number_type value to determine which to use.
      */
     public int frameNumber = -1;
 
@@ -65,11 +76,12 @@ public class Header {
 
     /**
      * The constructor.
-     * @param is                    The InputBitStream
-     * @param headerWarmup          The header warm-up bytes
-     * @param streamInfo            The FLAC Stream Info
-     * @throws IOException          Thrown on error reading InputBitStream
-     * @throws BadHeaderException   Thrown if header is bad
+     *
+     * @param is           The InputBitStream
+     * @param headerWarmup The header warm-up bytes
+     * @param streamInfo   The FLAC Stream Info
+     * @throws IOException        Thrown on error reading InputBitStream
+     * @throws BadHeaderException Thrown if header is bad
      */
     public Header(BitInputStream is, byte[] headerWarmup, StreamInfo streamInfo) throws IOException, BadHeaderException {
         int blocksizeHint = 0;
@@ -291,6 +303,7 @@ public class Header {
 
     /**
      * Return a descriptive string for this object.
+     *
      * @return the string description
      * @see Object#toString()
      */

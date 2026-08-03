@@ -80,7 +80,7 @@ public final class Bitstream implements BitstreamErrors {
     /**
      * The bytes read from the stream.
      */
-    private byte[] frameBytes = new byte[BUFFER_INT_SIZE * 4];
+    private final byte[] frameBytes = new byte[BUFFER_INT_SIZE * 4];
 
     /**
      * Index into <code>frameBuffer</code> where the next bits are
@@ -120,7 +120,7 @@ public final class Bitstream implements BitstreamErrors {
 
     private final byte[] syncBuf = new byte[4];
 
-    private Crc16[] crc = new Crc16[1];
+    private final Crc16[] crc = new Crc16[1];
 
     private byte[] rawid3v2 = null;
 

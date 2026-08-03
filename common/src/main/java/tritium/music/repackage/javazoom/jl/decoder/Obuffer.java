@@ -40,9 +40,13 @@ package tritium.music.repackage.javazoom.jl.decoder;
  */
 public abstract class Obuffer {
 
-    /** max. 2 * 1152 samples per frame */
+    /**
+     * max. 2 * 1152 samples per frame
+     */
     public static final int OBUFFERSIZE = 2 * 1152;
-    /** max. number of channels */
+    /**
+     * max. number of channels
+     */
     public static final int MAXCHANNELS = 2;
 
     /**
@@ -67,7 +71,7 @@ public abstract class Obuffer {
     private short clip(float sample) {
         return ((sample > 32767.0f) ? 32767 :
                 ((sample < -32768.0f) ? -32768 :
-                        (short) sample));
+                 (short) sample));
     }
 
     /**

@@ -22,14 +22,15 @@ package tritium.music.repackage.org.kc7bfi.jflac.util;
 
 /**
  * Utility class for bit math.
+ *
  * @author kc7bfi
  */
 public final class BitMath {
 
     /**
      * Compute ilog2().
-     *  An example of what ilog2() computes:
-     *
+     * An example of what ilog2() computes:
+     * <p>
      * ilog2( 0) = assertion failure
      * ilog2( 1) = 0
      * ilog2( 2) = 1
@@ -50,7 +51,7 @@ public final class BitMath {
      * ilog2(17) = 4
      * ilog2(18) = 4
      *
-     * @param v     The value
+     * @param v The value
      * @return The ilog2 value
      */
     public static int ilog2(int v) {
@@ -62,7 +63,7 @@ public final class BitMath {
     /**
      * Compute silog2().
      * An example of what silog2() computes:
-     *
+     * <p>
      * silog2(-10) = 5
      * silog2(- 9) = 5
      * silog2(- 8) = 4
@@ -85,7 +86,7 @@ public final class BitMath {
      * silog2(  9) = 5
      * silog2( 10) = 5
      *
-     * @param v     The value
+     * @param v The value
      * @return The silog2 value
      */
     public static int silog2(int v) {
@@ -108,7 +109,7 @@ public final class BitMath {
     /**
      * Compute silog2().
      * An example of what silog2() computes:
-     *
+     * <p>
      * silog2(-10) = 5
      * silog2(- 9) = 5
      * silog2(- 8) = 4
@@ -131,7 +132,7 @@ public final class BitMath {
      * silog2(  9) = 5
      * silog2( 10) = 5
      *
-     * @param v     The value
+     * @param v The value
      * @return The silog2 value
      */
     public static int silog2Wide(long v) {

@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
 
-import java.awt.Color;
+import java.awt.*;
 
 public class RenderSystem {
 

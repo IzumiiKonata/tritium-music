@@ -31,14 +31,13 @@ import java.security.MessageDigest;
  * </ul>
  *
  * @see <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest">
- *      Java 8 Cryptography Architecture Standard Algorithm Name Documentation</a>
+ * Java 8 Cryptography Architecture Standard Algorithm Name Documentation</a>
  * @see <a href="https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#messagedigest-algorithms">
- *      Java 11 Cryptography Architecture Standard Algorithm Name Documentation</a>
+ * Java 11 Cryptography Architecture Standard Algorithm Name Documentation</a>
  * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#messagedigest-algorithms">
- *      Java 17 Cryptography Architecture Standard Algorithm Name Documentation</a>
+ * Java 17 Cryptography Architecture Standard Algorithm Name Documentation</a>
  * @see <a href="https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html#messagedigest-algorithms">
- *      Java 21 Cryptography Architecture Standard Algorithm Name Documentation</a>
- *
+ * Java 21 Cryptography Architecture Standard Algorithm Name Documentation</a>
  * @see <a href="https://dx.doi.org/10.6028/NIST.FIPS.180-4">FIPS PUB 180-4</a>
  * @see <a href="https://dx.doi.org/10.6028/NIST.FIPS.202">FIPS PUB 202</a>
  * @since 1.7
@@ -153,9 +152,9 @@ public class MessageDigestAlgorithms {
      */
     public static String[] values() {
         // Do not use a constant array here as that can be changed externally by accident or design
-        return new String[] {
-            MD2, MD5, SHA_1, SHA_224, SHA_256, SHA_384,
-            SHA_512, SHA_512_224, SHA_512_256, SHA3_224, SHA3_256, SHA3_384, SHA3_512
+        return new String[]{
+                MD2, MD5, SHA_1, SHA_224, SHA_256, SHA_384,
+                SHA_512, SHA_512_224, SHA_512_256, SHA3_224, SHA3_256, SHA3_384, SHA3_512
         };
     }
 

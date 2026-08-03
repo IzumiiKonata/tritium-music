@@ -36,28 +36,28 @@ import tritium.music.repackage.com.softsynth.shared.time.ScheduledCommand;
  * 	synth.queueCommand( command );
  *  </code>
  * </pre>
- *
+ * <p>
  * The callback will be passed QueueDataEvents.
  *
  * <pre>
  * <code>
  * 	class TestQueueCallback implements UnitDataQueueCallback
- * 	{
+ *    {
  * 		public void started( QueueDataEvent event )
- * 		{
+ *        {
  * 			LOGGER.debug("CALLBACK: Envelope started.");
- * 		}
+ *        }
  *
  * 		public void looped( QueueDataEvent event )
- * 		{
+ *        {
  * 			LOGGER.debug("CALLBACK: Envelope looped.");
- * 		}
+ *        }
  *
  * 		public void finished( QueueDataEvent event )
- * 		{
+ *        {
  * 			LOGGER.debug("CALLBACK: Envelope finished.");
- * 		}
- * 	}
+ *        }
+ *    }
  * </code>
  * </pre>
  *
@@ -72,7 +72,7 @@ public abstract class QueueDataCommand extends QueueDataEvent implements Schedul
     private UnitDataQueueCallback callback;
 
     public QueueDataCommand(UnitDataQueuePort port, SequentialData sequentialData, int startFrame,
-            int numFrames) {
+                            int numFrames) {
         super(port);
 
         if ((startFrame + numFrames) > sequentialData.getNumFrames()) {

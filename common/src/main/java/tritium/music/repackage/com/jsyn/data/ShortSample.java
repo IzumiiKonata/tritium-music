@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,7 +23,7 @@ import tritium.music.repackage.com.jsyn.util.SampleLoader;
 
 /**
  * Store multi-channel short audio data in an interleaved buffer.
- * 
+ *
  * @author Phil Burk (C) 2010 Mobileer Inc
  * @see SampleLoader
  * @see VariableRateMonoReader
@@ -39,13 +39,17 @@ public class ShortSample extends AudioSample {
         allocate(numFrames, channelsPerFrame);
     }
 
-    /** Constructor for mono samples with data. */
+    /**
+     * Constructor for mono samples with data.
+     */
     public ShortSample(short[] data) {
         this(data.length, 1);
         write(data);
     }
 
-    /** Constructor for multi-channel samples with data. */
+    /**
+     * Constructor for multi-channel samples with data.
+     */
     public ShortSample(short[] data, int channelsPerFrame) {
         this(data.length / channelsPerFrame, channelsPerFrame);
         write(data);
@@ -60,9 +64,9 @@ public class ShortSample extends AudioSample {
 
     /**
      * Note that in a stereo sample, a frame has two values.
-     * 
+     *
      * @param startFrame index of frame in the sample
-     * @param data data to be written
+     * @param data       data to be written
      * @param startIndex index of first value in array
      * @param numFrames
      */
@@ -74,9 +78,9 @@ public class ShortSample extends AudioSample {
 
     /**
      * Note that in a stereo sample, a frame has two values.
-     * 
+     *
      * @param startFrame index of frame in the sample
-     * @param data array to receive the data from the sample
+     * @param data       array to receive the data from the sample
      * @param startIndex index of first location in array to start filling
      * @param numFrames
      */
@@ -102,7 +106,9 @@ public class ShortSample extends AudioSample {
         buffer[index] = value;
     }
 
-    /** Read a sample converted to a double in the range -1.0 to almost 1.0. */
+    /**
+     * Read a sample converted to a double in the range -1.0 to almost 1.0.
+     */
     @Override
     public double readDouble(int index) {
         return SynthesisEngine.convertShortToDouble(buffer[index]);

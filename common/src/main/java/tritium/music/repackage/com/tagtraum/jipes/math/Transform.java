@@ -33,7 +33,7 @@ public interface Transform {
     /**
      * Performs a complex transform.
      *
-     * @param real input array of floats
+     * @param real      input array of floats
      * @param imaginary input array of floats
      * @return array with the real and the imaginary part of the transform, the third float array contains
      * the normalized frequencies, i.e. 1.0 is equal to the sample rate of the input
@@ -45,7 +45,7 @@ public interface Transform {
     /**
      * Performs an inverse transform.
      *
-     * @param real input array of floats
+     * @param real      input array of floats
      * @param imaginary input array of floats
      * @return array with the real and the imaginary part of the transform
      * @throws UnsupportedOperationException should the implementation not support this operation

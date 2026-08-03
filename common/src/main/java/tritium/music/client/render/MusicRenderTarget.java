@@ -37,8 +37,13 @@ public class MusicRenderTarget {
         return target;
     }
 
-    public int width() { return width; }
-    public int height() { return height; }
+    public int width() {
+        return width;
+    }
+
+    public int height() {
+        return height;
+    }
 
     public void destroy() {
         if (target != null) {

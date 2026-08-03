@@ -1,11 +1,11 @@
 package tritium.music.client.screens.ncm;
 
-import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.*;
+import tritium.music.client.rendering.Image;
 import tritium.music.client.rendering.animation.Easing;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.animation.spring.SpringAnimation;
@@ -13,22 +13,22 @@ import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.shader.BloomShader;
 import tritium.music.client.rendering.shader.Shaders;
 import tritium.music.client.rendering.shader.StencilShader;
-import tritium.music.client.rendering.ui.widgets.IconWidget;
 import tritium.music.client.rendering.ui.widgets.ContextMenuWidget;
+import tritium.music.client.rendering.ui.widgets.IconWidget;
 import tritium.music.client.util.CursorUtils;
 import tritium.music.client.util.MouseUtil;
+import tritium.music.client.util.Mth;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.audio.AudioPlayer;
 import tritium.music.core.lyric.LyricLine;
 import tritium.music.core.lyric.provider.LyricsFetcher;
-import tritium.music.client.util.Mth;
 import tritium.music.core.model.Music;
 import tritium.music.core.util.Timer;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -424,7 +424,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                         if (progress > 0.001 && progress < 1.0) {
                             int scale = 4;
                             int fbWidth = (int) (stringWidthD * scale);
-                            int fbHeight = (int) ((FontManager.pf65bold.getHeight() + 6) * scale);
+                            int fbHeight = (FontManager.pf65bold.getHeight() + 6) * scale;
 
                             int allocW = fbWidth;
                             if (baseRt != null) allocW = Math.max(allocW, baseRt.width());
@@ -801,7 +801,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             String selected = CloudMusic.selectedLyricsProvider(current);
             Platform.runOnRenderThread(() -> {
                 if (request != providerMenuRequest || !contextMenu.isOpen()
-                        || CloudMusic.currentlyPlaying == null || CloudMusic.currentlyPlaying.getId() != current.getId()) return;
+                        || CloudMusic.currentlyPlaying == null || CloudMusic.currentlyPlaying.getId() != current.getId())
+                    return;
                 if (available.isEmpty()) {
                     contextMenu.updateItems(List.of(
                             new ContextMenuWidget.Item("没有可用的歌词源", null, false, false)));

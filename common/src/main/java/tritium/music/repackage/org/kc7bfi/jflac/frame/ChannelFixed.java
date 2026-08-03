@@ -29,25 +29,27 @@ import java.io.IOException;
 
 /**
  * Fixed FLAC subframe (channel).
+ *
  * @author kc7bfi
  */
 public class ChannelFixed extends Channel {
     private static final int MAX_FIXED_ORDER = 4;
 
-    private EntropyCodingMethod entropyCodingMethod; // The residual coding method.
-    private int order; // The polynomial order.
-    private int[] warmup = new int[MAX_FIXED_ORDER]; // Warmup samples to prime the predictor, length == order.
-    private int[] residual; // The residual signal, length == (blocksize minus order) samples.
+    private final EntropyCodingMethod entropyCodingMethod; // The residual coding method.
+    private final int order; // The polynomial order.
+    private final int[] warmup = new int[MAX_FIXED_ORDER]; // Warmup samples to prime the predictor, length == order.
+    private final int[] residual; // The residual signal, length == (blocksize minus order) samples.
 
     /**
      * The constructor.
-     * @param is            The InputBitStream
-     * @param header        The FLAC Frame Header
-     * @param channelData   The decoded channel data (output)
-     * @param bps           The bits-per-second
-     * @param wastedBits    The bits waisted in the frame
-     * @param order         The predicate order
-     * @throws IOException  Thrown if error reading from the InputBitStream
+     *
+     * @param is          The InputBitStream
+     * @param header      The FLAC Frame Header
+     * @param channelData The decoded channel data (output)
+     * @param bps         The bits-per-second
+     * @param wastedBits  The bits waisted in the frame
+     * @param order       The predicate order
+     * @throws IOException          Thrown if error reading from the InputBitStream
      * @throws FrameDecodeException
      */
     public ChannelFixed(BitInputStream is, Header header, ChannelData channelData, int bps, int wastedBits, int order) throws IOException, FrameDecodeException {

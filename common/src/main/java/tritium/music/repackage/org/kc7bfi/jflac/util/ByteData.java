@@ -22,20 +22,26 @@ package tritium.music.repackage.org.kc7bfi.jflac.util;
 
 /**
  * Expandable byte data storage.
+ *
  * @author kc7bfi
  */
 public class ByteData {
     private static final int DEFAULT_BUFFER_SIZE = 256;
 
-    /** The byte array where data is stored. */
-    private byte[] data;
+    /**
+     * The byte array where data is stored.
+     */
+    private final byte[] data;
 
-    /** The number of bytes stored in the array. */
+    /**
+     * The number of bytes stored in the array.
+     */
     private int len;
 
     /**
      * The default constructor.
-     * @param maxSpace  The maximum space in the internal byte array.
+     *
+     * @param maxSpace The maximum space in the internal byte array.
      */
     public ByteData(int maxSpace) {
         if (maxSpace <= 0) maxSpace = DEFAULT_BUFFER_SIZE;
@@ -45,6 +51,7 @@ public class ByteData {
 
     /**
      * Append byte to storage.
+     *
      * @param b byte to extend
      */
     public void append(byte b) {
@@ -60,7 +67,8 @@ public class ByteData {
 
     /**
      * Return a data byte.
-     * @param idx   The data byte to return
+     *
+     * @param idx The data byte to return
      * @return Returns the data.
      */
     public byte getData(int idx) {
@@ -76,7 +84,7 @@ public class ByteData {
 
     /**
      * Set the length of this ByteData object without re-allocating the underlying array.
-     * It is not possible to set the length larger than the underlying byte array. 
+     * It is not possible to set the length larger than the underlying byte array.
      */
     public void setLen(int len) {
         if (len > data.length) {

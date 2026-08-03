@@ -22,6 +22,7 @@ package tritium.music.repackage.org.kc7bfi.jflac.frame;
 
 /**
  * BadHeaderException.
+ *
  * @author kc7bfi
  */
 public class BadHeaderException extends Exception {
@@ -35,7 +36,8 @@ public class BadHeaderException extends Exception {
 
     /**
      * Exception constructor.
-     * @param msg   The exception message
+     *
+     * @param msg The exception message
      */
     public BadHeaderException(String msg) {
         super(msg);
@@ -43,7 +45,8 @@ public class BadHeaderException extends Exception {
 
     /**
      * Exception constructor.
-     * @param err   The throwable error
+     *
+     * @param err The throwable error
      */
     public BadHeaderException(Throwable err) {
         super(err);
@@ -51,8 +54,9 @@ public class BadHeaderException extends Exception {
 
     /**
      * Exception constructor.
-     * @param msg   The exception message
-     * @param err   The throwable error
+     *
+     * @param msg The exception message
+     * @param err The throwable error
      */
     public BadHeaderException(String msg, Throwable err) {
         super(msg, err);

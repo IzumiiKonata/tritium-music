@@ -27,19 +27,21 @@ import java.io.IOException;
 
 /**
  * Verbatim FLAC subframe (channel).
+ *
  * @author kc7bfi
  */
 public class ChannelVerbatim extends Channel {
-    private int[] data; // A pointer to verbatim signal.
+    private final int[] data; // A pointer to verbatim signal.
 
     /**
      * The constructor.
-     * @param is            The InputBitStream
-     * @param header        The FLAC Frame Header
-     * @param channelData   The decoded channel data (output)
-     * @param bps           The bits-per-second
-     * @param wastedBits    The bits waisted in the frame
-     * @throws IOException  Thrown if error reading from the InputBitStream
+     *
+     * @param is          The InputBitStream
+     * @param header      The FLAC Frame Header
+     * @param channelData The decoded channel data (output)
+     * @param bps         The bits-per-second
+     * @param wastedBits  The bits waisted in the frame
+     * @throws IOException Thrown if error reading from the InputBitStream
      */
     public ChannelVerbatim(BitInputStream is, Header header, ChannelData channelData, int bps, int wastedBits) throws IOException {
         super(header, wastedBits);

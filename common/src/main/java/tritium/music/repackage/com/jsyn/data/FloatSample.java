@@ -16,10 +16,10 @@
 
 package tritium.music.repackage.com.jsyn.data;
 
+import lombok.Getter;
 import tritium.music.repackage.com.jsyn.unitgen.VariableRateMonoReader;
 import tritium.music.repackage.com.jsyn.unitgen.VariableRateStereoReader;
 import tritium.music.repackage.com.jsyn.util.SampleLoader;
-import lombok.Getter;
 
 /**
  * Store multi-channel floating point audio data in an interleaved buffer. The values are stored as
@@ -39,18 +39,24 @@ public class FloatSample extends AudioSample {
     public FloatSample() {
     }
 
-    /** Constructor for mono samples. */
+    /**
+     * Constructor for mono samples.
+     */
     public FloatSample(int numFrames) {
         this(numFrames, 1);
     }
 
-    /** Constructor for mono samples with data. */
+    /**
+     * Constructor for mono samples with data.
+     */
     public FloatSample(float[] data) {
         this(data.length, 1);
         write(data);
     }
 
-    /** Constructor for multi-channel samples with data. */
+    /**
+     * Constructor for multi-channel samples with data.
+     */
     public FloatSample(float[] data, int channelsPerFrame) {
         this(data.length / channelsPerFrame, channelsPerFrame);
         write(data);
@@ -60,7 +66,7 @@ public class FloatSample extends AudioSample {
      * Create a silent sample with enough memory to hold the audio data. The number of sample
      * numbers in the array will be numFrames*channelsPerFrame.
      *
-     * @param numFrames number of sample groups. A stereo frame contains 2 samples.
+     * @param numFrames        number of sample groups. A stereo frame contains 2 samples.
      * @param channelsPerFrame 1 for mono, 2 for stereo
      */
     public FloatSample(int numFrames, int channelsPerFrame) {
@@ -71,7 +77,7 @@ public class FloatSample extends AudioSample {
      * Allocate memory to hold the audio data. The number of sample numbers in the array will be
      * numFrames*channelsPerFrame.
      *
-     * @param numFrames number of sample groups. A stereo frame contains 2 samples.
+     * @param numFrames        number of sample groups. A stereo frame contains 2 samples.
      * @param channelsPerFrame 1 for mono, 2 for stereo
      */
     @Override
@@ -85,7 +91,7 @@ public class FloatSample extends AudioSample {
      * Note that in a stereo sample, a frame has two values.
      *
      * @param startFrame index of frame in the sample
-     * @param data data to be written
+     * @param data       data to be written
      * @param startIndex index of first value in array
      * @param numFrames
      */
@@ -100,7 +106,7 @@ public class FloatSample extends AudioSample {
      * Note that in a stereo sample, a frame has two values.
      *
      * @param startFrame index of frame in the sample
-     * @param data array to receive the data from the sample
+     * @param data       array to receive the data from the sample
      * @param startIndex index of first location in array to start filling
      * @param numFrames
      */

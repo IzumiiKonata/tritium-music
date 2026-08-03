@@ -115,7 +115,7 @@ public class WAVEFileParser extends AudioFileParser implements ChunkHandler {
         int dwSampleLength = parser.readIntLittle();
         parser.skip(4 + (4 * 2)); // purpose through codepage
         int textLength = (ckSize - ((4 * 4) + (4 * 2))) - 1; // don't read NUL
-                                                             // terminator
+        // terminator
         if (textLength > 0) {
             String text = parseString(parser, textLength);
             SampleMarker cuePoint = findOrCreateCuePoint(dwName);
@@ -259,7 +259,7 @@ public class WAVEFileParser extends AudioFileParser implements ChunkHandler {
     /**
      * Called by parse() method to handle chunks in a WAV specific manner.
      *
-     * @param ckID four byte chunk ID such as 'data'
+     * @param ckID   four byte chunk ID such as 'data'
      * @param ckSize size of chunk in bytes
      * @return number of bytes left in chunk
      */

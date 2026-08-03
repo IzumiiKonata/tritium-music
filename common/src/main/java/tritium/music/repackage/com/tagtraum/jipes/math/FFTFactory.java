@@ -13,7 +13,7 @@ public abstract class FFTFactory {
         private static final int[][] FFT_BIT_TABLE = new int[MAX_FAST_BITS][];
         private final int numberOfSamples;
         private final int[] reverseIndices;
-        private float[] frequencies;
+        private final float[] frequencies;
         private final float[] cosTable;
         private final float[] sinTable;
 
@@ -30,7 +30,7 @@ public abstract class FFTFactory {
 
         public JavaFFT(final int numberOfSamples) {
             if (!isPowerOfTwo(numberOfSamples)) throw new IllegalArgumentException("N is not a power of 2");
-            if (numberOfSamples <=0) throw new IllegalArgumentException("N must be greater than 0");
+            if (numberOfSamples <= 0) throw new IllegalArgumentException("N must be greater than 0");
             this.numberOfSamples = numberOfSamples;
             final int numberOfBits = getNumberOfNeededBits(numberOfSamples);
             this.reverseIndices = new int[numberOfSamples];
@@ -39,9 +39,9 @@ public abstract class FFTFactory {
                 this.reverseIndices[i] = j;
             }
             this.frequencies = new float[numberOfSamples];
-            for (int index=0; index<numberOfSamples; index++) {
+            for (int index = 0; index < numberOfSamples; index++) {
                 if (index <= numberOfSamples / 2) {
-                    this.frequencies[index] = index / (float)numberOfSamples;
+                    this.frequencies[index] = index / (float) numberOfSamples;
                 } else {
                     this.frequencies[index] = -((numberOfSamples - index) / (float) numberOfSamples);
                 }
@@ -50,9 +50,9 @@ public abstract class FFTFactory {
             this.cosTable = new float[numberOfSamples];
             this.sinTable = new float[numberOfSamples];
             for (int i = 0; i < numberOfSamples; i++) {
-                float angle = (float)(-2.0 * Math.PI * i / numberOfSamples);
-                cosTable[i] = (float)Math.cos(angle);
-                sinTable[i] = (float)Math.sin(angle);
+                float angle = (float) (-2.0 * Math.PI * i / numberOfSamples);
+                cosTable[i] = (float) Math.cos(angle);
+                sinTable[i] = (float) Math.sin(angle);
             }
         }
 
@@ -88,9 +88,9 @@ public abstract class FFTFactory {
             int i = 0;
             for (; i <= numberOfSamples - 4; i += 4) {
                 realOut[reverseIndices[i]] = realIn[i];
-                realOut[reverseIndices[i+1]] = realIn[i+1];
-                realOut[reverseIndices[i+2]] = realIn[i+2];
-                realOut[reverseIndices[i+3]] = realIn[i+3];
+                realOut[reverseIndices[i + 1]] = realIn[i + 1];
+                realOut[reverseIndices[i + 2]] = realIn[i + 2];
+                realOut[reverseIndices[i + 3]] = realIn[i + 3];
             }
             for (; i < numberOfSamples; i++) {
                 realOut[reverseIndices[i]] = realIn[i];
@@ -100,9 +100,9 @@ public abstract class FFTFactory {
                 i = 0;
                 for (; i <= numberOfSamples - 4; i += 4) {
                     imaginaryOut[reverseIndices[i]] = imaginaryIn[i];
-                    imaginaryOut[reverseIndices[i+1]] = imaginaryIn[i+1];
-                    imaginaryOut[reverseIndices[i+2]] = imaginaryIn[i+2];
-                    imaginaryOut[reverseIndices[i+3]] = imaginaryIn[i+3];
+                    imaginaryOut[reverseIndices[i + 1]] = imaginaryIn[i + 1];
+                    imaginaryOut[reverseIndices[i + 2]] = imaginaryIn[i + 2];
+                    imaginaryOut[reverseIndices[i + 3]] = imaginaryIn[i + 3];
                 }
                 for (; i < numberOfSamples; i++) {
                     imaginaryOut[reverseIndices[i]] = imaginaryIn[i];
@@ -149,12 +149,12 @@ public abstract class FFTFactory {
                 for (; i <= numberOfSamples - 4; i += 4) {
                     realOut[i] *= scale;
                     imaginaryOut[i] *= scale;
-                    realOut[i+1] *= scale;
-                    imaginaryOut[i+1] *= scale;
-                    realOut[i+2] *= scale;
-                    imaginaryOut[i+2] *= scale;
-                    realOut[i+3] *= scale;
-                    imaginaryOut[i+3] *= scale;
+                    realOut[i + 1] *= scale;
+                    imaginaryOut[i + 1] *= scale;
+                    realOut[i + 2] *= scale;
+                    imaginaryOut[i + 2] *= scale;
+                    realOut[i + 3] *= scale;
+                    imaginaryOut[i + 3] *= scale;
                 }
                 for (; i < numberOfSamples; i++) {
                     realOut[i] *= scale;
@@ -196,8 +196,7 @@ public abstract class FFTFactory {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             final JavaFFT javaFFT = (JavaFFT) o;
-            if (numberOfSamples != javaFFT.numberOfSamples) return false;
-            return true;
+            return numberOfSamples == javaFFT.numberOfSamples;
         }
 
         @Override

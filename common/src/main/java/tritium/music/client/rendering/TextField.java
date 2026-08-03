@@ -4,11 +4,11 @@ import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
-import tritium.music.client.util.Mth;
 import tritium.music.client.util.MouseUtil;
+import tritium.music.client.util.Mth;
 import tritium.music.core.util.Timer;
 
-import java.awt.Color;
+import java.awt.*;
 
 public class TextField {
 
@@ -35,7 +35,7 @@ public class TextField {
 
     private float wholeAlpha = 1f;
     private TextChangedCallback textChangedCallback;
-    private int maxLength = 512;
+    private final int maxLength = 512;
 
     private float hoverAlpha;
     private Color lineColor = new Color(160, 160, 160);

@@ -1,9 +1,9 @@
 package tritium.music.client.screens.ncm;
 
-import tritium.music.client.rendering.font.CFontRenderer;
-import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.animation.spring.SpringAnimation;
 import tritium.music.client.rendering.animation.spring.SpringParams;
+import tritium.music.client.rendering.font.CFontRenderer;
+import tritium.music.client.rendering.font.FontManager;
 import tritium.music.core.lyric.LyricLine;
 
 import java.util.ArrayList;

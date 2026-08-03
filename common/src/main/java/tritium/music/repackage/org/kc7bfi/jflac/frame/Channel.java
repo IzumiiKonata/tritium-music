@@ -22,34 +22,48 @@ package tritium.music.repackage.org.kc7bfi.jflac.frame;
 
 /**
  * Base class for FLAC subframe (channel) classes.
+ *
  * @author kc7bfi
  */
 public abstract class Channel {
 
-    /** Partisioned Rice Encoding Method. */
+    /**
+     * Partisioned Rice Encoding Method.
+     */
     public static final int ENTROPY_CODING_METHOD_PARTITIONED_RICE = 0;
 
-    /** partitioned Rice coding with 5-bit Rice parameter */
+    /**
+     * partitioned Rice coding with 5-bit Rice parameter
+     */
     public static final int RESIDUAL_CODING_METHOD_PARTITIONED_RICE2 = 1;
 
-    /** The size of the encoding method field (in bits). */
+    /**
+     * The size of the encoding method field (in bits).
+     */
     public static final int ENTROPY_CODING_METHOD_TYPE_LEN = 2;
 
-    /** The size of the Rice Order field (in bits). */
+    /**
+     * The size of the Rice Order field (in bits).
+     */
     public static final int ENTROPY_CODING_METHOD_PARTITIONED_RICE_ORDER_LEN = 4;
 
     public static final int ENTROPY_CODING_METHOD_PARTITIONED_RICE2_ORDER_LEN = 5;
 
-    /** The FLAC Frame Header. */
+    /**
+     * The FLAC Frame Header.
+     */
     protected Header header;
 
-    /** The number of waisted bits in the frame. */
+    /**
+     * The number of waisted bits in the frame.
+     */
     protected int wastedBits;
 
     /**
      * The constructor.
-     * @param header        The FLAC Frame Header
-     * @param wastedBits    The number of waisted bits in the frame
+     *
+     * @param header     The FLAC Frame Header
+     * @param wastedBits The number of waisted bits in the frame
      */
     protected Channel(Header header, int wastedBits) {
         this.header = header;
@@ -58,6 +72,7 @@ public abstract class Channel {
 
     /**
      * Return he number of waisted bits in the frame.
+     *
      * @return The number of waisted bits in the frame
      */
     public int getWastedBits() {

@@ -128,10 +128,12 @@ final class TtmlLyricParser {
         if (value == null || value.isBlank()) return 0;
         try {
             if (value.endsWith("ms")) return Math.round(Double.parseDouble(value.substring(0, value.length() - 2)));
-            if (value.endsWith("s")) return Math.round(Double.parseDouble(value.substring(0, value.length() - 1)) * 1000);
+            if (value.endsWith("s"))
+                return Math.round(Double.parseDouble(value.substring(0, value.length() - 1)) * 1000);
             String[] parts = value.split(":");
             double seconds;
-            if (parts.length == 3) seconds = Double.parseDouble(parts[0]) * 3600 + Double.parseDouble(parts[1]) * 60 + Double.parseDouble(parts[2]);
+            if (parts.length == 3)
+                seconds = Double.parseDouble(parts[0]) * 3600 + Double.parseDouble(parts[1]) * 60 + Double.parseDouble(parts[2]);
             else if (parts.length == 2) seconds = Double.parseDouble(parts[0]) * 60 + Double.parseDouble(parts[1]);
             else seconds = Double.parseDouble(parts[0]);
             return Math.round(seconds * 1000);

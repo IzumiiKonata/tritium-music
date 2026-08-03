@@ -1,26 +1,12 @@
 package tritium.music.core.audio;
 
 import tritium.music.core.util.HttpUtils;
-import tritium.music.repackage.javazoom.jl.decoder.Bitstream;
-import tritium.music.repackage.javazoom.jl.decoder.BitstreamErrors;
-import tritium.music.repackage.javazoom.jl.decoder.BitstreamException;
-import tritium.music.repackage.javazoom.jl.decoder.Decoder;
-import tritium.music.repackage.javazoom.jl.decoder.Header;
-import tritium.music.repackage.javazoom.jl.decoder.SampleBuffer;
+import tritium.music.repackage.javazoom.jl.decoder.*;
 import tritium.music.repackage.org.kc7bfi.jflac.sound.spi.FlacAudioFileReader;
 import tritium.music.repackage.org.kc7bfi.jflac.sound.spi.FlacFormatConversionProvider;
 
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.FloatControl;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
-import java.io.BufferedInputStream;
-import java.io.Closeable;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import javax.sound.sampled.*;
+import java.io.*;
 import java.nio.file.Files;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;

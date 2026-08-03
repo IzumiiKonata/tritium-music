@@ -15,19 +15,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.platform.MinecraftMusicPlatform;
-import tritium.music.client.rendering.MusicToastState;
-import tritium.music.client.rendering.font.FontManager;
-import tritium.music.client.rendering.shader.EffectPipelines;
-import tritium.music.client.render.RoundedPipeline;
 import tritium.music.client.render.ClipPipeline;
 import tritium.music.client.render.LinePipeline;
+import tritium.music.client.render.RoundedPipeline;
 import tritium.music.client.render.VerticalFadePipeline;
-import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.LyricOffscreen;
+import tritium.music.client.rendering.MusicToastState;
+import tritium.music.client.rendering.StencilCompositePipeline;
+import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
 import tritium.music.client.rendering.hud.MusicSpectrumWidget;
+import tritium.music.client.rendering.shader.EffectPipelines;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicListener;
@@ -41,14 +41,9 @@ public class TritiumMusicMod implements ClientModInitializer {
     public static final String MOD_ID = "tritium-music";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public static final KeyMapping.Category KEY_CATEGORY =
-            KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "ncm"));
+    public static final KeyMapping.Category KEY_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "ncm"));
 
-    public static final KeyMapping openNcmScreen = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-            "key.tritium-music.open",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_M,
-            KEY_CATEGORY));
+    public static final KeyMapping openNcmScreen = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, KEY_CATEGORY));
 
     private final MusicInfoWidget musicInfo = new MusicInfoWidget();
     private final MusicLyricsWidget musicLyrics = new MusicLyricsWidget();
@@ -112,8 +107,7 @@ public class TritiumMusicMod implements ClientModInitializer {
             AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
             AudioPlayer.absoluteVolume = spectrum.absVol;
 
-            if (!widget.isEnabled()
-                    || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
 

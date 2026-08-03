@@ -42,10 +42,14 @@ import javax.sound.sampled.spi.FormatConversionProvider;
  */
 public class FlacFormatConversionProvider extends FormatConversionProvider {
 
-    /** debugging flag */
+    /**
+     * debugging flag
+     */
     private static final boolean DEBUG = false;
 
-    /** to disable encoding */
+    /**
+     * to disable encoding
+     */
     private static final boolean HAS_ENCODING = false;
 
     /** */
@@ -69,7 +73,7 @@ public class FlacFormatConversionProvider extends FormatConversionProvider {
      * services are provided by this provider.
      *
      * @return array of source format encodings. The array will always have a
-     *         length of at least 1.
+     * length of at least 1.
      */
     public AudioFormat.Encoding[] getSourceEncodings() {
         AudioFormat.Encoding[] encodings;
@@ -90,7 +94,7 @@ public class FlacFormatConversionProvider extends FormatConversionProvider {
      * services are provided by this provider.
      *
      * @return array of target format encodings. The array will always have a
-     *         length of at least 1.
+     * length of at least 1.
      */
     public AudioFormat.Encoding[] getTargetEncodings() {
         AudioFormat.Encoding[] encodings;
@@ -165,7 +169,7 @@ public class FlacFormatConversionProvider extends FormatConversionProvider {
      * are supported for this source format, an array of length 0 is returned.
      *
      * @param targetEncoding desired encoding of the outgoing data.
-     * @param sourceFormat format of the incoming data.
+     * @param sourceFormat   format of the incoming data.
      * @return array of supported target formats.
      */
     public AudioFormat[] getTargetFormats(AudioFormat.Encoding targetEncoding,
@@ -179,7 +183,7 @@ public class FlacFormatConversionProvider extends FormatConversionProvider {
      * sourceFormat's bitSize or channels.
      *
      * @param notSpecifiedOK if true, bitSize and channels can have value
-     *            AudioSystem.NOT_SPECIFIED
+     *                       AudioSystem.NOT_SPECIFIED
      * @return array of supported target formats.
      */
     private AudioFormat[] getTargetFormats(AudioFormat.Encoding targetEncoding,
@@ -237,10 +241,10 @@ public class FlacFormatConversionProvider extends FormatConversionProvider {
      * audio input stream.
      *
      * @param targetEncoding - desired encoding of the stream after processing.
-     * @param sourceStream - stream from which data to be processed should be
-     *            read.
+     * @param sourceStream   - stream from which data to be processed should be
+     *                       read.
      * @return stream from which processed data with the specified target
-     *         encoding may be read.
+     * encoding may be read.
      */
     public AudioInputStream getAudioInputStream(
             AudioFormat.Encoding targetEncoding, AudioInputStream sourceStream) {
@@ -259,9 +263,9 @@ public class FlacFormatConversionProvider extends FormatConversionProvider {
      *
      * @param targetFormat - desired data format of the stream after processing.
      * @param sourceStream - stream from which data to be processed should be
-     *            read.
+     *                     read.
      * @return stream from which processed data with the specified format may be
-     *         read.
+     * read.
      */
     public AudioInputStream getAudioInputStream(AudioFormat targetFormat,
                                                 AudioInputStream sourceStream) {

@@ -21,7 +21,7 @@ import tritium.music.repackage.com.jsyn.ports.UnitInputPort;
 
 /**
  * Base class for writing to a sample.
- *
+ * <p>
  * Note that you must call start() on subclasses of this unit because it does not have an output for pulling data.
  *
  * @author Phil Burk (C) 2009 Mobileer Inc

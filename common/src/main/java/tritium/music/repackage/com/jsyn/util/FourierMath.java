@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -98,7 +98,7 @@ public class FourierMath {
 
     /**
      * Calculate the amplitude of the sine wave associated with each bin of a complex FFT result.
-     * 
+     *
      * @param ar
      * @param ai
      * @param magnitudes
@@ -111,7 +111,7 @@ public class FourierMath {
 
     /**
      * Calculate the amplitude of the sine wave associated with each bin of a complex FFT result.
-     * 
+     *
      * @param ar
      * @param ai
      * @param magnitudes
@@ -218,7 +218,7 @@ public class FourierMath {
 
     /**
      * Calculate log2(n)
-     * 
+     *
      * @param powerOf2 must be a power of two, for example 512 or 1024
      * @return for example, 9 for an input value of 512
      */
@@ -232,7 +232,7 @@ public class FourierMath {
 
     /**
      * Calculate an FFT in place, modifying the input arrays.
-     * 
+     *
      * @param n
      * @param ar
      * @param ai
@@ -243,7 +243,7 @@ public class FourierMath {
 
     /**
      * Calculate an inverse FFT in place, modifying the input arrays.
-     * 
+     *
      * @param n
      * @param ar
      * @param ai

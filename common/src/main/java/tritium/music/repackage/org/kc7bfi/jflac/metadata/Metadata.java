@@ -23,38 +23,59 @@ package tritium.music.repackage.org.kc7bfi.jflac.metadata;
 
 /**
  * Root class for all Metadata subclasses.
+ *
  * @author kc7bfi
  */
 public abstract class Metadata {
 
-    /** StreamInfo Metatdata type. */
+    /**
+     * StreamInfo Metatdata type.
+     */
     public static final int METADATA_TYPE_STREAMINFO = 0;
 
-    /** Padding Metatdata type. */
+    /**
+     * Padding Metatdata type.
+     */
     public static final int METADATA_TYPE_PADDING = 1;
 
-    /** Application Metatdata type. */
+    /**
+     * Application Metatdata type.
+     */
     public static final int METADATA_TYPE_APPLICATION = 2;
 
-    /** SeekTable Metatdata type. */
+    /**
+     * SeekTable Metatdata type.
+     */
     public static final int METADATA_TYPE_SEEKTABLE = 3;
 
-    /** VorbisComment Metatdata type. */
+    /**
+     * VorbisComment Metatdata type.
+     */
     public static final int METADATA_TYPE_VORBIS_COMMENT = 4;
 
-    /** CueSheet Metatdata type. */
+    /**
+     * CueSheet Metatdata type.
+     */
     public static final int METADATA_TYPE_CUESHEET = 5;
 
-    /** Picture Metatdata type. */
+    /**
+     * Picture Metatdata type.
+     */
     public static final int METADATA_TYPE_PICTURE = 6;
 
-    /** Metadata IsLast field length. */
+    /**
+     * Metadata IsLast field length.
+     */
     public static final int STREAM_METADATA_IS_LAST_LEN = 1; // bits
 
-    /** Metadata type field length. */
+    /**
+     * Metadata type field length.
+     */
     public static final int STREAM_METADATA_TYPE_LEN = 7; // bits
 
-    /** Metadata length field length. */
+    /**
+     * Metadata length field length.
+     */
     public static final int STREAM_METADATA_LENGTH_LEN = 24; // bits
 
     protected boolean isLast;
@@ -63,7 +84,8 @@ public abstract class Metadata {
 
     /**
      * Constructor.
-     * @param isLast    True if last Metadata block
+     *
+     * @param isLast True if last Metadata block
      */
     public Metadata(boolean isLast, int length) {
         this.isLast = isLast;
@@ -72,13 +94,15 @@ public abstract class Metadata {
 
     /**
      * Test if this is the last metadata block.
+     *
      * @return True if last metadata block in chain
      */
     public boolean isLast() {
         return isLast;
     }
 
-    /** returns length of metadata
+    /**
+     * returns length of metadata
      *
      * @return length
      */

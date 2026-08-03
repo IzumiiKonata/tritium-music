@@ -391,7 +391,8 @@ public class MusicLyricsWidget extends HudWidget {
             if (index > 0) {
                 prevLrc = CloudMusic.lyrics.get(index - 1);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         boolean shouldUpdate;
         if (prevLrc != null) {

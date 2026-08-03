@@ -1,7 +1,6 @@
 package tritium.music.core.model;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.Data;
 
 import java.util.List;
 import java.util.Objects;
@@ -10,17 +9,9 @@ import java.util.Objects;
  * @author IzumiiKonata
  * Date: 2025/11/7 22:13
  */
-@Data
-public class Artist {
-
-    @SerializedName("id")
-    private final long id;
-    @SerializedName("name")
-    private final String name;
-    @SerializedName("tns")
-    private final List<String> translatedName;
-    @SerializedName("alias")
-    private final List<String> aliasName;
+public record Artist(@SerializedName("id") long id, @SerializedName("name") String name,
+                     @SerializedName("tns") List<String> translatedName,
+                     @SerializedName("alias") List<String> aliasName) {
 
     @Override
     public boolean equals(Object o) {

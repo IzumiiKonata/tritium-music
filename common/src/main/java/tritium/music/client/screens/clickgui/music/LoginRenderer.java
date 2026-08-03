@@ -2,11 +2,7 @@ package tritium.music.client.screens.clickgui.music;
 
 import lombok.Getter;
 import tritium.music.client.render.RenderContext;
-import tritium.music.client.rendering.Image;
-import tritium.music.client.rendering.RGBA;
-import tritium.music.client.rendering.Rect;
-import tritium.music.client.rendering.RenderSystem;
-import tritium.music.client.rendering.SharedRenderingConstants;
+import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.screens.ncm.NCMScreen;

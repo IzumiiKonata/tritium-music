@@ -56,24 +56,30 @@ public interface Synthesizer {
      * <p>
      * or {@link ChannelOut}, which can be associated with any indexed channel.
      *
-     * @param frameRate in Hertz
-     * @param inputDeviceID obtained from an {@link AudioDeviceManager} or pass
-     *            AudioDeviceManager.USE_DEFAULT_DEVICE
-     * @param numInputChannels 0 for no input, 1 for mono, 2 for stereo, etcetera
-     * @param ouputDeviceID obtained from an AudioDeviceManager or pass
-     *            AudioDeviceManager.USE_DEFAULT_DEVICE
+     * @param frameRate         in Hertz
+     * @param inputDeviceID     obtained from an {@link AudioDeviceManager} or pass
+     *                          AudioDeviceManager.USE_DEFAULT_DEVICE
+     * @param numInputChannels  0 for no input, 1 for mono, 2 for stereo, etcetera
+     * @param ouputDeviceID     obtained from an AudioDeviceManager or pass
+     *                          AudioDeviceManager.USE_DEFAULT_DEVICE
      * @param numOutputChannels 0 for no output, 1 for mono, 2 for stereo, etcetera
      */
     void start(int frameRate, int inputDeviceID, int numInputChannels, int ouputDeviceID,
                int numOutputChannels);
 
-    /** @return JSyn version as a string */
+    /**
+     * @return JSyn version as a string
+     */
     String getVersion();
 
-    /** @return version as an integer that always increases */
+    /**
+     * @return version as an integer that always increases
+     */
     int getVersionCode();
 
-    /** Stops the background thread that generates the audio. */
+    /**
+     * Stops the background thread that generates the audio.
+     */
     void stop();
 
     /**
@@ -84,7 +90,9 @@ public interface Synthesizer {
      */
     AudioDeviceManager getAudioDeviceManager();
 
-    /** @return the frame rate in samples per second */
+    /**
+     * @return the frame rate in samples per second
+     */
     int getFrameRate();
 
     /**
@@ -95,10 +103,14 @@ public interface Synthesizer {
      */
     void add(UnitGenerator ugen);
 
-    /** Removes a unit generator added using add(). */
+    /**
+     * Removes a unit generator added using add().
+     */
     void remove(UnitGenerator ugen);
 
-    /** @return the current audio time in seconds */
+    /**
+     * @return the current audio time in seconds
+     */
     double getCurrentTime();
 
     /**
@@ -113,6 +125,7 @@ public interface Synthesizer {
     /**
      * The startUnit and stopUnit methods are mainly for internal use.
      * Please call unit.start() or unit.stop() instead.
+     *
      * @param unit
      */
     void startUnit(UnitGenerator unit);
@@ -124,6 +137,7 @@ public interface Synthesizer {
     /**
      * The startUnit and stopUnit methods are mainly for internal use.
      * Please call unit.start() or unit.stop() instead.
+     *
      * @param unit
      */
     void stopUnit(UnitGenerator unit);
@@ -149,16 +163,24 @@ public interface Synthesizer {
      */
     void setRealTime(boolean realTime);
 
-    /** Is JSyn running in real-time mode? */
+    /**
+     * Is JSyn running in real-time mode?
+     */
     boolean isRealTime();
 
-    /** Create a TimeStamp using the current audio time. */
+    /**
+     * Create a TimeStamp using the current audio time.
+     */
     TimeStamp createTimeStamp();
 
-    /** @return the current CPU usage as a fraction between 0.0 and 1.0 */
+    /**
+     * @return the current CPU usage as a fraction between 0.0 and 1.0
+     */
     double getUsage();
 
-    /** @return inverse of frameRate, to avoid expensive divides */
+    /**
+     * @return inverse of frameRate, to avoid expensive divides
+     */
     double getFramePeriod();
 
     /**
@@ -168,13 +190,19 @@ public interface Synthesizer {
      */
     long getFrameCount();
 
-    /** Queue a command to be processed at a specific time in the background audio thread. */
+    /**
+     * Queue a command to be processed at a specific time in the background audio thread.
+     */
     void scheduleCommand(TimeStamp timeStamp, ScheduledCommand command);
 
-    /** Queue a command to be processed at a specific time in the background audio thread. */
+    /**
+     * Queue a command to be processed at a specific time in the background audio thread.
+     */
     void scheduleCommand(double time, ScheduledCommand command);
 
-    /** Queue a command to be processed as soon as possible in the background audio thread. */
+    /**
+     * Queue a command to be processed as soon as possible in the background audio thread.
+     */
     void queueCommand(ScheduledCommand command);
 
     /**

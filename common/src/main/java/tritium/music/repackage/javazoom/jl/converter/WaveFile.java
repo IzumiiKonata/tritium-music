@@ -34,11 +34,17 @@ public class WaveFile extends RiffFile {
     public static final int MAX_WAVE_CHANNELS = 2;
 
     static class ChunkData {
-        /** Format category (PCM=1) */
+        /**
+         * Format category (PCM=1)
+         */
         public short wFormatTag = 0;
-        /** Number of channels (mono=1, stereo=2) */
+        /**
+         * Number of channels (mono=1, stereo=2)
+         */
         public short nChannels = 0;
-        /** Sampling rate [Hz] */
+        /**
+         * Sampling rate [Hz]
+         */
         public int nSamplesPerSec = 0;
         public int nAvgBytesPerSec = 0;
         public short nBlockAlign = 0;
@@ -93,8 +99,8 @@ public class WaveFile extends RiffFile {
         }
     }
 
-    private Chunk waveFormat;
-    private RiffChunkHeader pcmData;
+    private final Chunk waveFormat;
+    private final RiffChunkHeader pcmData;
     private long pcmDataOffset = 0;  // offset of 'pcmData' in output file
     private int numSamples = 0;
 

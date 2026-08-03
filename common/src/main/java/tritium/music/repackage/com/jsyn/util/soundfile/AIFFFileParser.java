@@ -182,9 +182,9 @@ public class AIFFFileParser extends AudioFileParser {
     /**
      * Called by parse() method to handle FORM chunks in an AIFF specific manner.
      *
-     * @param ckID four byte chunk ID such as 'data'
+     * @param ckID   four byte chunk ID such as 'data'
      * @param ckSize size of chunk in bytes
-     * @exception IOException If parsing fails, or IO error occurs.
+     * @throws IOException If parsing fails, or IO error occurs.
      */
     @Override
     public void handleForm(IFFParser parser, int ckID, int ckSize, int type) throws IOException {
@@ -195,9 +195,9 @@ public class AIFFFileParser extends AudioFileParser {
     /**
      * Called by parse() method to handle chunks in an AIFF specific manner.
      *
-     * @param ckID four byte chunk ID such as 'data'
+     * @param ckID   four byte chunk ID such as 'data'
      * @param ckSize size of chunk in bytes
-     * @exception IOException If parsing fails, or IO error occurs.
+     * @throws IOException If parsing fails, or IO error occurs.
      */
     @Override
     public void handleChunk(IFFParser parser, int ckID, int ckSize) throws IOException {

@@ -26,6 +26,7 @@ import java.io.IOException;
 
 /**
  * VorbisComment Metadata block.
+ *
  * @author kc7bfi
  */
 public class VorbisComment extends Metadata {
@@ -38,10 +39,11 @@ public class VorbisComment extends Metadata {
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @param length            Length of the record
-     * @param isLast            True if this is the last Metadata block in the chain
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is     The InputBitStream
+     * @param length Length of the record
+     * @param isLast True if this is the last Metadata block in the chain
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public VorbisComment(BitInputStream is, int length, boolean isLast) throws IOException {
         super(isLast, length);

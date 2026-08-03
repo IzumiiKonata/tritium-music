@@ -26,25 +26,27 @@ import tritium.music.repackage.org.kc7bfi.jflac.metadata.StreamInfo;
 
 /**
  * This class is a PCM FLAC decoder.
+ *
  * @author kc7bfi
  */
 public class PCMDecoder {
     //private static final int MAX_BLOCK_SIZE = 65535;
 
-    private long totalSamples;
-    private int channels;
-    private int bps;
-    private int sampleRate;
+    private final long totalSamples;
+    private final int channels;
+    private final int bps;
+    private final int sampleRate;
 
     private int samplesProcessed = 0;
     private int frameCounter = 0;
 
-    private ByteData buf;
+    private final ByteData buf;
 
 
     /**
      * The constructor.
-     * @param streamInfo    The FLAC stream info
+     *
+     * @param streamInfo The FLAC stream info
      */
     public PCMDecoder(StreamInfo streamInfo) {
         this.totalSamples = streamInfo.getTotalSamples();
@@ -57,8 +59,9 @@ public class PCMDecoder {
 
     /**
      * Write a WAV frame record.
-     * @param frame         The FLAC frame
-     * @param channelData   The decoded channel data
+     *
+     * @param frame       The FLAC frame
+     * @param channelData The decoded channel data
      * @return returns the decoded buffer data
      */
     public ByteData getFrame(Frame frame, ChannelData[] channelData) {

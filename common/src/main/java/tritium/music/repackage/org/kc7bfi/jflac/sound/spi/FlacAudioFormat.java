@@ -40,7 +40,7 @@ public class FlacAudioFormat extends AudioFormat {
      */
     public static final String KEY_BLOCKSIZE_MAX = "blocksize_max";
 
-    private HashMap props;
+    private final HashMap props;
 
     public FlacAudioFormat(StreamInfo streamInfo) {
         super(FlacEncoding.FLAC, streamInfo.getSampleRate(),

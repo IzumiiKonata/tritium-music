@@ -3,7 +3,7 @@ package tritium.music.client.rendering.ui.widgets;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.function.Supplier;
 
 public class RoundedButtonWidget extends RoundedRectWidget {

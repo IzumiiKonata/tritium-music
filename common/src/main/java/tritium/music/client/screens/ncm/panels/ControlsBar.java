@@ -2,11 +2,7 @@ package tritium.music.client.screens.ncm.panels;
 
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
-import tritium.music.client.rendering.ui.widgets.IconWidget;
-import tritium.music.client.rendering.ui.widgets.LabelWidget;
-import tritium.music.client.rendering.ui.widgets.RectWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedImageWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedRectWidget;
+import tritium.music.client.rendering.ui.widgets.*;
 import tritium.music.client.screens.ncm.MusicLyricsPanel;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;

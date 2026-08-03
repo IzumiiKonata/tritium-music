@@ -24,16 +24,23 @@ import tritium.music.repackage.org.kc7bfi.jflac.Constants;
 
 /**
  * The FLAC Frame class.
+ *
  * @author kc7bfi
  */
 public class Frame {
-    /** The frame header. */
+    /**
+     * The frame header.
+     */
     public Header header;
 
-    /** The subframes - One per channel. */
+    /**
+     * The subframes - One per channel.
+     */
     public Channel[] subframes = new Channel[Constants.MAX_CHANNELS];
 
-    /** The frame footer. */
+    /**
+     * The frame footer.
+     */
     private short crc;
 
     /**
@@ -53,6 +60,7 @@ public class Frame {
 
     /**
      * Return the maximum Rice partition order based on the block size.
+     *
      * @param blocksize The block size
      * @return The maximum Rice partition order
      */
@@ -67,6 +75,7 @@ public class Frame {
 
     /**
      * return the frame's CRC.
+     *
      * @return Returns the crc.
      */
     public short getCRC() {
@@ -75,6 +84,7 @@ public class Frame {
 
     /**
      * Set the frame's CRC.
+     *
      * @param crc The crc to set.
      */
     public void setCRC(short crc) {

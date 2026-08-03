@@ -9,14 +9,9 @@ import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.AbstractWidget;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.container.ScrollPanel;
-import tritium.music.client.rendering.ui.widgets.LabelWidget;
-import tritium.music.client.rendering.ui.widgets.RectWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedImageWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedRectWidget;
-import tritium.music.client.rendering.ui.widgets.TextFieldWidget;
+import tritium.music.client.rendering.ui.widgets.*;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
-import tritium.music.client.util.MouseUtil;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.model.Music;
 import tritium.music.core.model.PlayList;
@@ -25,7 +20,7 @@ import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -201,7 +196,7 @@ public class NavigateBar extends NCMPanel {
             creatorAvatar.setRadius(7.25);
         });
 
-        LabelWidget lblCreator = new LabelWidget(() -> CloudMusic.profile == null ? "未登录" : CloudMusic.profile.getName(), FontManager.pf16bold);
+        LabelWidget lblCreator = new LabelWidget(() -> CloudMusic.profile == null ? "未登录" : CloudMusic.profile.name(), FontManager.pf16bold);
         this.addChild(lblCreator);
 
         lblCreator.setBeforeRenderCallback(() -> {
@@ -275,7 +270,7 @@ public class NavigateBar extends NCMPanel {
         if (avatarLoc == null || Platform.hasTexture(avatarLoc))
             return;
 
-        tritium.music.core.util.Textures.downloadTextureAndLoadAsync(CloudMusic.profile.getAvatarUrl() + "?param=32y32", avatarLoc);
+        tritium.music.core.util.Textures.downloadTextureAndLoadAsync(CloudMusic.profile.avatarUrl() + "?param=32y32", avatarLoc);
     }
 
     private TextureHandle getUserAvatarLocation() {

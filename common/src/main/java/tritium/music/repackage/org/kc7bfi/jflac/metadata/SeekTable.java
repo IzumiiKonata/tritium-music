@@ -27,6 +27,7 @@ import java.io.IOException;
 
 /**
  * SeekTable Metadata block.
+ *
  * @author kc7bfi
  */
 public class SeekTable extends Metadata {
@@ -36,10 +37,11 @@ public class SeekTable extends Metadata {
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @param length            Length of the record
-     * @param isLast            True if this is the last Metadata block in the chain
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is     The InputBitStream
+     * @param length Length of the record
+     * @param isLast True if this is the last Metadata block in the chain
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public SeekTable(BitInputStream is, int length, boolean isLast) throws IOException {
         super(isLast, length);
@@ -57,8 +59,9 @@ public class SeekTable extends Metadata {
 
     /**
      * Constructor.
-     * @param points    Seek Points
-     * @param isLast            True if this is the last Metadata block in the chain
+     *
+     * @param points Seek Points
+     * @param isLast True if this is the last Metadata block in the chain
      */
     public SeekTable(SeekPoint[] points, boolean isLast) {
         super(isLast, -1);
@@ -67,9 +70,10 @@ public class SeekTable extends Metadata {
 
     /**
      * Write out the metadata block.
-     * @param os    The output stream
-     * @param isLast    True if this is the last metadata block
-     * @throws IOException  Thrown if error writing data
+     *
+     * @param os     The output stream
+     * @param isLast True if this is the last metadata block
+     * @throws IOException Thrown if error writing data
      */
     public void write(BitOutputStream os, boolean isLast) throws IOException {
 
@@ -86,6 +90,7 @@ public class SeekTable extends Metadata {
 
     /**
      * Calculate the metadata block size.
+     *
      * @return The metadata block size
      */
     public int calcLength() {
@@ -94,7 +99,8 @@ public class SeekTable extends Metadata {
 
     /**
      * Return the selected seek point.
-     * @param idx   The seek point number
+     *
+     * @param idx The seek point number
      * @return The selected seek point
      */
     public SeekPoint getSeekPoint(int idx) {
@@ -115,6 +121,7 @@ public class SeekTable extends Metadata {
 
     /**
      * Return the number of seek points.
+     *
      * @return the number of seek points
      */
     public int numberOfPoints() {

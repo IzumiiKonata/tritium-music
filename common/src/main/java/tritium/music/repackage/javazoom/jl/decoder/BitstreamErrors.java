@@ -34,7 +34,7 @@ public interface BitstreamErrors extends JavaLayerErrors {
     /**
      * An undeterminable error occurred.
      */
-    int UNKNOWN_ERROR = BITSTREAM_ERROR + 0;
+    int UNKNOWN_ERROR = BITSTREAM_ERROR;
 
     /**
      * The header describes an unknown sample rate.

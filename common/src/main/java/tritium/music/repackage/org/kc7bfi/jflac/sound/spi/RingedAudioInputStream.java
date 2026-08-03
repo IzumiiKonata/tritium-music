@@ -40,10 +40,14 @@ import java.io.InputStream;
  */
 public abstract class RingedAudioInputStream extends AudioInputStream {
 
-    /** The default size of the buffer. */
+    /**
+     * The default size of the buffer.
+     */
     public static final int DEFAULT_BUFFER_SIZE = 2048;
 
-    /** The underlying inputStream. */
+    /**
+     * The underlying inputStream.
+     */
     protected InputStream in;
 
     /**
@@ -150,7 +154,7 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
     /**
      * Check to make sure that this stream has not been closed.
      *
-     * @exception IOException
+     * @throws IOException
      */
     private void checkIfStillOpen() throws IOException {
         if (in == null) throw new IOException("Stream closed");
@@ -161,12 +165,9 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * the input stream <code>in</code>, for later use. An internal buffer
      * array is created and stored in <code>buf</code>.
      *
-     * @param in
-     *            the underlying input stream.
-     * @param format
-     *            the format of this stream's audio data.
-     * @param length
-     *            the length in sample frames of the data in this stream.
+     * @param in     the underlying input stream.
+     * @param format the format of this stream's audio data.
+     * @param length the length in sample frames of the data in this stream.
      */
     public RingedAudioInputStream(InputStream in, AudioFormat format, long length) {
         this(in, format, length, DEFAULT_BUFFER_SIZE);
@@ -178,14 +179,10 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * for later use. An internal buffer array of length <code>size</code> is
      * created and stored in <code>buf</code>.
      *
-     * @param in
-     *            the underlying input stream.
-     * @param format
-     *            the format of this stream's audio data.
-     * @param length
-     *            the length in sample frames of the data in this stream.
-     * @param size
-     *            the buffer sizes.
+     * @param in     the underlying input stream.
+     * @param format the format of this stream's audio data.
+     * @param length the length in sample frames of the data in this stream.
+     * @param size   the buffer sizes.
      */
     public RingedAudioInputStream(InputStream in, AudioFormat format, long length, int size) {
         this(in, format, length, size, size);
@@ -197,16 +194,11 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * for later use. An internal buffer array of length <code>size</code> is
      * created and stored in <code>buf</code>.
      *
-     * @param in
-     *            the underlying input stream.
-     * @param format
-     *            the format of this stream's audio data.
-     * @param length
-     *            the length in sample frames of the data in this stream.
-     * @param size
-     *            the buffer size.
-     * @param presize
-     *            the prebuffer size.
+     * @param in      the underlying input stream.
+     * @param format  the format of this stream's audio data.
+     * @param length  the length in sample frames of the data in this stream.
+     * @param size    the buffer size.
+     * @param presize the prebuffer size.
      */
     public RingedAudioInputStream(InputStream in, AudioFormat format, long length, int size, int presize) {
         super(in, format, length);
@@ -220,7 +212,7 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * synchronized method. This method also assumes that all data has already
      * been read in, hence pos > count.
      *
-     * @exception IOException
+     * @throws IOException
      */
     protected void fill() throws IOException {
     }
@@ -257,9 +249,8 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * <code>InputStream</code>.
      *
      * @return the next byte of data, or <code>-1</code> if the end of the
-     *         stream is reached.
-     * @exception IOException
-     *                if an I/O error occurs.
+     * stream is reached.
+     * @throws IOException if an I/O error occurs.
      * @see #in
      */
     public synchronized int read() throws IOException {
@@ -311,16 +302,12 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * Subclasses of this class are encouraged, but not required, to attempt to
      * read as many bytes as possible in the same fashion.
      *
-     * @param b
-     *            destination buffer.
-     * @param off
-     *            offset at which to start storing bytes.
-     * @param len
-     *            maximum number of bytes to read.
+     * @param b   destination buffer.
+     * @param off offset at which to start storing bytes.
+     * @param len maximum number of bytes to read.
      * @return the number of bytes read, or <code>-1</code> if the end of the
-     *         stream has been reached.
-     * @exception IOException
-     *                if an I/O error occurs.
+     * stream has been reached.
+     * @throws IOException if an I/O error occurs.
      */
     public synchronized int read(byte[] b, int off, int len) throws IOException {
         checkIfStillOpen();
@@ -363,11 +350,9 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * See the general contract of the <code>skip</code> method of
      * <code>InputStream</code>.
      *
-     * @param n
-     *            the number of bytes to be skipped.
+     * @param n the number of bytes to be skipped.
      * @return the actual number of bytes skipped.
-     * @exception IOException
-     *                if an I/O error occurs.
+     * @throws IOException if an I/O error occurs.
      */
     public synchronized long skip(long n) throws IOException {
         checkIfStillOpen();
@@ -388,9 +373,8 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * amount of data available in the underlying inputstream).
      *
      * @return the number of bytes that can be read from this inputstream
-     *         without blocking.
-     * @exception IOException
-     *                if an I/O error occurs.
+     * without blocking.
+     * @throws IOException if an I/O error occurs.
      * @see #in
      */
     public synchronized int available() throws IOException {
@@ -405,9 +389,8 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * See the general contract of the <code>mark</code> method of
      * <code>InputStream</code>.
      *
-     * @param readlimit
-     *            the maximum limit of bytes that can be read before the mark
-     *            position becomes invalid.
+     * @param readlimit the maximum limit of bytes that can be read before the mark
+     *                  position becomes invalid.
      * @see #reset()
      */
     public synchronized void mark(int readlimit) {
@@ -421,9 +404,8 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * been invalidated), an <code>IOException</code> is thrown. Otherwise,
      * <code>pos</code> is set equal to <code>markpos</code>.
      *
-     * @exception IOException
-     *                if this stream has not been marked or if the mark has been
-     *                invalidated.
+     * @throws IOException if this stream has not been marked or if the mark has been
+     *                     invalidated.
      * @see #mark(int)
      */
     public synchronized void reset() throws IOException {
@@ -437,9 +419,9 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
      * <code>FilteredAudioInputStream</code> returns <code>true</code>.
      *
      * @return a <code>boolean</code> indicating if this stream type supports
-     *          the <code>mark</code> and <code>reset</code> methods.
-     * @see     #mark(int)
-     * @see     #reset()
+     * the <code>mark</code> and <code>reset</code> methods.
+     * @see #mark(int)
+     * @see #reset()
      */
     public boolean markSupported() {
         return false;
@@ -447,9 +429,9 @@ public abstract class RingedAudioInputStream extends AudioInputStream {
 
     /**
      * Closes this input stream and releases any system resources associated with
-     * the stream. 
+     * the stream.
      *
-     * @exception IOException if an I/O error occurs.
+     * @throws IOException if an I/O error occurs.
      */
     public synchronized void close() throws IOException {
         if (in == null) return;

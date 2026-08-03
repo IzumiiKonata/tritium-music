@@ -37,7 +37,7 @@ package tritium.music.repackage.javazoom.jl.decoder;
  */
 public final class Header {
 
-    public static final int[][] frequencies ={
+    public static final int[][] frequencies = {
             {22050, 24000, 16000, 1},
             {44100, 48000, 32000, 1},
             {11025, 12000, 8000, 1} // SZD: MPEG25
@@ -422,25 +422,25 @@ public final class Header {
     // E.B -> private to public
     public static final int[][][] bitrates = {
             {{0 /*free format*/, 32000, 48000, 56000, 64000, 80000, 96000,
-            112000, 128000, 144000, 160000, 176000, 192000, 224000, 256000, 0},
-            {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
-            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0},
-            {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
-            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0}},
+                    112000, 128000, 144000, 160000, 176000, 192000, 224000, 256000, 0},
+                    {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
+                            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0},
+                    {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
+                            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0}},
 
             {{0 /*free format*/, 32000, 64000, 96000, 128000, 160000, 192000,
-            224000, 256000, 288000, 320000, 352000, 384000, 416000, 448000, 0},
-            {0 /*free format*/, 32000, 48000, 56000, 64000, 80000, 96000,
-            112000, 128000, 160000, 192000, 224000, 256000, 320000, 384000, 0},
-            {0 /*free format*/, 32000, 40000, 48000, 56000, 64000, 80000,
-            96000, 112000, 128000, 160000, 192000, 224000, 256000, 320000, 0}},
+                    224000, 256000, 288000, 320000, 352000, 384000, 416000, 448000, 0},
+                    {0 /*free format*/, 32000, 48000, 56000, 64000, 80000, 96000,
+                            112000, 128000, 160000, 192000, 224000, 256000, 320000, 384000, 0},
+                    {0 /*free format*/, 32000, 40000, 48000, 56000, 64000, 80000,
+                            96000, 112000, 128000, 160000, 192000, 224000, 256000, 320000, 0}},
             // SZD: MPEG2.5
             {{0 /*free format*/, 32000, 48000, 56000, 64000, 80000, 96000,
-            112000, 128000, 144000, 160000, 176000, 192000, 224000, 256000, 0},
-            {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
-            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0},
-            {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
-            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0}},
+                    112000, 128000, 144000, 160000, 176000, 192000, 224000, 256000, 0},
+                    {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
+                            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0},
+                    {0 /*free format*/, 8000, 16000, 24000, 32000, 40000, 48000,
+                            56000, 64000, 80000, 96000, 112000, 128000, 144000, 160000, 0}},
     };
 
 
@@ -567,40 +567,40 @@ public final class Header {
                     "80 kbit/s", "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s",
                     "160 kbit/s", "176 kbit/s", "192 kbit/s", "224 kbit/s", "256 kbit/s",
                     "forbidden"},
-            {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
-                    "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
-                    "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
-                    "forbidden"},
-            {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
-                    "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
-                    "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
-                    "forbidden"}},
+                    {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
+                            "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
+                            "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
+                            "forbidden"},
+                    {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
+                            "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
+                            "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
+                            "forbidden"}},
 
             {{"free format", "32 kbit/s", "64 kbit/s", "96 kbit/s", "128 kbit/s",
                     "160 kbit/s", "192 kbit/s", "224 kbit/s", "256 kbit/s", "288 kbit/s",
                     "320 kbit/s", "352 kbit/s", "384 kbit/s", "416 kbit/s", "448 kbit/s",
                     "forbidden"},
-            {"free format", "32 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s",
-                    "80 kbit/s", "96 kbit/s", "112 kbit/s", "128 kbit/s", "160 kbit/s",
-                    "192 kbit/s", "224 kbit/s", "256 kbit/s", "320 kbit/s", "384 kbit/s",
-                    "forbidden"},
-            {"free format", "32 kbit/s", "40 kbit/s", "48 kbit/s", "56 kbit/s",
-                    "64 kbit/s", "80 kbit/s", "96 kbit/s", "112 kbit/s", "128 kbit/s",
-                    "160 kbit/s", "192 kbit/s", "224 kbit/s", "256 kbit/s", "320 kbit/s",
-                    "forbidden"}},
+                    {"free format", "32 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s",
+                            "80 kbit/s", "96 kbit/s", "112 kbit/s", "128 kbit/s", "160 kbit/s",
+                            "192 kbit/s", "224 kbit/s", "256 kbit/s", "320 kbit/s", "384 kbit/s",
+                            "forbidden"},
+                    {"free format", "32 kbit/s", "40 kbit/s", "48 kbit/s", "56 kbit/s",
+                            "64 kbit/s", "80 kbit/s", "96 kbit/s", "112 kbit/s", "128 kbit/s",
+                            "160 kbit/s", "192 kbit/s", "224 kbit/s", "256 kbit/s", "320 kbit/s",
+                            "forbidden"}},
             // SZD: MPEG2.5
             {{"free format", "32 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s",
                     "80 kbit/s", "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s",
                     "160 kbit/s", "176 kbit/s", "192 kbit/s", "224 kbit/s", "256 kbit/s",
                     "forbidden"},
-            {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
-                    "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
-                    "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
-                    "forbidden"},
-            {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
-                    "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
-                    "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
-                    "forbidden"}},
+                    {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
+                            "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
+                            "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
+                            "forbidden"},
+                    {"free format", "8 kbit/s", "16 kbit/s", "24 kbit/s", "32 kbit/s",
+                            "40 kbit/s", "48 kbit/s", "56 kbit/s", "64 kbit/s", "80 kbit/s",
+                            "96 kbit/s", "112 kbit/s", "128 kbit/s", "144 kbit/s", "160 kbit/s",
+                            "forbidden"}},
     };
 
     /**
@@ -642,27 +642,27 @@ public final class Header {
      */
     public String sampleFrequencyString() {
         switch (h_sample_frequency) {
-        case THIRTYTWO:
-            if (hVersion == MPEG1)
-                return "32 kHz";
-            else if (hVersion == MPEG2_LSF)
-                return "16 kHz";
-            else    // SZD
-                return "8 kHz";
-        case FOURTYFOUR_POINT_ONE:
-            if (hVersion == MPEG1)
-                return "44.1 kHz";
-            else if (hVersion == MPEG2_LSF)
-                return "22.05 kHz";
-            else    // SZD
-                return "11.025 kHz";
-        case FOURTYEIGHT:
-            if (hVersion == MPEG1)
-                return "48 kHz";
-            else if (hVersion == MPEG2_LSF)
-                return "24 kHz";
-            else    // SZD
-                return "12 kHz";
+            case THIRTYTWO:
+                if (hVersion == MPEG1)
+                    return "32 kHz";
+                else if (hVersion == MPEG2_LSF)
+                    return "16 kHz";
+                else    // SZD
+                    return "8 kHz";
+            case FOURTYFOUR_POINT_ONE:
+                if (hVersion == MPEG1)
+                    return "44.1 kHz";
+                else if (hVersion == MPEG2_LSF)
+                    return "22.05 kHz";
+                else    // SZD
+                    return "11.025 kHz";
+            case FOURTYEIGHT:
+                if (hVersion == MPEG1)
+                    return "48 kHz";
+                else if (hVersion == MPEG2_LSF)
+                    return "24 kHz";
+                else    // SZD
+                    return "12 kHz";
         }
         return null;
     }

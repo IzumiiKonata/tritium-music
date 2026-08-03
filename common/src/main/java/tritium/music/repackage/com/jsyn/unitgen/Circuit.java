@@ -28,7 +28,7 @@ import java.util.LinkedHashMap;
  * @author Phil Burk (C) 2009 Mobileer Inc
  */
 public class Circuit extends UnitGenerator {
-    private ArrayList<UnitGenerator> units = new ArrayList<>();
+    private final ArrayList<UnitGenerator> units = new ArrayList<>();
 
     private final LinkedHashMap<String, UnitPort> portAliases = new LinkedHashMap<>();
 
@@ -62,8 +62,8 @@ public class Circuit extends UnitGenerator {
     }
 
     /**
-     * @deprecated ignored, frameRate comes from the SynthesisEngine
      * @param frameRate
+     * @deprecated ignored, frameRate comes from the SynthesisEngine
      */
     @Deprecated
     @Override
@@ -82,7 +82,9 @@ public class Circuit extends UnitGenerator {
         }
     }
 
-    /** Add a unit to the circuit. */
+    /**
+     * Add a unit to the circuit.
+     */
     public void add(UnitGenerator unit) {
         units.add(unit);
         unit.setCircuit(this);
@@ -96,6 +98,7 @@ public class Circuit extends UnitGenerator {
 
     /**
      * Add an alternate name for looking up a port.
+     *
      * @param port
      * @param alias
      */
@@ -107,6 +110,7 @@ public class Circuit extends UnitGenerator {
 
     /**
      * Case-insensitive search for a port by its name or alias.
+     *
      * @param portName
      * @return matching port or null
      */

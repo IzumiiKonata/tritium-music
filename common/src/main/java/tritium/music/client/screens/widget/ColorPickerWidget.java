@@ -10,7 +10,7 @@ import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.AbstractWidget;
 import tritium.music.client.util.Mth;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.Locale;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;

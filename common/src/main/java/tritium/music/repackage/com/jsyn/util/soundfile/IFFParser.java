@@ -27,9 +27,9 @@ import java.io.InputStream;
  * computer and is now used extensively by Apple Computer and other companies. IFF is an open
  * standard.
  *
+ * @author (C) 1997 Phil Burk, SoftSynth.com
  * @see RIFFParser
  * @see AudioSampleAIFF
- * @author (C) 1997 Phil Burk, SoftSynth.com
  */
 
 public class IFFParser extends FilterInputStream {
@@ -68,20 +68,26 @@ public class IFFParser extends FilterInputStream {
         return numBytesRead;
     }
 
-    /** @return Next byte from stream. Increment offset by 1. */
+    /**
+     * @return Next byte from stream. Increment offset by 1.
+     */
     @Override
     public int read() throws IOException {
         numBytesRead++;
         return super.read();
     }
 
-    /** @return Next byte array from stream. Increment offset by len. */
+    /**
+     * @return Next byte array from stream. Increment offset by len.
+     */
     @Override
     public int read(byte[] bar) throws IOException {
         return read(bar, 0, bar.length);
     }
 
-    /** @return Next byte array from stream. Increment offset by len. */
+    /**
+     * @return Next byte array from stream. Increment offset by len.
+     */
     @Override
     public int read(byte[] bar, int off, int len) throws IOException {
         // Reading from a URL can return before all the bytes are available.
@@ -102,14 +108,18 @@ public class IFFParser extends FilterInputStream {
         return cursor - off;
     }
 
-    /** @return Skip forward in stream and add numBytes to offset. */
+    /**
+     * @return Skip forward in stream and add numBytes to offset.
+     */
     @Override
     public long skip(long numBytes) throws IOException {
         numBytesRead += numBytes;
         return super.skip(numBytes);
     }
 
-    /** Read 32 bit signed integer assuming Big Endian byte order. */
+    /**
+     * Read 32 bit signed integer assuming Big Endian byte order.
+     */
     public int readIntBig() throws IOException {
         int result = read() & 0xFF;
         result = (result << 8) | (read() & 0xFF);
@@ -121,7 +131,9 @@ public class IFFParser extends FilterInputStream {
         return result;
     }
 
-    /** Read 32 bit signed integer assuming Little Endian byte order. */
+    /**
+     * Read 32 bit signed integer assuming Little Endian byte order.
+     */
     public int readIntLittle() throws IOException {
         int result = read() & 0xFF; // LSB
         result |= ((read() & 0xFF) << 8);
@@ -134,7 +146,9 @@ public class IFFParser extends FilterInputStream {
         return result;
     }
 
-    /** Read 16 bit signed short assuming Big Endian byte order. */
+    /**
+     * Read 16 bit signed short assuming Big Endian byte order.
+     */
     public short readShortBig() throws IOException {
         short result = (short) ((read() << 8)); // MSB
         int data = read();
@@ -145,7 +159,9 @@ public class IFFParser extends FilterInputStream {
         return result;
     }
 
-    /** Read 16 bit signed short assuming Little Endian byte order. */
+    /**
+     * Read 16 bit signed short assuming Little Endian byte order.
+     */
     public short readShortLittle() throws IOException {
         short result = (short) (read() & 0xFF); // LSB
         int data = read(); // MSB
@@ -160,12 +176,16 @@ public class IFFParser extends FilterInputStream {
         return (readShortLittle()) & 0x0000FFFF;
     }
 
-    /** Read 8 bit signed byte. */
+    /**
+     * Read 8 bit signed byte.
+     */
     public byte readByte() throws IOException {
         return (byte) read();
     }
 
-    /** Read 32 bit signed int assuming IFF order. */
+    /**
+     * Read 32 bit signed int assuming IFF order.
+     */
     public int readChunkSize() throws IOException {
         if (isRIFF()) {
             return readIntLittle();
@@ -175,7 +195,9 @@ public class IFFParser extends FilterInputStream {
         }
     }
 
-    /** Convert a 4 character IFF ID to a String */
+    /**
+     * Convert a 4 character IFF ID to a String
+     */
     public static String IDToString(int ID) {
         byte[] bar = new byte[4];
         bar[0] = (byte) (ID >> 24);

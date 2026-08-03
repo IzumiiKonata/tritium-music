@@ -1,11 +1,7 @@
 package tritium.music.client.rendering.hud;
 
 import net.minecraft.client.Minecraft;
-import tritium.music.client.rendering.RGBA;
-import tritium.music.client.rendering.Rect;
-import tritium.music.client.rendering.RenderSystem;
-import tritium.music.client.rendering.ScrollText;
-import tritium.music.client.rendering.StencilClipManager;
+import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
@@ -18,7 +14,7 @@ import tritium.music.fabric.ui.Identifiers;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
-import java.awt.Color;
+import java.awt.*;
 import java.time.Duration;
 
 public class MusicInfoWidget extends HudWidget {

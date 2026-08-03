@@ -26,16 +26,18 @@ import java.io.IOException;
 
 /**
  * Padding Metadata block.
+ *
  * @author kc7bfi
  */
 public class Padding extends Metadata {
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @param length            Length of the record
-     * @param isLast            True if this is the last Metadata block in the chain
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is     The InputBitStream
+     * @param length Length of the record
+     * @param isLast True if this is the last Metadata block in the chain
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public Padding(BitInputStream is, int length, boolean isLast) throws IOException {
         super(isLast, length);
@@ -44,6 +46,7 @@ public class Padding extends Metadata {
 
     /**
      * Convert to string.
+     *
      * @see Object#toString()
      */
     public String toString() {

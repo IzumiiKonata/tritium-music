@@ -1,14 +1,10 @@
 package tritium.music.core.lyric;
 
 import com.google.gson.JsonObject;
-import tritium.music.core.util.Pair;
 import tritium.music.core.lyric.provider.LyricsResult;
+import tritium.music.core.util.Pair;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -364,7 +360,7 @@ public class LyricParser {
 
             if (duration <= 0 && !words.isEmpty()) {
                 Pair<String, Pair<Long, Long>> last = words.getLast();
-                words.set(words.size() - 1, Pair.of(last.getA() + lyric, last.getB()));
+                words.set(words.size() - 1, Pair.of(last.a() + lyric, last.b()));
             } else {
                 words.add(Pair.of(lyric, Pair.of(timestamp, duration)));
             }
@@ -372,9 +368,9 @@ public class LyricParser {
 
         words.stream().map(
                 t -> new LyricLine.Word(
-                        t.getA(),
-                        t.getB().getA(),
-                        t.getB().getB()
+                        t.a(),
+                        t.b().a(),
+                        t.b().b()
                 )
         ).forEach(l.words::add);
     }

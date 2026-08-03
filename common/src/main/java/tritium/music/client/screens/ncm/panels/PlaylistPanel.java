@@ -7,12 +7,7 @@ import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.container.ScrollPanel;
-import tritium.music.client.rendering.ui.widgets.LabelWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedButtonWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedImageWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedRectWidget;
-import tritium.music.client.rendering.ui.widgets.TextFieldWidget;
-import tritium.music.client.rendering.ui.widgets.ContextMenuWidget;
+import tritium.music.client.rendering.ui.widgets.*;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.CloudMusic;
@@ -193,7 +188,7 @@ public class PlaylistPanel extends NCMPanel {
                 creatorAvatar.setRadius(7.25);
             });
 
-            LabelWidget lblCreator = new LabelWidget(playList.getCreator().getName(), FontManager.pf16bold);
+            LabelWidget lblCreator = new LabelWidget(playList.getCreator().name(), FontManager.pf16bold);
             this.addChild(lblCreator);
 
             lblCreator.setBeforeRenderCallback(() -> {
@@ -254,16 +249,10 @@ public class PlaylistPanel extends NCMPanel {
                             .filter(child -> child instanceof MusicWidget)
                             .map(child -> (MusicWidget) child)
                             .forEach(widget -> {
-                                if (
-                                        widget.music.getName().toLowerCase().contains(text.toLowerCase()) ||
-                                                widget.music.getTranslatedNames().toLowerCase().contains(text.toLowerCase()) ||
-                                                widget.music.getArtists().stream().anyMatch(artist -> artist != null && artist.getName() != null && artist.getName().toLowerCase().contains(text.toLowerCase())) ||
-                                                (widget.music.getAlbum() != null && widget.music.getAlbum().getName() != null && widget.music.getAlbum().getName().toLowerCase().contains(text.toLowerCase()))
-                                ) {
-                                    widget.setHidden(false);
-                                } else {
-                                    widget.setHidden(true);
-                                }
+                                widget.setHidden(!widget.music.getName().toLowerCase().contains(text.toLowerCase()) &&
+                                        !widget.music.getTranslatedNames().toLowerCase().contains(text.toLowerCase()) &&
+                                        widget.music.getArtists().stream().noneMatch(artist -> artist != null && artist.name() != null && artist.name().toLowerCase().contains(text.toLowerCase())) &&
+                                        (widget.music.getAlbum() == null || widget.music.getAlbum().getName() == null || !widget.music.getAlbum().getName().toLowerCase().contains(text.toLowerCase())));
                             });
                 }
             });
@@ -402,6 +391,6 @@ public class PlaylistPanel extends NCMPanel {
         if (Platform.hasTexture(avatarLoc))
             return;
 
-        Textures.downloadTextureAndLoadAsync(playList.getCreator().getAvatarUrl() + "?param=32y32", avatarLoc);
+        Textures.downloadTextureAndLoadAsync(playList.getCreator().avatarUrl() + "?param=32y32", avatarLoc);
     }
 }

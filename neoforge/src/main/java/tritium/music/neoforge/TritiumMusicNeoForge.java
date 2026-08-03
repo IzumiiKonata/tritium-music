@@ -1,6 +1,5 @@
 package tritium.music.neoforge;
 
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethodStage;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -24,9 +23,9 @@ import tritium.music.client.render.ClipPipeline;
 import tritium.music.client.render.LinePipeline;
 import tritium.music.client.render.RoundedPipeline;
 import tritium.music.client.render.VerticalFadePipeline;
+import tritium.music.client.rendering.LyricOffscreen;
 import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.StencilCompositePipeline;
-import tritium.music.client.rendering.LyricOffscreen;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
@@ -48,13 +47,8 @@ public final class TritiumMusicNeoForge {
 
     public static final String MOD_ID = "tritium_music";
     private static final String ASSET_NAMESPACE = "tritium-music";
-    private static final KeyMapping.Category KEY_CATEGORY =
-            new KeyMapping.Category(Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "ncm"));
-    private static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping(
-            "key.tritium-music.open",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_M,
-            KEY_CATEGORY);
+    private static final KeyMapping.Category KEY_CATEGORY = new KeyMapping.Category(Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "ncm"));
+    private static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, KEY_CATEGORY);
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
@@ -68,9 +62,7 @@ public final class TritiumMusicNeoForge {
         StencilCompositePipeline.initialize();
         LyricOffscreen.initialize();
         Platform.set(new MinecraftMusicPlatform());
-        modContainer.registerExtensionPoint(
-                IConfigScreenFactory.class,
-                (container, parent) -> NCMScreen.withPanel(new HudSettingsPanel(), parent));
+        modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, parent) -> NCMScreen.withPanel(new HudSettingsPanel(), parent));
 
         CloudMusic.addListener(new MusicListener() {
             @Override
@@ -136,46 +128,24 @@ public final class TritiumMusicNeoForge {
         }
     }
 
-    private static void registerWidgetBelow(
-            RegisterGuiLayersEvent event,
-            Identifier anchor,
-            Identifier id,
-            HudWidget widget) {
-        event.registerBelow(
-                anchor,
-                id,
-                (graphics, deltaTracker) -> {
-                    updateSpectrumSettings();
-                    if (!widget.isEnabled()
-                            || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
-                        return;
-                    }
-                    HudWidget.renderInFrame(
-                            graphics,
-                            deltaTracker.getGameTimeDeltaPartialTick(false),
-                            widget::onRender);
-                });
+    private static void registerWidgetBelow(RegisterGuiLayersEvent event, Identifier anchor, Identifier id, HudWidget widget) {
+        event.registerBelow(anchor, id, (graphics, deltaTracker) -> {
+            updateSpectrumSettings();
+            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+                return;
+            }
+            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::onRender);
+        });
     }
 
-    private static void registerWidgetAbove(
-            RegisterGuiLayersEvent event,
-            Identifier anchor,
-            Identifier id,
-            HudWidget widget) {
-        event.registerAbove(
-                anchor,
-                id,
-                (graphics, deltaTracker) -> {
-                    updateSpectrumSettings();
-                    if (!widget.isEnabled()
-                            || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
-                        return;
-                    }
-                    HudWidget.renderInFrame(
-                            graphics,
-                            deltaTracker.getGameTimeDeltaPartialTick(false),
-                            widget::onRender);
-                });
+    private static void registerWidgetAbove(RegisterGuiLayersEvent event, Identifier anchor, Identifier id, HudWidget widget) {
+        event.registerAbove(anchor, id, (graphics, deltaTracker) -> {
+            updateSpectrumSettings();
+            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+                return;
+            }
+            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::onRender);
+        });
     }
 
     private static void updateSpectrumSettings() {

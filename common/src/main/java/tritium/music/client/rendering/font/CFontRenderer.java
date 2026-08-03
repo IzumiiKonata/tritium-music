@@ -10,14 +10,10 @@ import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.util.Mth;
 
-import java.awt.Color;
-import java.awt.Font;
+import java.awt.*;
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 public class CFontRenderer implements Closeable {
 
@@ -104,7 +100,10 @@ public class CFontRenderer implements Closeable {
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == '\n' || c == '\r' || c == '\t' || c == ' ') continue;
-            if (c == '\247' && i + 1 < text.length()) { i++; continue; }
+            if (c == '\247' && i + 1 < text.length()) {
+                i++;
+                continue;
+            }
             if (c == '（') c = '(';
             if (c == '）') c = ')';
             if (c == '・') c = '·';
@@ -736,14 +735,7 @@ public class CFontRenderer implements Closeable {
         return new LineBreakResult(lastBreakableIndex + 1, lastBreakableIndex + 1);
     }
 
-    private static class LineBreakResult {
-        final int endIndex;
-        final int nextStartIndex;
-
-        LineBreakResult(int endIndex, int nextStartIndex) {
-            this.endIndex = endIndex;
-            this.nextStartIndex = nextStartIndex;
-        }
+    private record LineBreakResult(int endIndex, int nextStartIndex) {
     }
 
     public void drawStringWithBetterShadow(String text, double x, double y, int color) {

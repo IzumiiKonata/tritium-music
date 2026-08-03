@@ -14,8 +14,8 @@ import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
-import tritium.music.client.rendering.shader.EffectQueue;
 import tritium.music.client.rendering.StencilClipManager;
+import tritium.music.client.rendering.shader.EffectQueue;
 
 import java.util.ArrayList;
 import java.util.List;

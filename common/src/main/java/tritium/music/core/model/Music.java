@@ -108,7 +108,7 @@ public class Music {
     }
 
     private String buildArtistsNames() {
-        List<String> artistsList = this.artists.stream().map(Artist::getName).toList();
+        List<String> artistsList = this.artists.stream().map(Artist::name).toList();
 
         StringBuilder sb = new StringBuilder();
 

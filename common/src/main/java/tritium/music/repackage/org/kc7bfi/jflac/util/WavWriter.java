@@ -29,6 +29,7 @@ import java.io.*;
 
 /**
  * Utility class for writing WAV files.
+ *
  * @author kc7bfi
  */
 public class WavWriter {
@@ -39,7 +40,7 @@ public class WavWriter {
     private int bps;
     private int sampleRate;
 
-    private byte[] s8buffer = new byte[MAX_BLOCK_SIZE * Constants.MAX_CHANNELS * 4]; /* WATCHOUT: can be up to 2 megs */
+    private final byte[] s8buffer = new byte[MAX_BLOCK_SIZE * Constants.MAX_CHANNELS * 4]; /* WATCHOUT: can be up to 2 megs */
     private int samplesProcessed = 0;
     private int frameCounter = 0;
 
@@ -47,13 +48,14 @@ public class WavWriter {
     private long riffOffset;
     private long dataOffset;
 
-    private DataOutput os;
-    private LittleEndianDataOutput osLE;
+    private final DataOutput os;
+    private final LittleEndianDataOutput osLE;
 
     /**
      * The constructor.
-     * @param os            The output sream
-     * @param streamInfo    The FLAC stream info
+     *
+     * @param os         The output sream
+     * @param streamInfo The FLAC stream info
      */
     public WavWriter(DataOutput os, StreamInfo streamInfo) {
         this.os = os;
@@ -66,7 +68,8 @@ public class WavWriter {
 
     /**
      * The constructor.
-     * @param os            The output sream
+     *
+     * @param os The output sream
      */
     public WavWriter(DataOutput os) {
         this.os = os;
@@ -75,8 +78,9 @@ public class WavWriter {
 
     /**
      * The constructor.
-     * @param os            The output sream
-     * @param streamInfo    The FLAC stream info
+     *
+     * @param os         The output sream
+     * @param streamInfo The FLAC stream info
      */
     public WavWriter(OutputStream os, StreamInfo streamInfo) {
         this.os = new DataOutputStream(os);
@@ -89,7 +93,8 @@ public class WavWriter {
 
     /**
      * The constructor.
-     * @param os            The output sream
+     *
+     * @param os The output sream
      */
     public WavWriter(OutputStream os) {
         this.os = new DataOutputStream(os);
@@ -98,7 +103,8 @@ public class WavWriter {
 
     /**
      * Write a WAV file header.
-     * @throws IOException  Thrown if error writing to output string.
+     *
+     * @throws IOException Thrown if error writing to output string.
      */
     public void writeHeader() throws IOException {
         long dataSize = totalSamples * channels * ((bps + 7) / 8);
@@ -128,8 +134,9 @@ public class WavWriter {
 
     /**
      * Write a WAV file header.
-     * @param streamInfo    The FLAC stream info
-     * @throws IOException  Thrown if error writing to output string.
+     *
+     * @param streamInfo The FLAC stream info
+     * @throws IOException Thrown if error writing to output string.
      */
     public void writeHeader(StreamInfo streamInfo) throws IOException {
         this.totalSamples = streamInfo.getTotalSamples();
@@ -141,9 +148,10 @@ public class WavWriter {
 
     /**
      * Write a WAV frame record.
-     * @param frame         The FLAC frame
-     * @param channelData   The decoded channel data
-     * @throws IOException  Thrown if error writing to output channel
+     *
+     * @param frame       The FLAC frame
+     * @param channelData The decoded channel data
+     * @throws IOException Thrown if error writing to output channel
      */
     public void writeFrame(Frame frame, ChannelData[] channelData) throws IOException {
         boolean isUnsignedSamples = (bps <= 8);
@@ -185,8 +193,9 @@ public class WavWriter {
 
     /**
      * Write the PCM data.
+     *
      * @param space The PCM data
-     * @throws IOException  Thrown if error writing to file
+     * @throws IOException Thrown if error writing to file
      */
     public void writePCM(ByteData space) throws IOException {
         os.write(space.getData(), 0, space.getLen());

@@ -7,7 +7,7 @@ import tritium.music.core.model.Quality;
 import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.Platform;
 
-import java.awt.Color;
+import java.awt.*;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

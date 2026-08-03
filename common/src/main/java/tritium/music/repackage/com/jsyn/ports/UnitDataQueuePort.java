@@ -46,7 +46,9 @@ public class UnitDataQueuePort extends UnitPort {
         super(name);
     }
 
-    /** Hold a reference to part of a sample. */
+    /**
+     * Hold a reference to part of a sample.
+     */
     @SuppressWarnings("serial")
     private class QueuedBlock extends QueueDataCommand {
 
@@ -97,7 +99,7 @@ public class UnitDataQueuePort extends UnitPort {
     // FIXME - determine crossfade on any transition between blocks or when looping back.
 
     protected void setupCrossFade(QueueDataCommand sourceCommand, int sourceStartIndex,
-            QueueDataCommand targetCommand) {
+                                  QueueDataCommand targetCommand) {
         int crossFrames = targetCommand.getCrossFadeIn();
         SequentialData sourceData = sourceCommand.getCurrentData();
         SequentialData targetData = targetCommand.getCurrentData();
@@ -121,7 +123,7 @@ public class UnitDataQueuePort extends UnitPort {
     }
 
     public QueueDataCommand createQueueDataCommand(SequentialData queueableData, int startFrame,
-            int numFrames) {
+                                                   int numFrames) {
         if (queueableData.getChannelsPerFrame() != UnitDataQueuePort.this.numChannels) {
             throw new ChannelMismatchException("Tried to queue "
                     + queueableData.getChannelsPerFrame() + " channel data to a " + numChannels
@@ -244,12 +246,16 @@ public class UnitDataQueuePort extends UnitPort {
         return value;
     }
 
-    /** Write directly to the port queue. This is only called by unit tests! */
+    /**
+     * Write directly to the port queue. This is only called by unit tests!
+     */
     protected void addQueuedBlock(QueueDataEvent block) {
         blocks.add((QueuedBlock) block);
     }
 
-    /** Clear the queue. Internal use only. */
+    /**
+     * Clear the queue. Internal use only.
+     */
     protected void clearQueue() {
         synchronized (blocks) {
             blocks.clear();
@@ -266,9 +272,11 @@ public class UnitDataQueuePort extends UnitPort {
         }
     }
 
-    /** Queue the data to the port at a future time. */
+    /**
+     * Queue the data to the port at a future time.
+     */
     public void queue(SequentialData queueableData, int startFrame, int numFrames,
-            TimeStamp timeStamp) {
+                      TimeStamp timeStamp) {
         QueueDataCommand command = createQueueDataCommand(queueableData, startFrame, numFrames);
         scheduleCommand(timeStamp, command);
     }
@@ -277,15 +285,17 @@ public class UnitDataQueuePort extends UnitPort {
      * Queue the data to the port at a future time. Command will clear the queue before executing.
      */
     public void queueImmediate(SequentialData queueableData, int startFrame, int numFrames,
-            TimeStamp timeStamp) {
+                               TimeStamp timeStamp) {
         QueueDataCommand command = createQueueDataCommand(queueableData, startFrame, numFrames);
         command.setImmediate(true);
         scheduleCommand(timeStamp, command);
     }
 
-    /** Queue the data to the port at a future time. */
+    /**
+     * Queue the data to the port at a future time.
+     */
     public void queueLoop(SequentialData queueableData, int startFrame, int numFrames,
-            TimeStamp timeStamp) {
+                          TimeStamp timeStamp) {
         queueLoop(queueableData, startFrame, numFrames, LOOP_IF_LAST, timeStamp);
     }
 
@@ -293,7 +303,7 @@ public class UnitDataQueuePort extends UnitPort {
      * Queue the data to the port at a future time with a specified number of loops.
      */
     public void queueLoop(SequentialData queueableData, int startFrame, int numFrames,
-            int numLoops, TimeStamp timeStamp) {
+                          int numLoops, TimeStamp timeStamp) {
         QueueDataCommand command = createQueueDataCommand(queueableData, startFrame, numFrames);
         command.setNumLoops(numLoops);
         scheduleCommand(timeStamp, command);
@@ -306,12 +316,16 @@ public class UnitDataQueuePort extends UnitPort {
         return command;
     }
 
-    /** Queue the entire data object for looping. */
+    /**
+     * Queue the entire data object for looping.
+     */
     public void queueLoop(SequentialData queueableData) {
         queueLoop(queueableData, 0, queueableData.getNumFrames());
     }
 
-    /** Queue the data to the port for immediate use. */
+    /**
+     * Queue the data to the port for immediate use.
+     */
     public void queueLoop(SequentialData queueableData, int startFrame, int numFrames) {
         queueLoop(queueableData, startFrame, numFrames, LOOP_IF_LAST);
     }
@@ -330,14 +344,16 @@ public class UnitDataQueuePort extends UnitPort {
      * finished.
      */
     public void queueStop(SequentialData queueableData, int startFrame, int numFrames,
-            TimeStamp timeStamp) {
+                          TimeStamp timeStamp) {
         QueueDataCommand command = createQueueDataCommand(queueableData, startFrame, numFrames);
         command.setAutoStop(true);
         scheduleCommand(timeStamp, command);
 //        queueCommand(command);
     }
 
-    /** Queue the data to the port through the command queue ASAP. */
+    /**
+     * Queue the data to the port through the command queue ASAP.
+     */
     public void queue(SequentialData queueableData, int startFrame, int numFrames) {
         QueueDataCommand command = createQueueDataCommand(queueableData, startFrame, numFrames);
         queueCommand(command);
@@ -362,17 +378,23 @@ public class UnitDataQueuePort extends UnitPort {
         queue(queueableData, 0, queueableData.getNumFrames(), callback);
     }
 
-    /** Schedule queueOn now! */
+    /**
+     * Schedule queueOn now!
+     */
     public void queueOn(SequentialData queueableData) {
         queueOn(queueableData, getSynthesisEngine().createTimeStamp());
     }
 
-    /** Schedule queueOff now! */
+    /**
+     * Schedule queueOff now!
+     */
     public void queueOff(SequentialData queueableData) {
         queueOff(queueableData, false);
     }
 
-    /** Schedule queueOff now! */
+    /**
+     * Schedule queueOff now!
+     */
     public void queueOff(SequentialData queueableData, boolean ifStop) {
         SynthesisEngine engine = getSynthesisEngine();
 
@@ -418,11 +440,10 @@ public class UnitDataQueuePort extends UnitPort {
      * and release loop portions if they exist. This could be used to implement a NoteOff method.
      *
      * @param ifStop Will setAutostop(true) if release portion queued without a release loop. This will
-     *         stop execution of the unit.
+     *               stop execution of the unit.
      */
     public void queueOff(SequentialData queueableData, boolean ifStop, TimeStamp timeStamp) {
-        if (queueableData.getSustainBegin() >= 0) /* Sustain loop? */
-        {
+        if (queueableData.getSustainBegin() >= 0) /* Sustain loop? */ {
             int relSize = queueableData.getReleaseEnd() - queueableData.getReleaseBegin();
             if (queueableData.getReleaseBegin() < 0) { /* Sustain loop, no release loop. */
                 int susEnd = queueableData.getSustainEnd();

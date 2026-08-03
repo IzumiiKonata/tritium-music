@@ -28,6 +28,7 @@ import java.io.OutputStream;
 
 /**
  * Bit-wide output stream.
+ *
  * @author kc7bfi
  */
 public class BitOutputStream {
@@ -136,7 +137,8 @@ public class BitOutputStream {
 
     /**
      * The constructor.
-     * @param os    The InputStream to read bits from
+     *
+     * @param os The InputStream to read bits from
      */
     public BitOutputStream(OutputStream os) {
         this.os = os;
@@ -156,7 +158,8 @@ public class BitOutputStream {
 
     /**
      * Concatinate one InputBitStream to the end of this one.
-     * @param src   The inputBitStream to copy
+     *
+     * @param src The inputBitStream to copy
      * @return True if copy was successful
      */
     public boolean concatenateAligned(BitOutputStream src) {
@@ -184,7 +187,8 @@ public class BitOutputStream {
 
     /**
      * Reset the read CRC-16 value.
-     * @param seed  The initial CRC-16 value
+     *
+     * @param seed The initial CRC-16 value
      */
     public void resetReadCRC16(short seed) {
         readCRC16 = seed;
@@ -192,6 +196,7 @@ public class BitOutputStream {
 
     /**
      * return the read CRC-16 value.
+     *
      * @return The read CRC-16 value
      */
     public short getReadCRC16() {
@@ -200,6 +205,7 @@ public class BitOutputStream {
 
     /**
      * return the write CRC-16 value.
+     *
      * @return The write CRC-16 value
      */
     public short getWriteCRC16() {
@@ -208,6 +214,7 @@ public class BitOutputStream {
 
     /**
      * return the write CRC-8 value.
+     *
      * @return The write CRC-8 value
      */
     public byte getWriteCRC8() {
@@ -216,6 +223,7 @@ public class BitOutputStream {
 
     /**
      * Test if the Bit Stream is byte aligned.
+     *
      * @return True of bit stream is byte aligned
      */
     public boolean isByteAligned() {
@@ -224,6 +232,7 @@ public class BitOutputStream {
 
     /**
      * Test if the Bit Stream consumed bits is byte aligned.
+     *
      * @return True of bit stream consumed bits is byte aligned
      */
     public boolean isConsumedByteAligned() {
@@ -232,6 +241,7 @@ public class BitOutputStream {
 
     /**
      * return the number of bits to read to align the byte.
+     *
      * @return The number of bits to align the byte
      */
     public int bitsLeftForByteAlignment() {
@@ -240,6 +250,7 @@ public class BitOutputStream {
 
     /**
      * return the number of bytes left to read.
+     *
      * @return The number of bytes left to read
      */
     public int getInputBytesUnconsumed() {
@@ -248,8 +259,9 @@ public class BitOutputStream {
 
     /**
      * Write zero bits.
-     * @param bits  The number of zero bits to write
-     * @throws IOException  On write error
+     *
+     * @param bits The number of zero bits to write
+     * @throws IOException On write error
      */
     public void writeZeroes(int bits) throws IOException {
         if (bits == 0) return;
@@ -269,9 +281,10 @@ public class BitOutputStream {
 
     /**
      * Write a true/false integer.
-     * @param val   The true/false value
-     * @param bits  The bit size to write
-     * @throws IOException  On write error
+     *
+     * @param val  The true/false value
+     * @param bits The bit size to write
+     * @throws IOException On write error
      */
     public void writeRawUInt(boolean val, int bits) throws IOException {
         writeRawUInt((val) ? 1 : 0, bits);
@@ -542,7 +555,8 @@ public class BitOutputStream {
 
     /**
      * Write zero bits to byte boundry.
-     * @throws IOException  On error writing to bit stream
+     *
+     * @throws IOException On error writing to bit stream
      */
     public void zeroPadToByteBoundary() throws IOException {
         // 0-pad to byte boundary
@@ -551,7 +565,8 @@ public class BitOutputStream {
 
     /**
      * Flush bit stream after aligning byte boundry.
-     * @throws IOException  On error writing.
+     *
+     * @throws IOException On error writing.
      */
     public void flushByteAligned() throws IOException {
         zeroPadToByteBoundary();
@@ -603,6 +618,7 @@ public class BitOutputStream {
 
     /**
      * Returns the totalBits.
+     *
      * @return Returns the totalBits.
      */
     public int getTotalBits() {
@@ -611,6 +627,7 @@ public class BitOutputStream {
 
     /**
      * Returns the totalBlurbs.
+     *
      * @return Returns the totalBlurbs.
      */
     public int getTotalBlurbs() {

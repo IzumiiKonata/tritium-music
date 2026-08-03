@@ -46,62 +46,92 @@ public class FLACEncoder {
     // stream encoder states
 
     private static final int STREAM_ENCODER_OK = 0;
-    /**< The encoder is in the normal OK state. */
+    /**
+     * < The encoder is in the normal OK state.
+     */
 
     private static final int STREAM_ENCODER_VERIFY_DECODER_ERROR = 1;
-    /**< An error occurred in the underlying verify stream decoder;
+    /**
+     * < An error occurred in the underlying verify stream decoder;
      * check stream_encoder_get_verify_decoder_state().
      */
 
     private static final int STREAM_ENCODER_VERIFY_MISMATCH_IN_AUDIO_DATA = 2;
-    /**< The verify decoder detected a mismatch between the original
+    /**
+     * < The verify decoder detected a mismatch between the original
      * audio signal and the decoded audio signal.
      */
 
     private static final int STREAM_ENCODER_INVALID_CALLBACK = 3;
-    /**< The encoder was initialized before setting all the required callbacks. */
+    /**
+     * < The encoder was initialized before setting all the required callbacks.
+     */
 
     private static final int STREAM_ENCODER_INVALID_NUMBER_OF_CHANNELS = 4;
-    /**< The encoder has an invalid setting for number of channels. */
+    /**
+     * < The encoder has an invalid setting for number of channels.
+     */
 
     private static final int STREAM_ENCODER_INVALID_BITS_PER_SAMPLE = 5;
-    /**< The encoder has an invalid setting for bits-per-sample.
+    /**
+     * < The encoder has an invalid setting for bits-per-sample.
      * FLAC supports 4-32 bps but the reference encoder currently supports
      * only up to 24 bps.
      */
 
     private static final int STREAM_ENCODER_INVALID_SAMPLE_RATE = 6;
-    /**< The encoder has an invalid setting for the input sample rate. */
+    /**
+     * < The encoder has an invalid setting for the input sample rate.
+     */
 
     private static final int STREAM_ENCODER_INVALID_BLOCK_SIZE = 7;
-    /**< The encoder has an invalid setting for the block size. */
+    /**
+     * < The encoder has an invalid setting for the block size.
+     */
 
     private static final int STREAM_ENCODER_INVALID_MAX_LPC_ORDER = 8;
-    /**< The encoder has an invalid setting for the maximum LPC order. */
+    /**
+     * < The encoder has an invalid setting for the maximum LPC order.
+     */
 
     private static final int STREAM_ENCODER_INVALID_QLP_COEFF_PRECISION = 9;
-    /**< The encoder has an invalid setting for the precision of the quantized linear predictor coefficients. */
+    /**
+     * < The encoder has an invalid setting for the precision of the quantized linear predictor coefficients.
+     */
 
     private static final int STREAM_ENCODER_MID_SIDE_CHANNELS_MISMATCH = 10;
-    /**< Mid/side coding was specified but the number of channels is not equal to 2. */
+    /**
+     * < Mid/side coding was specified but the number of channels is not equal to 2.
+     */
 
     private static final int STREAM_ENCODER_MID_SIDE_SAMPLE_SIZE_MISMATCH = 11;
-    /**< Deprecated. */
+    /**
+     * < Deprecated.
+     */
 
     private static final int STREAM_ENCODER_ILLEGAL_MID_SIDE_FORCE = 12;
-    /**< Loose mid/side coding was specified but mid/side coding was not. */
+    /**
+     * < Loose mid/side coding was specified but mid/side coding was not.
+     */
 
     private static final int STREAM_ENCODER_BLOCK_SIZE_TOO_SMALL_FOR_LPC_ORDER = 13;
-    /**< The specified block size is less than the maximum LPC order. */
+    /**
+     * < The specified block size is less than the maximum LPC order.
+     */
 
     private static final int STREAM_ENCODER_NOT_STREAMABLE = 14;
-    /**< The encoder is bound to the "streamable subset" but other settings violate it. */
+    /**
+     * < The encoder is bound to the "streamable subset" but other settings violate it.
+     */
 
     private static final int STREAM_ENCODER_FRAMING_ERROR = 15;
-    /**< An error occurred while writing the stream; usually, the write_callback returned an error. */
+    /**
+     * < An error occurred while writing the stream; usually, the write_callback returned an error.
+     */
 
     private static final int STREAM_ENCODER_INVALID_METADATA = 16;
-    /**< The metadata input to the encoder is invalid, in one of the following ways:
+    /**
+     * < The metadata input to the encoder is invalid, in one of the following ways:
      * - stream_encoder_set_metadata() was called with a null pointer but a block count > 0
      * - One of the metadata blocks contains an undefined type
      * - It contains an illegal CUESHEET as checked by format_cuesheet_is_legal()
@@ -110,16 +140,23 @@ public class FLACEncoder {
      */
 
     private static final int STREAM_ENCODER_FATAL_ERROR_WHILE_ENCODING = 17;
-    /**< An error occurred while writing the stream; usually, the write_callback returned an error. */
+    /**
+     * < An error occurred while writing the stream; usually, the write_callback returned an error.
+     */
 
     private static final int STREAM_ENCODER_FATAL_ERROR_WHILE_WRITING = 18;
-    /**< The write_callback returned an error. */
+    /**
+     * < The write_callback returned an error.
+     */
 
     private static final int STREAM_ENCODER_MEMORY_ALLOCATION_ERROR = 19;
-    /**< Memory allocation failed. */
+    /**
+     * < Memory allocation failed.
+     */
 
     private static final int STREAM_ENCODER_ALREADY_INITIALIZED = 20;
-    /**< stream_encoder_init() was called when the encoder was
+    /**
+     * < stream_encoder_init() was called when the encoder was
      * already initialized, usually because
      * stream_encoder_finish() was not called.
      */
@@ -219,7 +256,7 @@ public class FLACEncoder {
         }
     }
 
-    private VerifyData verifyData = new VerifyData();
+    private final VerifyData verifyData = new VerifyData();
     boolean is_being_deleted; /* if true, call to ..._finish() from ..._delete() will not call the callbacks */
 
     // protected

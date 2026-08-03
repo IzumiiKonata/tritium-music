@@ -9,25 +9,15 @@ import tritium.music.client.rendering.hud.MusicLyricsWidget;
 import tritium.music.client.rendering.ui.AbstractWidget;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.container.ScrollPanel;
-import tritium.music.client.rendering.ui.widgets.DropdownWidget;
-import tritium.music.client.rendering.ui.widgets.LabelWidget;
-import tritium.music.client.rendering.ui.widgets.RoundedButtonWidget;
-import tritium.music.client.rendering.ui.widgets.SliderWidget;
-import tritium.music.client.rendering.ui.widgets.ToggleWidget;
+import tritium.music.client.rendering.ui.widgets.*;
 import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.screens.widget.ColorPickerWidget;
 import tritium.music.core.model.Quality;
 
-import java.awt.Color;
-import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
-import java.util.function.DoubleConsumer;
-import java.util.function.DoubleFunction;
-import java.util.function.DoubleSupplier;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.awt.*;
+import java.util.function.*;
 
 public class HudSettingsPanel extends NCMPanel {
 

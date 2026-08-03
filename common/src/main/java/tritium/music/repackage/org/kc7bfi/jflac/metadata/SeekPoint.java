@@ -27,6 +27,7 @@ import java.io.IOException;
 
 /**
  * An entry into the seek table.
+ *
  * @author kc7bfi
  */
 public class SeekPoint {
@@ -41,8 +42,9 @@ public class SeekPoint {
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is The InputBitStream
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public SeekPoint(BitInputStream is) throws IOException {
         sampleNumber = is.readRawULong(SEEKPOINT_SAMPLE_NUMBER_LEN);
@@ -52,9 +54,10 @@ public class SeekPoint {
 
     /**
      * The constructor.
-     * @param sampleNumber  The sample number of the target frame
-     * @param streamOffset  The offset, in bytes, of the target frame with respect to beginning of the first frame
-     * @param frameSamples  The number of samples in the target frame
+     *
+     * @param sampleNumber The sample number of the target frame
+     * @param streamOffset The offset, in bytes, of the target frame with respect to beginning of the first frame
+     * @param frameSamples The number of samples in the target frame
      */
     public SeekPoint(long sampleNumber, long streamOffset, int frameSamples) {
         this.sampleNumber = sampleNumber;
@@ -64,8 +67,9 @@ public class SeekPoint {
 
     /**
      * Write out an individual seek point.
-     * @param os    The output stream
-     * @throws IOException  Thrown if error writing data
+     *
+     * @param os The output stream
+     * @throws IOException Thrown if error writing data
      */
     public void write(BitOutputStream os) throws IOException {
 
@@ -83,6 +87,7 @@ public class SeekPoint {
 
     /**
      * Return the frame samples.
+     *
      * @return Returns the frameSamples.
      */
     public int getFrameSamples() {
@@ -91,6 +96,7 @@ public class SeekPoint {
 
     /**
      * return the sample number.
+     *
      * @return Returns the sampleNumber.
      */
     public long getSampleNumber() {
@@ -99,6 +105,7 @@ public class SeekPoint {
 
     /**
      * return the stream offset.
+     *
      * @return Returns the streamOffset.
      */
     public long getStreamOffset() {
@@ -107,6 +114,7 @@ public class SeekPoint {
 
     /**
      * Set the stream offset.
+     *
      * @param streamOffset The stream offset to set.
      */
     public void setStreamOffset(long streamOffset) {

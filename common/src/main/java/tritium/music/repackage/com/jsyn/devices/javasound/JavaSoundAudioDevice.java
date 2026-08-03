@@ -177,7 +177,9 @@ public class JavaSoundAudioDevice implements AudioDeviceManager {
             }
         }
 
-        /** Grossly inefficient. Call the array version instead. */
+        /**
+         * Grossly inefficient. Call the array version instead.
+         */
         @Override
         public void write(double value) {
             double[] buffer = new double[1];
@@ -334,7 +336,7 @@ public class JavaSoundAudioDevice implements AudioDeviceManager {
 
     @Override
     public AudioDeviceOutputStream createOutputStream(int deviceID, int frameRate,
-            int samplesPerFrame) {
+                                                      int samplesPerFrame) {
         return new JavaSoundOutputStream(deviceID, frameRate, samplesPerFrame);
     }
 

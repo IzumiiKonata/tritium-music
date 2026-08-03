@@ -27,6 +27,7 @@ import java.io.IOException;
 
 /**
  * StreamInfo Metadata block.
+ *
  * @author kc7bfi
  */
 public class StreamInfo extends Metadata {
@@ -41,23 +42,24 @@ public class StreamInfo extends Metadata {
     private static final int STREAMINFO_TOTAL_SAMPLES_LEN = 36; // bits
     private static final int STREAMINFO_MD5SUM_LEN = 128; // bits
 
-    private byte[] md5sum = new byte[16];
+    private final byte[] md5sum = new byte[16];
 
-    private int minBlockSize;
-    private int maxBlockSize;
-    private int minFrameSize;
-    private int maxFrameSize;
-    private int sampleRate;
-    private int channels;
-    private int bitsPerSample;
+    private final int minBlockSize;
+    private final int maxBlockSize;
+    private final int minFrameSize;
+    private final int maxFrameSize;
+    private final int sampleRate;
+    private final int channels;
+    private final int bitsPerSample;
     private long totalSamples;
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @param length            Length of the record
-     * @param isLast            True if this is the last Metadata block in the chain
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is     The InputBitStream
+     * @param length Length of the record
+     * @param isLast True if this is the last Metadata block in the chain
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public StreamInfo(BitInputStream is, int length, boolean isLast) throws IOException {
         super(isLast, length);
@@ -97,9 +99,10 @@ public class StreamInfo extends Metadata {
 
     /**
      * Write out the metadata block.
-     * @param os    The output stream
-     * @param isLast    True if this is the last metadata block
-     * @throws IOException  Thrown if error writing data
+     *
+     * @param os     The output stream
+     * @param isLast True if this is the last metadata block
+     * @throws IOException Thrown if error writing data
      */
     public void write(BitOutputStream os, boolean isLast) throws IOException {
 
@@ -121,6 +124,7 @@ public class StreamInfo extends Metadata {
 
     /**
      * Calculate the metadata block size.
+     *
      * @return The metadata block size
      */
     public int calcLength() {
@@ -139,18 +143,19 @@ public class StreamInfo extends Metadata {
     /**
      * Check for compatible StreamInfo.
      * Checks if sampleRate, channels, and bitsPerSample are equal
-     * @param info  The StreamInfo block to check
+     *
+     * @param info The StreamInfo block to check
      * @return True if this and info are compatable
      */
     public boolean compatiable(StreamInfo info) {
         if (sampleRate != info.sampleRate) return false;
         if (channels != info.channels) return false;
-        if (bitsPerSample != info.bitsPerSample) return false;
-        return true;
+        return bitsPerSample == info.bitsPerSample;
     }
 
     /**
      * Convert to string.
+     *
      * @see Object#toString()
      */
     public String toString() {

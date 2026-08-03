@@ -26,6 +26,7 @@ import java.io.IOException;
 
 /**
  * An entry into the cue sheet.
+ *
  * @author kc7bfi
  */
 public class CueTrack {
@@ -48,8 +49,9 @@ public class CueTrack {
 
     /**
      * The constructor.
-     * @param is                The InputBitStream
-     * @throws IOException      Thrown if error reading from InputBitStream
+     *
+     * @param is The InputBitStream
+     * @throws IOException Thrown if error reading from InputBitStream
      */
     public CueTrack(BitInputStream is) throws IOException {
         offset = is.readRawULong(CUESHEET_TRACK_OFFSET_LEN);

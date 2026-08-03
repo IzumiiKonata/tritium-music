@@ -29,6 +29,7 @@ import java.io.InputStream;
 
 /**
  * Bit-wide input stream.
+ *
  * @author kc7bfi
  */
 public class BitInputStream {
@@ -50,7 +51,7 @@ public class BitInputStream {
     //        0xFFFFFFFFFFFFFFFFL};
 
     private static final int BUFFER_CHUNK_SIZE = 1024;
-    private byte[] buffer = new byte[BUFFER_CHUNK_SIZE];
+    private final byte[] buffer = new byte[BUFFER_CHUNK_SIZE];
     private int putByte = 0;
     private int getByte = 0;
     private int getBit = 0;
@@ -59,11 +60,12 @@ public class BitInputStream {
 
     private short readCRC16 = 0;
 
-    private InputStream inStream;
+    private final InputStream inStream;
 
     /**
      * The constructor.
-     * @param is    The InputStream to read bits from
+     *
+     * @param is The InputStream to read bits from
      */
     public BitInputStream(InputStream is) {
         this.inStream = is;
@@ -124,7 +126,8 @@ public class BitInputStream {
 
     /**
      * Reset the read CRC-16 value.
-     * @param seed  The initial CRC-16 value
+     *
+     * @param seed The initial CRC-16 value
      */
     public void resetReadCRC16(short seed) {
         readCRC16 = seed;
@@ -132,6 +135,7 @@ public class BitInputStream {
 
     /**
      * return the read CRC-16 value.
+     *
      * @return The read CRC-16 value
      */
     public short getReadCRC16() {
@@ -140,6 +144,7 @@ public class BitInputStream {
 
     /**
      * Test if the Bit Stream consumed bits is byte aligned.
+     *
      * @return True of bit stream consumed bits is byte aligned
      */
     public boolean isConsumedByteAligned() {
@@ -148,6 +153,7 @@ public class BitInputStream {
 
     /**
      * return the number of bits to read to align the byte.
+     *
      * @return The number of bits to align the byte
      */
     public int bitsLeftForByteAlignment() {
@@ -156,6 +162,7 @@ public class BitInputStream {
 
     /**
      * return the number of bytes left to read.
+     *
      * @return The number of bytes left to read
      */
     public int getInputBytesUnconsumed() {
@@ -164,8 +171,9 @@ public class BitInputStream {
 
     /**
      * skip over bits in bit stream without updating CRC.
-     * @param bits  Number of bits to skip
-     * @throws IOException  Thrown if error reading from input stream
+     *
+     * @param bits Number of bits to skip
+     * @throws IOException Thrown if error reading from input stream
      */
     public void skipBitsNoCRC(int bits) throws IOException {
         if (bits == 0) return;
@@ -187,8 +195,9 @@ public class BitInputStream {
 
     /**
      * read a single bit.
+     *
      * @return The bit
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int readBit() throws IOException {
         while (true) {
@@ -211,11 +220,12 @@ public class BitInputStream {
 
     /**
      * read a bit into an integer value.
-     * The bits of the input integer are shifted left and the 
+     * The bits of the input integer are shifted left and the
      * read bit is placed into bit 0.
-     * @param val   The integer to shift and add read bit
+     *
+     * @param val The integer to shift and add read bit
      * @return The updated integer value
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int readBitToInt(int val) throws IOException {
         while (true) {
@@ -239,12 +249,13 @@ public class BitInputStream {
 
     /**
      * peek at the next bit and add it to the input integer.
-     * The bits of the input integer are shifted left and the 
+     * The bits of the input integer are shifted left and the
      * read bit is placed into bit 0.
-     * @param val   The input integer
-     * @param bit   The bit to peek at
+     *
+     * @param val The input integer
+     * @param bit The bit to peek at
      * @return The updated integer value
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int peekBitToInt(int val, int bit) throws IOException {
         while (true) {
@@ -265,11 +276,12 @@ public class BitInputStream {
 
     /**
      * read a bit into a long value.
-     * The bits of the input long are shifted left and the 
+     * The bits of the input long are shifted left and the
      * read bit is placed into bit 0.
-     * @param val   The long to shift and add read bit
+     *
+     * @param val The long to shift and add read bit
      * @return The updated long value
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public long readBitToLong(long val) throws IOException {
         while (true) {
@@ -293,9 +305,10 @@ public class BitInputStream {
 
     /**
      * read bits into an unsigned integer.
-     * @param bits  The number of bits to read
+     *
+     * @param bits The number of bits to read
      * @return The bits as an unsigned integer
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int readRawUInt(int bits) throws IOException {
         int val = 0;
@@ -307,9 +320,10 @@ public class BitInputStream {
 
     /**
      * peek at bits into an unsigned integer without advancing the input stream.
-     * @param bits  The number of bits to read
+     *
+     * @param bits The number of bits to read
      * @return The bits as an unsigned integer
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int peekRawUInt(int bits) throws IOException {
         int val = 0;
@@ -321,9 +335,10 @@ public class BitInputStream {
 
     /**
      * read bits into a signed integer.
-     * @param bits  The number of bits to read
+     *
+     * @param bits The number of bits to read
      * @return The bits as a signed integer
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int readRawInt(int bits) throws IOException {
         if (bits == 0) {
@@ -349,9 +364,10 @@ public class BitInputStream {
 
     /**
      * read bits into an unsigned long.
-     * @param bits  The number of bits to read
+     *
+     * @param bits The number of bits to read
      * @return The bits as an unsigned long
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public long readRawULong(int bits) throws IOException {
         long val = 0;
@@ -363,8 +379,9 @@ public class BitInputStream {
 
     /**
      * read bits into an unsigned little endian integer.
+     *
      * @return The bits as an unsigned integer
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int readRawIntLittleEndian() throws IOException {
         int x32 = readRawUInt(8);
@@ -379,9 +396,10 @@ public class BitInputStream {
 
     /**
      * Read a block of bytes (aligned) without updating the CRC value.
+     *
      * @param val   The array to receive the bytes. If null, no bytes are returned
      * @param nvals The number of bytes to read
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public void readByteBlockAlignedNoCRC(byte[] val, int nvals) throws IOException {
         int destlength = nvals;
@@ -402,8 +420,9 @@ public class BitInputStream {
 
     /**
      * Read and count the number of zero bits.
+     *
      * @return The number of zero bits read
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int readUnaryUnsigned() throws IOException {
         int val = 0;
@@ -417,11 +436,12 @@ public class BitInputStream {
 
     /**
      * Read a Rice Signal Block.
-     * @param vals  The values to be returned
-     * @param pos   The starting position in the vals array
-     * @param nvals The number of values to return
+     *
+     * @param vals      The values to be returned
+     * @param pos       The starting position in the vals array
+     * @param nvals     The number of values to return
      * @param parameter The Rice parameter
-     * @throws IOException  On read error
+     * @throws IOException On read error
      */
     public void readRiceSignedBlock(int[] vals, int pos, int nvals, int parameter) throws IOException {
         int j, valI = 0;
@@ -431,7 +451,7 @@ public class BitInputStream {
         if (nvals == 0) return;
         int i = getByte;
 
-        long startBits = getByte * 8 + getBit;
+        long startBits = getByte * 8L + getBit;
 
         // We unroll the main loop to take care of partially consumed blurbs here.
         if (getBit > 0) {
@@ -600,7 +620,7 @@ public class BitInputStream {
             //totalConsumedBits = (i << BITS_PER_BLURB_LOG2) | cbits;
             //totalBitsRead += (BITS_PER_BLURB) | cbits;
             if (valI < nvals) {
-                long endBits = getByte * 8 + getBit;
+                long endBits = getByte * 8L + getBit;
                 //System.out.println("SE0 "+startBits+" "+endBits);
                 totalBitsRead += endBits - startBits;
                 availBits -= endBits - startBits;
@@ -608,11 +628,11 @@ public class BitInputStream {
                 // these must be zero because we can only get here if we got to
                 // the end of the buffer
                 i = 0;
-                startBits = getByte * 8 + getBit;
+                startBits = getByte * 8L + getBit;
             }
         }
 
-        long endBits = getByte * 8 + getBit;
+        long endBits = getByte * 8L + getBit;
         //System.out.println("SE1 "+startBits+" "+endBits);
         totalBitsRead += endBits - startBits;
         availBits -= endBits - startBits;
@@ -622,9 +642,10 @@ public class BitInputStream {
      * read UTF8 integer.
      * on return, if *val == 0xffffffff then the utf-8 sequence was invalid, but
      * the return value will be true
-     * @param raw   The raw bytes read (output). If null, no bytes are returned
+     *
+     * @param raw The raw bytes read (output). If null, no bytes are returned
      * @return The integer read
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public int readUTF8Int(ByteData raw) throws IOException {
 
@@ -672,9 +693,10 @@ public class BitInputStream {
      * read UTF long.
      * on return, if *val == 0xffffffffffffffff then the utf-8 sequence was
      * invalid, but the return value will be true
-     * @param raw   The raw bytes read (output). If null, no bytes are returned
+     *
+     * @param raw The raw bytes read (output). If null, no bytes are returned
      * @return The long read
-     * @throws IOException  Thrown if error reading input stream
+     * @throws IOException Thrown if error reading input stream
      */
     public long readUTF8Long(ByteData raw) throws IOException {
         long v = 0;
@@ -722,6 +744,7 @@ public class BitInputStream {
 
     /**
      * Total Blurbs read.
+     *
      * @return Returns the total blurbs read.
      */
     public int getTotalBytesRead() {

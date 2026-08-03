@@ -4,22 +4,34 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 public class Charsets {
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public static final Charset ISO_8859_1;
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public static final Charset US_ASCII;
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public static final Charset UTF_16;
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public static final Charset UTF_16BE;
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public static final Charset UTF_16LE;
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public static final Charset UTF_8;
 
@@ -31,7 +43,9 @@ public class Charsets {
         return charset == null ? Charset.defaultCharset() : Charset.forName(charset);
     }
 
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public Charsets() {
     }

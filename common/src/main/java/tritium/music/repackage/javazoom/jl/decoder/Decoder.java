@@ -57,9 +57,9 @@ public class Decoder implements DecoderErrors {
     private int outputFrequency;
     private int outputChannels;
 
-    private Equalizer equalizer = new Equalizer();
+    private final Equalizer equalizer = new Equalizer();
 
-    private Params params;
+    private final Params params;
 
     private boolean initialized;
 
@@ -224,7 +224,9 @@ public class Decoder implements DecoderErrors {
                 decoder = l1decoder;
                 break;
             }
-            default: decoder = null; break;
+            default:
+                decoder = null;
+                break;
 
             // REVIEW: allow channel output selection type
             // (LEFT, RIGHT, BOTH, DOWNMIX)
@@ -275,7 +277,7 @@ public class Decoder implements DecoderErrors {
 
         private OutputChannels outputChannels = OutputChannels.BOTH;
 
-        private Equalizer equalizer = new Equalizer();
+        private final Equalizer equalizer = new Equalizer();
 
         public Params() {
         }

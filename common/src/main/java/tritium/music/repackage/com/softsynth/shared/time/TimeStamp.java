@@ -19,16 +19,7 @@ package tritium.music.repackage.com.softsynth.shared.time;
 /**
  * @author Phil Burk, (C) 2009 Mobileer Inc
  */
-public class TimeStamp implements Comparable<TimeStamp> {
-    private final double time;
-
-    public TimeStamp(double time) {
-        this.time = time;
-    }
-
-    public double getTime() {
-        return time;
-    }
+public record TimeStamp(double time) implements Comparable<TimeStamp> {
 
     /**
      * @return -1 if (this &lt; t2), 0 if equal, or +1

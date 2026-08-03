@@ -25,8 +25,8 @@
 
 package tritium.music.repackage.javazoom.jl.converter;
 
-import tritium.music.repackage.javazoom.jl.decoder.Obuffer;
 import lombok.Getter;
+import tritium.music.repackage.javazoom.jl.decoder.Obuffer;
 
 
 /**

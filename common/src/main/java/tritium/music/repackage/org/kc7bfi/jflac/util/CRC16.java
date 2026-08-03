@@ -22,6 +22,7 @@ package tritium.music.repackage.org.kc7bfi.jflac.util;
 
 /**
  * Utility class to calculate 16-bit CRC.
+ *
  * @author kc7bfi
  */
 public final class CRC16 {
@@ -289,8 +290,8 @@ public final class CRC16 {
     /**
      * Update the CRC with the byte data.
      *
-     * @param data  The byte data
-     * @param crc   The starting CRC value
+     * @param data The byte data
+     * @param crc  The starting CRC value
      * @return The updated CRC value
      */
     public static short update(byte data, short crc) {
@@ -301,9 +302,9 @@ public final class CRC16 {
     /**
      * Update the CRC with the byte array data.
      *
-     * @param data  The byte array data
-     * @param len   The byte array length
-     * @param crc   The starting CRC value
+     * @param data The byte array data
+     * @param len  The byte array length
+     * @param crc  The starting CRC value
      * @return The updated CRC value
      */
     public static short updateBlock(byte[] data, int len, short crc) {
@@ -316,8 +317,8 @@ public final class CRC16 {
     /**
      * Calculate the CRC over a byte array.
      *
-     * @param data  The byte data
-     * @param len   The byte array length
+     * @param data The byte data
+     * @param len  The byte array length
      * @return The calculated CRC value
      */
     public static short calc(byte[] data, int len) {

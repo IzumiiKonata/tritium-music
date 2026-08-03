@@ -35,43 +35,73 @@ import java.io.RandomAccessFile;
 public class RiffFile {
 
     static class RiffChunkHeader {
-        /** Four-character chunk ID */
+        /**
+         * Four-character chunk ID
+         */
         public int ckID = 0;
-        /** Length of data in chunk */
+        /**
+         * Length of data in chunk
+         */
         public int ckSize = 0;
     }
 
     // DDCRET
 
-    /** The operation succeeded */
+    /**
+     * The operation succeeded
+     */
     public static final int DDC_SUCCESS = 0;
-    /** The operation failed for unspecified reasons */
+    /**
+     * The operation failed for unspecified reasons
+     */
     public static final int DDC_FAILURE = 1;
-    /** Operation failed due to running out of memory */
+    /**
+     * Operation failed due to running out of memory
+     */
     public static final int DDC_OUT_OF_MEMORY = 2;
-    /** Operation encountered file I/O error */
+    /**
+     * Operation encountered file I/O error
+     */
     public static final int DDC_FILE_ERROR = 3;
-    /** Operation was called with invalid parameters */
+    /**
+     * Operation was called with invalid parameters
+     */
     public static final int DDC_INVALID_CALL = 4;
-    /** Operation was aborted by the user */
+    /**
+     * Operation was aborted by the user
+     */
     public static final int DDC_USER_ABORT = 5;
-    /** File format does not match */
+    /**
+     * File format does not match
+     */
     public static final int DDC_INVALID_FILE = 6;
 
     // RiffFileMode
 
-    /** undefined type (can use to mean "N/A" or "not open") */
+    /**
+     * undefined type (can use to mean "N/A" or "not open")
+     */
     public static final int RFM_UNKNOWN = 0;
-    /** open for write */
+    /**
+     * open for write
+     */
     public static final int RFM_WRITE = 1;
-    /** open for read */
+    /**
+     * open for read
+     */
     public static final int RFM_READ = 2;
 
-    /** header for whole file */
-    private RiffChunkHeader riffHeader;
-    /** current file I/O mode */
+    /**
+     * header for whole file
+     */
+    private final RiffChunkHeader riffHeader;
+    /**
+     * current file I/O mode
+     */
     protected int fmode;
-    /** I/O stream to use */
+    /**
+     * I/O stream to use
+     */
     protected RandomAccessFile file;
 
     /**
@@ -105,62 +135,62 @@ public class RiffFile {
 
         if (retcode == DDC_SUCCESS) {
             switch (NewMode) {
-            case RFM_WRITE:
-                try {
-                    file = new RandomAccessFile(filename, "rw");
-
+                case RFM_WRITE:
                     try {
-                        // Write the RIFF header...
-                        // We will have to come back later and patch it!
-                        byte[] br = new byte[8];
-                        br[0] = (byte) ((riffHeader.ckID >>> 24) & 0x000000FF);
-                        br[1] = (byte) ((riffHeader.ckID >>> 16) & 0x000000FF);
-                        br[2] = (byte) ((riffHeader.ckID >>> 8) & 0x000000FF);
-                        br[3] = (byte) (riffHeader.ckID & 0x000000FF);
+                        file = new RandomAccessFile(filename, "rw");
 
-                        byte br4 = (byte) ((riffHeader.ckSize >>> 24) & 0x000000FF);
-                        byte br5 = (byte) ((riffHeader.ckSize >>> 16) & 0x000000FF);
-                        byte br6 = (byte) ((riffHeader.ckSize >>> 8) & 0x000000FF);
-                        byte br7 = (byte) (riffHeader.ckSize & 0x000000FF);
+                        try {
+                            // Write the RIFF header...
+                            // We will have to come back later and patch it!
+                            byte[] br = new byte[8];
+                            br[0] = (byte) ((riffHeader.ckID >>> 24) & 0x000000FF);
+                            br[1] = (byte) ((riffHeader.ckID >>> 16) & 0x000000FF);
+                            br[2] = (byte) ((riffHeader.ckID >>> 8) & 0x000000FF);
+                            br[3] = (byte) (riffHeader.ckID & 0x000000FF);
 
-                        br[4] = br7;
-                        br[5] = br6;
-                        br[6] = br5;
-                        br[7] = br4;
+                            byte br4 = (byte) ((riffHeader.ckSize >>> 24) & 0x000000FF);
+                            byte br5 = (byte) ((riffHeader.ckSize >>> 16) & 0x000000FF);
+                            byte br6 = (byte) ((riffHeader.ckSize >>> 8) & 0x000000FF);
+                            byte br7 = (byte) (riffHeader.ckSize & 0x000000FF);
 
-                        file.write(br, 0, 8);
-                        fmode = RFM_WRITE;
+                            br[4] = br7;
+                            br[5] = br6;
+                            br[6] = br5;
+                            br[7] = br4;
+
+                            file.write(br, 0, 8);
+                            fmode = RFM_WRITE;
+                        } catch (IOException ioe) {
+                            file.close();
+                            fmode = RFM_UNKNOWN;
+                        }
                     } catch (IOException ioe) {
-                        file.close();
                         fmode = RFM_UNKNOWN;
+                        retcode = DDC_FILE_ERROR;
                     }
-                } catch (IOException ioe) {
-                    fmode = RFM_UNKNOWN;
-                    retcode = DDC_FILE_ERROR;
-                }
-                break;
+                    break;
 
-            case RFM_READ:
-                try {
-                    file = new RandomAccessFile(filename, "r");
+                case RFM_READ:
                     try {
-                        // Try to read the RIFF header...
-                        byte[] br = new byte[8];
-                        file.read(br, 0, 8);
-                        fmode = RFM_READ;
-                        riffHeader.ckID = ((br[0] << 24) & 0xFF000000) | ((br[1] << 16) & 0x00FF0000) | ((br[2] << 8) & 0x0000FF00) | (br[3] & 0x000000FF);
-                        riffHeader.ckSize = ((br[4] << 24) & 0xFF000000) | ((br[5] << 16) & 0x00FF0000) | ((br[6] << 8) & 0x0000FF00) | (br[7] & 0x000000FF);
+                        file = new RandomAccessFile(filename, "r");
+                        try {
+                            // Try to read the RIFF header...
+                            byte[] br = new byte[8];
+                            file.read(br, 0, 8);
+                            fmode = RFM_READ;
+                            riffHeader.ckID = ((br[0] << 24) & 0xFF000000) | ((br[1] << 16) & 0x00FF0000) | ((br[2] << 8) & 0x0000FF00) | (br[3] & 0x000000FF);
+                            riffHeader.ckSize = ((br[4] << 24) & 0xFF000000) | ((br[5] << 16) & 0x00FF0000) | ((br[6] << 8) & 0x0000FF00) | (br[7] & 0x000000FF);
+                        } catch (IOException ioe) {
+                            file.close();
+                            fmode = RFM_UNKNOWN;
+                        }
                     } catch (IOException ioe) {
-                        file.close();
                         fmode = RFM_UNKNOWN;
+                        retcode = DDC_FILE_ERROR;
                     }
-                } catch (IOException ioe) {
-                    fmode = RFM_UNKNOWN;
-                    retcode = DDC_FILE_ERROR;
-                }
-                break;
-            default:
-                retcode = DDC_INVALID_CALL;
+                    break;
+                default:
+                    retcode = DDC_INVALID_CALL;
             }
         }
         return retcode;
@@ -318,37 +348,37 @@ public class RiffFile {
         int retcode = DDC_SUCCESS;
 
         switch (fmode) {
-        case RFM_WRITE:
-            try {
-                file.seek(0);
+            case RFM_WRITE:
                 try {
-                    byte[] br = new byte[8];
-                    br[0] = (byte) ((riffHeader.ckID >>> 24) & 0x000000FF);
-                    br[1] = (byte) ((riffHeader.ckID >>> 16) & 0x000000FF);
-                    br[2] = (byte) ((riffHeader.ckID >>> 8) & 0x000000FF);
-                    br[3] = (byte) (riffHeader.ckID & 0x000000FF);
+                    file.seek(0);
+                    try {
+                        byte[] br = new byte[8];
+                        br[0] = (byte) ((riffHeader.ckID >>> 24) & 0x000000FF);
+                        br[1] = (byte) ((riffHeader.ckID >>> 16) & 0x000000FF);
+                        br[2] = (byte) ((riffHeader.ckID >>> 8) & 0x000000FF);
+                        br[3] = (byte) (riffHeader.ckID & 0x000000FF);
 
-                    br[7] = (byte) ((riffHeader.ckSize >>> 24) & 0x000000FF);
-                    br[6] = (byte) ((riffHeader.ckSize >>> 16) & 0x000000FF);
-                    br[5] = (byte) ((riffHeader.ckSize >>> 8) & 0x000000FF);
-                    br[4] = (byte) (riffHeader.ckSize & 0x000000FF);
-                    file.write(br, 0, 8);
+                        br[7] = (byte) ((riffHeader.ckSize >>> 24) & 0x000000FF);
+                        br[6] = (byte) ((riffHeader.ckSize >>> 16) & 0x000000FF);
+                        br[5] = (byte) ((riffHeader.ckSize >>> 8) & 0x000000FF);
+                        br[4] = (byte) (riffHeader.ckSize & 0x000000FF);
+                        file.write(br, 0, 8);
+                        file.close();
+                    } catch (IOException ioe) {
+                        retcode = DDC_FILE_ERROR;
+                    }
+                } catch (IOException ioe) {
+                    retcode = DDC_FILE_ERROR;
+                }
+                break;
+
+            case RFM_READ:
+                try {
                     file.close();
                 } catch (IOException ioe) {
                     retcode = DDC_FILE_ERROR;
                 }
-            } catch (IOException ioe) {
-                retcode = DDC_FILE_ERROR;
-            }
-            break;
-
-        case RFM_READ:
-            try {
-                file.close();
-            } catch (IOException ioe) {
-                retcode = DDC_FILE_ERROR;
-            }
-            break;
+                break;
         }
         file = null;
         fmode = RFM_UNKNOWN;

@@ -29,7 +29,9 @@ public class AudioPlayer {
      */
     public static volatile boolean spectrumEnabled = false;
 
-    /** Spectrum visualizer tuning, set by the client from config. */
+    /**
+     * Spectrum visualizer tuning, set by the client from config.
+     */
     public static volatile float spectrumTilt = 3.0f;
     public static volatile boolean absoluteVolume = true;
 

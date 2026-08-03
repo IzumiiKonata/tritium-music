@@ -3,7 +3,7 @@ package tritium.music.client.rendering.animation;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.util.Mth;
 
-import java.awt.Color;
+import java.awt.*;
 
 public class Interpolations {
 

@@ -28,7 +28,10 @@ import tritium.music.repackage.com.softsynth.shared.time.ScheduledQueue;
 import tritium.music.repackage.com.softsynth.shared.time.TimeStamp;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
@@ -86,9 +89,13 @@ public class SynthesisEngine implements Synthesizer {
     private final CopyOnWriteArrayList<Runnable> audioTasks = new CopyOnWriteArrayList<>();
     private double mOutputLatency;
     private double mInputLatency;
-    /** A fraction corresponding to exactly -96 dB. */
+    /**
+     * A fraction corresponding to exactly -96 dB.
+     */
     public static final double DB96 = (1.0 / 63095.73444801943);
-    /** A fraction that is approximately -90.3 dB. Defined as 1 bit of an S16. */
+    /**
+     * A fraction that is approximately -90.3 dB. Defined as 1 bit of an S16.
+     */
     public static final double DB90 = (1.0 / (1 << 15));
 
     static Logger logger = Logger.getLogger(SynthesisEngine.class.getName());
@@ -208,7 +215,7 @@ public class SynthesisEngine implements Synthesizer {
 
     @Override
     public synchronized void start(int frameRate, int inputDeviceID, int numInputChannels,
-            int outputDeviceID, int numOutputChannels) {
+                                   int outputDeviceID, int numOutputChannels) {
         if (started) {
             return;
         }
@@ -265,14 +272,13 @@ public class SynthesisEngine implements Synthesizer {
         started = false;
     }
 
-    private class EngineThread extends Thread
-    {
+    private class EngineThread extends Thread {
         private AudioDeviceOutputStream audioOutputStream;
         private AudioDeviceInputStream audioInputStream;
         private volatile boolean go = true;
 
         EngineThread(int inputDeviceID, int numInputChannels,
-            int outputDeviceID, int numOutputChannels) {
+                     int outputDeviceID, int numOutputChannels) {
             if (numInputChannels > 0) {
                 audioInputStream = audioDeviceManager.createInputStream(inputDeviceID, frameRate,
                         numInputChannels);
@@ -401,7 +407,7 @@ public class SynthesisEngine implements Synthesizer {
         while (timeList != null) {
             while (!timeList.isEmpty()) {
                 ScheduledCommand command = timeList.removeFirst();
-                logger.fine("repackage/processing " + command + ", at time " + timeStamp.getTime());
+                logger.fine("repackage/processing " + command + ", at time " + timeStamp.time());
                 command.run();
             }
             // Get next list of commands at the given time.
@@ -411,10 +417,10 @@ public class SynthesisEngine implements Synthesizer {
 
     @Override
     public void scheduleCommand(TimeStamp timeStamp, ScheduledCommand command) {
-        if ((Thread.currentThread() == engineThread) && (timeStamp.getTime() <= getCurrentTime())) {
+        if ((Thread.currentThread() == engineThread) && (timeStamp.time() <= getCurrentTime())) {
             command.run();
         } else {
-            logger.fine("scheduling " + command + ", at time " + timeStamp.getTime());
+            logger.fine("scheduling " + command + ", at time " + timeStamp.time());
             commandQueue.add(timeStamp, command);
         }
     }
@@ -574,7 +580,9 @@ public class SynthesisEngine implements Synthesizer {
         return framePeriod;
     }
 
-    /** Convert a short value to a double in the range -1.0 to almost 1.0. */
+    /**
+     * Convert a short value to a double in the range -1.0 to almost 1.0.
+     */
     public static double convertShortToDouble(short sdata) {
         return (sdata * (1.0 / Short.MAX_VALUE));
     }

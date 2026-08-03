@@ -1,7 +1,7 @@
 package tritium.music.repackage.com.jsyn.util.soundfile.streamed.raf;
 
-import tritium.music.repackage.com.jsyn.data.FloatSample;
 import lombok.SneakyThrows;
+import tritium.music.repackage.com.jsyn.data.FloatSample;
 
 /**
  * @author IzumiiKonata
@@ -11,7 +11,9 @@ public class RafFloatSample extends FloatSample {
 
     public final RafWAVEFileParser.StreamedByteDataReader reader;
 
-    /** Constructor for multi-channel samples with data. */
+    /**
+     * Constructor for multi-channel samples with data.
+     */
     public RafFloatSample(RafWAVEFileParser.StreamedByteDataReader reader, int numFrames, int channelsPerFrame) {
         this.reader = reader;
         this.numFrames = numFrames;

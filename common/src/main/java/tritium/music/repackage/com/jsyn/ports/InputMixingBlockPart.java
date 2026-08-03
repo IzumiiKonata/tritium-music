@@ -28,9 +28,9 @@ import java.io.PrintStream;
  */
 
 public class InputMixingBlockPart extends PortBlockPart {
-    private double[] mixer = new double[Synthesizer.FRAMES_PER_BLOCK];
+    private final double[] mixer = new double[Synthesizer.FRAMES_PER_BLOCK];
     private double current;
-    private UnitInputPort unitInputPort;
+    private final UnitInputPort unitInputPort;
 
     InputMixingBlockPart(UnitInputPort unitInputPort, double defaultValue) {
         super(unitInputPort, defaultValue);

@@ -203,7 +203,8 @@ public final class LyricsFetcher {
     private static int firstTimedResult(List<Optional<LyricsResult>> completed) {
         for (int i = 0; i < completed.size(); i++) {
             Optional<LyricsResult> result = completed.get(i);
-            if (result != null && result.isPresent() && !result.get().isEmpty() && hasWordTimings(result.get())) return i;
+            if (result != null && result.isPresent() && !result.get().isEmpty() && hasWordTimings(result.get()))
+                return i;
         }
         return -1;
     }

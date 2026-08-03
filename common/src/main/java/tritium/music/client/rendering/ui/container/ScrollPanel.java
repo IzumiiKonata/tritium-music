@@ -8,8 +8,6 @@ import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.ui.AbstractWidget;
 
-import java.util.List;
-
 public class ScrollPanel extends AbstractWidget<ScrollPanel> {
 
     @Getter

@@ -87,6 +87,7 @@ public abstract class UnitGenerator {
 
     /**
      * Case-insensitive search for a port by name.
+     *
      * @param portName
      * @return matching port or null
      */
@@ -150,7 +151,9 @@ public abstract class UnitGenerator {
         synthesisEngine.autoStopUnit(getTopUnit());
     }
 
-    /** Calculate signal based on halflife of an exponential decay. */
+    /**
+     * Calculate signal based on halflife of an exponential decay.
+     */
     public double convertHalfLifeToMultiplier(double halfLife) {
         if (halfLife < (2.0 * getFramePeriod())) {
             return 1.0;
@@ -170,7 +173,9 @@ public abstract class UnitGenerator {
         return currentPhase;
     }
 
-    /** Calculate rate based on phase going from 0.0 to 1.0 in time. */
+    /**
+     * Calculate rate based on phase going from 0.0 to 1.0 in time.
+     */
     protected double convertTimeToRate(double time) {
         double period2X = synthesisEngine.getInverseNyquist();
         if (time < period2X) {
@@ -180,7 +185,9 @@ public abstract class UnitGenerator {
         }
     }
 
-    /** Flatten output ports so we don't output a changing signal when stopped. */
+    /**
+     * Flatten output ports so we don't output a changing signal when stopped.
+     */
     public void flattenOutputs() {
         for (UnitPort port : ports.values()) {
             if (port instanceof UnitOutputPort) {
@@ -308,19 +315,23 @@ public abstract class UnitGenerator {
     }
 
     /**
-     * @deprecated ignored, frameRate comes from the SynthesisEngine
      * @param rate
+     * @deprecated ignored, frameRate comes from the SynthesisEngine
      */
     @Deprecated
     public void setFrameRate(int rate) {
     }
 
-    /** Needed by UnitSink */
+    /**
+     * Needed by UnitSink
+     */
     public UnitGenerator getUnitGenerator() {
         return this;
     }
 
-    /** Needed by UnitVoice */
+    /**
+     * Needed by UnitVoice
+     */
     public void setPort(String portName, double value, TimeStamp timeStamp) {
         UnitInputPort port = (UnitInputPort) getPortByName(portName);
         // LOGGER.debug("setPort " + port );

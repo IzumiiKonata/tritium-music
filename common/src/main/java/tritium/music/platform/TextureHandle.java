@@ -1,14 +1,6 @@
 package tritium.music.platform;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-
-@Getter
-@RequiredArgsConstructor
-public final class TextureHandle {
-
-    private final String namespace;
-    private final String path;
+public record TextureHandle(String namespace, String path) {
 
     public static TextureHandle of(String path) {
         return new TextureHandle("tritium-music", normalize(path));
@@ -47,11 +39,6 @@ public final class TextureHandle {
         if (this == o) return true;
         if (!(o instanceof TextureHandle that)) return false;
         return namespace.equals(that.namespace) && path.equals(that.path);
-    }
-
-    @Override
-    public int hashCode() {
-        return 31 * namespace.hashCode() + path.hashCode();
     }
 
     @Override

@@ -36,7 +36,7 @@ public class MinecraftMusicPlatform implements MusicPlatform {
     }
 
     private Identifier toIdentifier(TextureHandle handle) {
-        return Identifier.fromNamespaceAndPath(handle.getNamespace(), handle.getPath());
+        return Identifier.fromNamespaceAndPath(handle.namespace(), handle.path());
     }
 
     @Override

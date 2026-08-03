@@ -41,21 +41,27 @@ import java.io.InputStream;
 public class Flac2PcmAudioInputStream extends RingedAudioInputStream implements
         PCMProcessor {
 
-    /** Flac Decoder. */
+    /**
+     * Flac Decoder.
+     */
     private FLACDecoder decoder;
 
     private ByteData pcmData;
 
-    /** StreamInfo MetaData. */
+    /**
+     * StreamInfo MetaData.
+     */
     private StreamInfo streamInfo;
 
-    /** the meta data from the stream */
+    /**
+     * the meta data from the stream
+     */
     private Metadata[] metaData;
 
     /**
      * Constructor.
      *
-     * @param in the underlying input stream.
+     * @param in     the underlying input stream.
      * @param format the target format of this stream's audio data.
      * @param length the length in sample frames of the data in this stream.
      */
@@ -67,10 +73,10 @@ public class Flac2PcmAudioInputStream extends RingedAudioInputStream implements
     /**
      * Constructor.
      *
-     * @param in the underlying input stream.
+     * @param in     the underlying input stream.
      * @param format the target format of this stream's audio data.
      * @param length the length in sample frames of the data in this stream.
-     * @param size the buffer size.
+     * @param size   the buffer size.
      */
     public Flac2PcmAudioInputStream(InputStream in, AudioFormat format,
                                     long length, int size) {
@@ -98,7 +104,7 @@ public class Flac2PcmAudioInputStream extends RingedAudioInputStream implements
     /**
      * Initialize the Flac Decoder after reading the Header.
      *
-     * @exception IOException
+     * @throws IOException
      */
     protected void initDecoder() throws IOException {
         decoder = new FLACDecoder(in);

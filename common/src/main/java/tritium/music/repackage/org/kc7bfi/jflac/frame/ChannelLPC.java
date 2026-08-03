@@ -30,6 +30,7 @@ import java.io.IOException;
 
 /**
  * LPC FLAC subframe (channel).
+ *
  * @author kc7bfi
  */
 public class ChannelLPC extends Channel {
@@ -37,23 +38,24 @@ public class ChannelLPC extends Channel {
     private static final int SUBFRAME_LPC_QLP_SHIFT_LEN = 5; /* bits */
     private static final int MAX_LPC_ORDER = 32;
 
-    private EntropyCodingMethod entropyCodingMethod; // The residual coding method.
-    private int order; // The FIR order.
-    private int qlpCoeffPrecision; // Quantized FIR filter coefficient precision in bits.
-    private int quantizationLevel; // The qlp coeff shift needed.
-    private int[] qlpCoeff = new int[MAX_LPC_ORDER]; // FIR filter coefficients.
-    private int[] warmup = new int[MAX_LPC_ORDER]; // Warmup samples to prime the predictor, length == order.
-    private int[] residual; // The residual signal, length == (blocksize minus order) samples.
+    private final EntropyCodingMethod entropyCodingMethod; // The residual coding method.
+    private final int order; // The FIR order.
+    private final int qlpCoeffPrecision; // Quantized FIR filter coefficient precision in bits.
+    private final int quantizationLevel; // The qlp coeff shift needed.
+    private final int[] qlpCoeff = new int[MAX_LPC_ORDER]; // FIR filter coefficients.
+    private final int[] warmup = new int[MAX_LPC_ORDER]; // Warmup samples to prime the predictor, length == order.
+    private final int[] residual; // The residual signal, length == (blocksize minus order) samples.
 
     /**
      * The constructor.
-     * @param is            The InputBitStream
-     * @param header        The FLAC Frame Header
-     * @param channelData   The decoded channel data (output)
-     * @param bps           The bits-per-second
-     * @param wastedBits    The bits waisted in the frame
-     * @param order         The predicate order
-     * @throws IOException  Thrown if error reading from the InputBitStream
+     *
+     * @param is          The InputBitStream
+     * @param header      The FLAC Frame Header
+     * @param channelData The decoded channel data (output)
+     * @param bps         The bits-per-second
+     * @param wastedBits  The bits waisted in the frame
+     * @param order       The predicate order
+     * @throws IOException          Thrown if error reading from the InputBitStream
      * @throws FrameDecodeException
      */
     public ChannelLPC(BitInputStream is, Header header, ChannelData channelData, int bps, int wastedBits, int order) throws IOException, FrameDecodeException {
@@ -133,7 +135,7 @@ public class ChannelLPC extends Channel {
         for (int i = 0; i < order; i++) sb.append(warmup[i]).append(" ");
         sb.append("\n\t\tParameter: ");
         for (int i = 0; i < (1 << entropyCodingMethod.order); i++)
-            sb.append(((EntropyPartitionedRice) entropyCodingMethod).contents.parameters[i]).append(" ");
+            sb.append(entropyCodingMethod.contents.parameters[i]).append(" ");
         //sb.append("\n\t\tResidual: ");
         //for (int i = 0; i < header.blockSize; i++) sb.append(residual[i] + " ");
         return sb.toString();

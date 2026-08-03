@@ -26,6 +26,7 @@ import java.io.IOException;
 
 /**
  * This class holds the Entropy Partitioned Rice contents.
+ *
  * @author kc7bfi
  */
 public class EntropyPartitionedRice extends EntropyCodingMethod {
@@ -36,12 +37,12 @@ public class EntropyPartitionedRice extends EntropyCodingMethod {
     /**
      * Read compressed signal residual data.
      *
-     * @param is                The InputBitStream
-     * @param predictorOrder    The predicate order
-     * @param partitionOrder    The partition order
-     * @param header            The FLAC Frame Header
-     * @param residual          The residual signal (output)
-     * @throws IOException      On error reading from InputBitStream
+     * @param is             The InputBitStream
+     * @param predictorOrder The predicate order
+     * @param partitionOrder The partition order
+     * @param header         The FLAC Frame Header
+     * @param residual       The residual signal (output)
+     * @throws IOException On error reading from InputBitStream
      */
     void readResidual(BitInputStream is, int predictorOrder, int partitionOrder, Header header, int[] residual) throws IOException {
         //System.out.println("readREsidual Pred="+predictorOrder+" part="+partitionOrder);

@@ -16,12 +16,12 @@
 
 package tritium.music.repackage.com.jsyn.util;
 
+import lombok.SneakyThrows;
 import tritium.music.repackage.com.jsyn.data.FloatSample;
 import tritium.music.repackage.com.jsyn.util.soundfile.CustomSampleLoader;
 import tritium.music.repackage.com.jsyn.util.soundfile.streamed.buffered.BufferedSampleLoader;
 import tritium.music.repackage.com.jsyn.util.soundfile.streamed.raf.RafSampleLoader;
 import tritium.music.repackage.javazoom.jl.converter.Converter;
-import lombok.SneakyThrows;
 
 import java.io.*;
 import java.net.URL;
@@ -105,7 +105,7 @@ public class SampleLoader {
      * If set true then the audio file parser from JavaSound will be used. Note that JavaSound
      * cannot load audio files containing floating point data. But it may be able to load some
      * compressed data formats such as uLaw.
-     *
+     * <p>
      * Note: JavaSound is not supported on Android.
      *
      * @param javaSoundPreferred
@@ -118,14 +118,14 @@ public class SampleLoader {
      * Decode 24 bit samples from a BigEndian byte array into a float array. The samples will be
      * normalized into the range -1.0 to +1.0.
      *
-     * @param audioBytes raw data from an audio file
-     * @param offset first element of byte array
-     * @param numBytes number of bytes to process
-     * @param data array to be filled with floats
+     * @param audioBytes   raw data from an audio file
+     * @param offset       first element of byte array
+     * @param numBytes     number of bytes to process
+     * @param data         array to be filled with floats
      * @param outputOffset first element of float array to be filled
      */
     public static void decodeBigI24ToF32(byte[] audioBytes, int offset, int numBytes, float[] data,
-            int outputOffset) {
+                                         int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;
@@ -139,7 +139,7 @@ public class SampleLoader {
     }
 
     public static void decodeBigI16ToF32(byte[] audioBytes, int offset, int numBytes, float[] data,
-            int outputOffset) {
+                                         int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;
@@ -152,7 +152,7 @@ public class SampleLoader {
     }
 
     public static void decodeBigF32ToF32(byte[] audioBytes, int offset, int numBytes, float[] data,
-            int outputOffset) {
+                                         int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;
@@ -166,7 +166,7 @@ public class SampleLoader {
     }
 
     public static void decodeBigI32ToF32(byte[] audioBytes, int offset, int numBytes, float[] data,
-            int outputOffset) {
+                                         int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;
@@ -180,7 +180,7 @@ public class SampleLoader {
     }
 
     public static void decodeLittleF32ToF32(byte[] audioBytes, int offset, int numBytes,
-            float[] data, int outputOffset) {
+                                            float[] data, int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;
@@ -194,7 +194,7 @@ public class SampleLoader {
     }
 
     public static void decodeLittleI32ToF32(byte[] audioBytes, int offset, int numBytes,
-            float[] data, int outputOffset) {
+                                            float[] data, int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;
@@ -208,7 +208,7 @@ public class SampleLoader {
     }
 
     public static void decodeLittleI24ToF32(byte[] audioBytes, int offset, int numBytes,
-            float[] data, int outputOffset) {
+                                            float[] data, int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;
@@ -222,7 +222,7 @@ public class SampleLoader {
     }
 
     public static void decodeLittleI16ToF32(byte[] audioBytes, int offset, int numBytes,
-            float[] data, int outputOffset) {
+                                            float[] data, int outputOffset) {
         int lastByte = offset + numBytes;
         int byteCursor = offset;
         int floatCursor = outputOffset;

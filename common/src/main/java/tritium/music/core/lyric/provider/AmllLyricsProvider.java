@@ -1,10 +1,6 @@
 package tritium.music.core.lyric.provider;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public final class AmllLyricsProvider implements LyricsProvider {
     private static final String BASE_URL = "https://raw.githubusercontent.com/amll-dev/amll-ttml-db/refs/heads/main/";

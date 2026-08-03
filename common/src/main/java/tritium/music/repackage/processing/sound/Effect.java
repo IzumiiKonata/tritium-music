@@ -9,6 +9,7 @@ import java.util.Set;
 
 /**
  * For advanced users: common superclass of all effect types
+ *
  * @webref Effects
  */
 // helper class for applying the same effect (with the same parameters) on two channels.
@@ -21,62 +22,65 @@ import java.util.Set;
 // effect from the synthesis.
 public abstract class Effect<EffectType extends UnitFilter> {
 
-	// store references to all input sources
-	protected Set<SoundObject> inputs = new HashSet<>();
+    // store references to all input sources
+    protected Set<SoundObject> inputs = new HashSet<>();
 
-	protected EffectType left;
-	protected EffectType right;
-	protected UnitOutputPort output;
+    protected EffectType left;
+    protected EffectType right;
+    protected UnitOutputPort output;
 
-	// invoked by subclasses
-	protected Effect() {
-		Engine.getEngine();
-		this.left = this.newInstance();
-		this.right = this.newInstance();
-		TwoInDualOut merge = new TwoInDualOut();
-		merge.inputA.connect(this.left.output);
-		merge.inputB.connect(this.right.output);
-		this.output = merge.output;
-	}
+    // invoked by subclasses
+    protected Effect() {
+        Engine.getEngine();
+        this.left = this.newInstance();
+        this.right = this.newInstance();
+        TwoInDualOut merge = new TwoInDualOut();
+        merge.inputA.connect(this.left.output);
+        merge.inputB.connect(this.right.output);
+        this.output = merge.output;
+    }
 
-	protected abstract EffectType newInstance();
+    protected abstract EffectType newInstance();
 
-	/**
-	 * Get information on whether this effect is currently active.
-	 * @return true if this effect is currently processing at least one sound source
-	 */
-	public boolean isProcessing() {
-		return ! this.inputs.isEmpty();
-	}
+    /**
+     * Get information on whether this effect is currently active.
+     *
+     * @return true if this effect is currently processing at least one sound source
+     */
+    public boolean isProcessing() {
+        return !this.inputs.isEmpty();
+    }
 
-	/**
-	 * Start the effect.
-	 * @param input Input sound source
-	 * @webref Effects:Effect
-	 */
-	public void process(SoundObject input) {
-		if (this.inputs.add(input)) {
-			// attach effect to circuit until removed with effect.stop()
-			input.setEffect(this);
-		} else {
-			Engine.printWarning("the effect is already processing this sound source");
-		}
-	}
+    /**
+     * Start the effect.
+     *
+     * @param input Input sound source
+     * @webref Effects:Effect
+     */
+    public void process(SoundObject input) {
+        if (this.inputs.add(input)) {
+            // attach effect to circuit until removed with effect.stop()
+            input.setEffect(this);
+        } else {
+            Engine.printWarning("the effect is already processing this sound source");
+        }
+    }
 
-	/**
-	 * Stop the effect.
-	 * @webref Effects:Effect
-	 */
-	public void stop() {
-		if (this.inputs.isEmpty()) {
+    /**
+     * Stop the effect.
+     *
+     * @webref Effects:Effect
+     */
+    public void stop() {
+        if (this.inputs.isEmpty()) {
 //			Engine.printWarning("this effect is not currently processing any signals.");
-		} else {
-			for (SoundObject o : this.inputs) {
-				o.removeEffect(this);
-			}
-			this.inputs.clear();
-			Engine.getEngine().remove(this.left);
-			Engine.getEngine().remove(this.right);
-		}
-	}
+        } else {
+            for (SoundObject o : this.inputs) {
+                o.removeEffect(this);
+            }
+            this.inputs.clear();
+            Engine.getEngine().remove(this.left);
+            Engine.getEngine().remove(this.right);
+        }
+    }
 }

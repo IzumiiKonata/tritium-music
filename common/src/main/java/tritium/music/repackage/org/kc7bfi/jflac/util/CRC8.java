@@ -22,6 +22,7 @@ package tritium.music.repackage.org.kc7bfi.jflac.util;
 
 /**
  * Utility class to calculate 8-bit CRC.
+ *
  * @author kc7bfi
  */
 public final class CRC8 {
@@ -289,8 +290,8 @@ public final class CRC8 {
     /**
      * Update the CRC value with a byte data.
      *
-     * @param data  The byte data
-     * @param crc   The starting CRC value
+     * @param data The byte data
+     * @param crc  The starting CRC value
      * @return The updated CRC value
      */
     public static byte update(byte data, byte crc) {
@@ -300,9 +301,9 @@ public final class CRC8 {
     /**
      * Update the CRC value with data from a byte array.
      *
-     * @param data  The byte array
-     * @param len   The byte array length
-     * @param crc   The starting CRC value
+     * @param data The byte array
+     * @param len  The byte array length
+     * @param crc  The starting CRC value
      * @return The updated CRC value
      */
     public static byte updateBlock(byte[] data, int len, byte crc) {
@@ -314,8 +315,8 @@ public final class CRC8 {
     /**
      * Calculate the CRC value with data from a byte array.
      *
-     * @param data  The byte array
-     * @param len   The byte array length
+     * @param data The byte array
+     * @param len  The byte array length
      * @return The calculated CRC value
      */
     public static byte calc(byte[] data, int len) {
