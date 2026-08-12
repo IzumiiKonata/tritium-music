@@ -12,6 +12,8 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
 
     @Getter
     private double spacing = 0;
+    private double horizontalSpacing = 0;
+    private double verticalSpacing = 0;
     public double actualScrollOffset = 0, targetScrollOffset = 0;
 
     @Getter
@@ -45,6 +47,18 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
 
     public ScrollPanel setSpacing(double spacing) {
         this.spacing = spacing;
+        this.horizontalSpacing = spacing;
+        this.verticalSpacing = spacing;
+        return this;
+    }
+
+    public ScrollPanel setHorizontalSpacing(double horizontalSpacing) {
+        this.horizontalSpacing = horizontalSpacing;
+        return this;
+    }
+
+    public ScrollPanel setVerticalSpacing(double verticalSpacing) {
+        this.verticalSpacing = verticalSpacing;
         return this;
     }
 
@@ -154,6 +168,7 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
     public void alignChildren() {
         double offsetX = 0;
         double offsetY = 0;
+        double rowHeight = 0;
 
         if (this.alignment == Alignment.VERTICAL || this.alignment == Alignment.VERTICAL_WITH_HORIZONTAL_FILL)
             offsetY = -this.actualScrollOffset;
@@ -197,20 +212,22 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
             switch (this.alignment) {
                 case VERTICAL -> {
                     child.setPosition(child.getRelativeX(), offsetY);
-                    offsetY += height + spacing;
+                    offsetY += height + verticalSpacing;
                 }
                 case HORIZONTAL -> {
                     child.setPosition(offsetX, child.getRelativeY());
-                    offsetX += width + spacing;
+                    offsetX += width + horizontalSpacing;
                 }
                 case VERTICAL_WITH_HORIZONTAL_FILL -> {
-                    if (offsetX + width > this.getWidth()) {
+                    if (offsetX > 0 && offsetX + width > this.getWidth()) {
                         offsetX = 0;
-                        offsetY += height + spacing;
+                        offsetY += rowHeight + verticalSpacing;
+                        rowHeight = 0;
                     }
 
                     child.setPosition(offsetX, offsetY);
-                    offsetX += width + spacing;
+                    offsetX += width + horizontalSpacing;
+                    rowHeight = Math.max(rowHeight, height);
                 }
             }
         }
@@ -223,11 +240,11 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
             if (child.isHidden())
                 continue;
 
-            result += child.getHeight() + this.spacing;
+            result += child.getHeight() + this.verticalSpacing;
         }
 
         if (result > 0)
-            result -= this.spacing;
+            result -= this.verticalSpacing;
 
         return result;
     }
@@ -239,11 +256,11 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
             if (child.isHidden())
                 continue;
 
-            result += child.getWidth() + this.spacing;
+            result += child.getWidth() + this.horizontalSpacing;
         }
 
         if (result > 0)
-            result -= this.spacing;
+            result -= this.horizontalSpacing;
 
         return result;
     }
@@ -251,6 +268,8 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
     protected double getChildrenHeightSumHorizontalFill() {
         double result = 0;
         double offsetX = 0;
+        double rowHeight = 0;
+        boolean hasRow = false;
 
         for (AbstractWidget<?> child : this.getChildren()) {
             double width = child.getWidth();
@@ -259,20 +278,19 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
             if (child.isHidden())
                 continue;
 
-            if (offsetX == 0 && result == 0) {
-                result += height + spacing;
-            }
-
-            if (offsetX + width > this.getWidth()) {
+            if (offsetX > 0 && offsetX + width > this.getWidth()) {
+                result += rowHeight + verticalSpacing;
                 offsetX = 0;
-                result += height + spacing;
+                rowHeight = 0;
             }
 
-            offsetX += width + spacing;
+            offsetX += width + horizontalSpacing;
+            rowHeight = Math.max(rowHeight, height);
+            hasRow = true;
         }
 
-        if (result > 0)
-            result -= this.spacing;
+        if (hasRow)
+            result += rowHeight;
 
         return result;
     }

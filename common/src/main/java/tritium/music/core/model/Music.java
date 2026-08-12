@@ -57,6 +57,7 @@ public class Music {
     private transient TextureHandle coverLocation;
     private transient TextureHandle blurredCoverLocation;
     private transient TextureHandle smallCoverLocation;
+    private transient TextureHandle gridCoverLocation;
 
     public final TextureHandle getCoverLocation() {
         if (coverLocation == null) {
@@ -77,6 +78,13 @@ public class Music {
             smallCoverLocation = TextureHandle.of("textures/music/" + this.id + "/cover_small.png");
         }
         return smallCoverLocation;
+    }
+
+    public final TextureHandle getGridCoverLocation() {
+        if (gridCoverLocation == null) {
+            gridCoverLocation = TextureHandle.of("textures/music/" + this.id + "/cover_grid.png");
+        }
+        return gridCoverLocation;
     }
 
     public String getArtistsName() {

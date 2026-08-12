@@ -32,6 +32,12 @@ public class WidgetConfig {
 
     public double volume = 0.25;
     public Quality quality = Quality.STANDARD;
+    public PlaylistViewMode playlistViewMode = PlaylistViewMode.GRID;
+
+    public enum PlaylistViewMode {
+        LIST,
+        GRID
+    }
 
     public static class WidgetSettings {
         public double x;
@@ -120,6 +126,7 @@ public class WidgetConfig {
         if (lyrics == null) lyrics = new Lyrics();
         if (spectrum == null) spectrum = new Spectrum();
         if (quality == null) quality = Quality.STANDARD;
+        if (playlistViewMode == null) playlistViewMode = PlaylistViewMode.GRID;
     }
 
     public void applyToState() {

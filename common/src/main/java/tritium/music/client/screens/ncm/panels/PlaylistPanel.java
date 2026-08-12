@@ -2,6 +2,7 @@ package tritium.music.client.screens.ncm.panels;
 
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
+import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
@@ -20,7 +21,6 @@ import tritium.music.platform.TextureHandle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class PlaylistPanel extends NCMPanel {
 
@@ -33,6 +33,8 @@ public class PlaylistPanel extends NCMPanel {
     private TextFieldWidget tfSearch;
     private final ContextMenuWidget contextMenu = new ContextMenuWidget();
     private double tfOpenAnimation = 20;
+    private ScrollPanel musicsPanel;
+    private List<Music> loadedMusics = List.of();
 
     private static boolean isCtrlDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
@@ -175,6 +177,8 @@ public class PlaylistPanel extends NCMPanel {
                 tfSearch.setDisabledTextColor(RenderSystem.reAlpha(this.getColor(NCMScreen.ColorType.PRIMARY_TEXT), .4f));
             });
 
+            addViewModeControls(btnPlayRandomOrder);
+
             RoundedImageWidget creatorAvatar = new RoundedImageWidget(this.playList.getCreator().getAvatarLocation(), 0, 0, 0, 0);
             this.addChild(creatorAvatar);
             creatorAvatar.fadeIn();
@@ -227,38 +231,116 @@ public class PlaylistPanel extends NCMPanel {
             rwMusicsContainer.setPosition(rwMusicsContainer.getRelativeX(), musicsContainerOffsetY);
         });
 
-        ScrollPanel musicsPanel = new ScrollPanel();
+        musicsPanel = new ScrollPanel();
 
         rwMusicsContainer.addChild(musicsPanel);
-        musicsPanel.setSpacing(0);
+        applyViewMode();
 
         musicsPanel.setBeforeRenderCallback(() -> musicsPanel.setMargin(0));
 
         playList.loadMusicsWithCallback(musics -> {
-            long revealStart = System.currentTimeMillis();
-            musicsPanel.addChild(musics.stream().map(music -> new MusicWidget(music, playList, playList.getMusics().indexOf(music), revealStart, this).setShouldOverrideMouseCursor(true)).collect(Collectors.toList()));
+            loadedMusics = List.copyOf(musics);
+            rebuildMusicWidgets();
         });
 
         if (this.tfSearch != null) {
             this.tfSearch.setTextChangedCallback(text -> {
-                if (text.isEmpty()) {
-                    musicsPanel.getChildren().forEach(child -> child.setHidden(false));
-                } else {
-                    musicsPanel.getChildren()
-                            .stream()
-                            .filter(child -> child instanceof MusicWidget)
-                            .map(child -> (MusicWidget) child)
-                            .forEach(widget -> {
-                                widget.setHidden(!widget.music.getName().toLowerCase().contains(text.toLowerCase()) &&
-                                        !widget.music.getTranslatedNames().toLowerCase().contains(text.toLowerCase()) &&
-                                        widget.music.getArtists().stream().noneMatch(artist -> artist != null && artist.name() != null && artist.name().toLowerCase().contains(text.toLowerCase())) &&
-                                        (widget.music.getAlbum() == null || widget.music.getAlbum().getName() == null || !widget.music.getAlbum().getName().toLowerCase().contains(text.toLowerCase())));
-                            });
-                }
+                filterMusics(text);
             });
         }
 
         this.addChild(contextMenu);
+    }
+
+    private void addViewModeControls(RoundedButtonWidget rowButton) {
+        double controlWidth = 36;
+        double controlSpacing = 6;
+        double rightMargin = 24;
+
+        RoundedButtonWidget btnListView = new RoundedButtonWidget("列表", FontManager.pf14bold);
+        RoundedButtonWidget btnGridView = new RoundedButtonWidget("平铺", FontManager.pf14bold);
+        this.addChild(btnListView, btnGridView);
+
+        btnListView.setBeforeRenderCallback(() -> {
+            boolean selected = getViewMode() == WidgetConfig.PlaylistViewMode.LIST;
+            btnListView.setBounds(controlWidth, rowButton.getHeight());
+            btnListView.setPosition(this.getWidth() - rightMargin - controlWidth * 2 - controlSpacing, rowButton.getRelativeY());
+            btnListView.setRadius(4);
+            btnListView.setColor(selected ? 0xFFD60017 : NCMScreen.getColor(NCMScreen.ColorType.ELEMENT_BACKGROUND));
+            btnListView.setTextColor(NCMScreen.getColor(selected ? NCMScreen.ColorType.PRIMARY_TEXT : NCMScreen.ColorType.SECONDARY_TEXT));
+        });
+        btnGridView.setBeforeRenderCallback(() -> {
+            boolean selected = getViewMode() == WidgetConfig.PlaylistViewMode.GRID;
+            btnGridView.setBounds(controlWidth, rowButton.getHeight());
+            btnGridView.setPosition(this.getWidth() - rightMargin - controlWidth, rowButton.getRelativeY());
+            btnGridView.setRadius(4);
+            btnGridView.setColor(selected ? 0xFFD60017 : NCMScreen.getColor(NCMScreen.ColorType.ELEMENT_BACKGROUND));
+            btnGridView.setTextColor(NCMScreen.getColor(selected ? NCMScreen.ColorType.PRIMARY_TEXT : NCMScreen.ColorType.SECONDARY_TEXT));
+        });
+        btnListView.setOnClickCallback((relativeX, relativeY, mouseButton) -> {
+            if (mouseButton == 0) setViewMode(WidgetConfig.PlaylistViewMode.LIST);
+            return true;
+        });
+        btnGridView.setOnClickCallback((relativeX, relativeY, mouseButton) -> {
+            if (mouseButton == 0) setViewMode(WidgetConfig.PlaylistViewMode.GRID);
+            return true;
+        });
+    }
+
+    private WidgetConfig.PlaylistViewMode getViewMode() {
+        return WidgetConfig.get().playlistViewMode;
+    }
+
+    private void setViewMode(WidgetConfig.PlaylistViewMode viewMode) {
+        WidgetConfig config = WidgetConfig.get();
+        if (config.playlistViewMode == viewMode) return;
+        config.playlistViewMode = viewMode;
+        config.save();
+        rebuildMusicWidgets();
+    }
+
+    private void applyViewMode() {
+        boolean grid = getViewMode() == WidgetConfig.PlaylistViewMode.GRID;
+        musicsPanel.setAlignment(grid ? ScrollPanel.Alignment.VERTICAL_WITH_HORIZONTAL_FILL : ScrollPanel.Alignment.VERTICAL);
+        musicsPanel.setSpacing(grid ? 12 : 0);
+        musicsPanel.setVerticalSpacing(grid ? 2 : 0);
+    }
+
+    private void rebuildMusicWidgets() {
+        if (musicsPanel == null) return;
+
+        applyViewMode();
+        musicsPanel.getChildren().clear();
+        musicsPanel.actualScrollOffset = 0;
+        musicsPanel.targetScrollOffset = 0;
+
+        MusicWidget.Style style = getViewMode() == WidgetConfig.PlaylistViewMode.GRID
+                ? MusicWidget.Style.GRID
+                : MusicWidget.Style.LIST;
+        long revealStart = System.currentTimeMillis();
+        for (int i = 0; i < loadedMusics.size(); i++) {
+            Music music = loadedMusics.get(i);
+            int playlistIndex = playList.getMusics().indexOf(music);
+            if (playlistIndex < 0) playlistIndex = i;
+            musicsPanel.addChild(new MusicWidget(music, playList, playlistIndex, revealStart, this, style)
+                    .setShouldOverrideMouseCursor(true));
+        }
+
+        filterMusics(tfSearch == null ? "" : tfSearch.getText());
+    }
+
+    private void filterMusics(String text) {
+        if (musicsPanel == null) return;
+        String query = text == null ? "" : text.toLowerCase();
+        musicsPanel.getChildren()
+                .stream()
+                .filter(child -> child instanceof MusicWidget)
+                .map(child -> (MusicWidget) child)
+                .forEach(widget -> widget.setHidden(!query.isEmpty() &&
+                        !widget.music.getName().toLowerCase().contains(query) &&
+                        !widget.music.getTranslatedNames().toLowerCase().contains(query) &&
+                        widget.music.getArtists().stream().noneMatch(artist -> artist != null && artist.name() != null && artist.name().toLowerCase().contains(query)) &&
+                        (widget.music.getAlbum() == null || widget.music.getAlbum().getName() == null || !widget.music.getAlbum().getName().toLowerCase().contains(query))));
     }
 
     public void openMusicMenu(MusicWidget widget, double mouseX, double mouseY) {

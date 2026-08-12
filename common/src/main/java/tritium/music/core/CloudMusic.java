@@ -869,20 +869,20 @@ public class CloudMusic {
     }
 
     public static void loadMusicCover(Music music, boolean forceReload) {
-        if (shouldLoadCover(music.getCoverLocation(), forceReload)) {
-            loadMainCoverAsync(music, music.getCoverLocation(), music.getBlurredCoverLocation());
+        tritium.music.platform.TextureHandle mainCover = music.getCoverLocation();
+        tritium.music.platform.TextureHandle blurredCover = music.getBlurredCoverLocation();
+        boolean mainCoverIncomplete = forceReload || !Platform.hasTexture(mainCover) || !Platform.hasTexture(blurredCover);
+        if (mainCoverIncomplete && LOADING_COVERS.add(mainCover)) {
+            loadMainCoverAsync(music, mainCover, blurredCover);
         }
 
-        if (shouldLoadCover(music.getSmallCoverLocation(), forceReload)) {
-            loadSmallCoverAsync(music, music.getSmallCoverLocation());
+        tritium.music.platform.TextureHandle smallCover = music.getSmallCoverLocation();
+        if ((forceReload || !Platform.hasTexture(smallCover)) && LOADING_COVERS.add(smallCover)) {
+            loadSmallCoverAsync(music, smallCover);
         }
     }
 
     private static final Set<tritium.music.platform.TextureHandle> LOADING_COVERS = ConcurrentHashMap.newKeySet();
-
-    private static boolean shouldLoadCover(tritium.music.platform.TextureHandle coverLocation, boolean forceReload) {
-        return !Platform.hasTexture(coverLocation) || forceReload;
-    }
 
     private static void loadMainCoverAsync(Music music, tritium.music.platform.TextureHandle musicCover, tritium.music.platform.TextureHandle musicCoverBlur) {
         AsyncUtil.runAsync(() -> {
