@@ -399,6 +399,13 @@ public class NCMScreen extends BaseScreen {
         }
     }
 
+    @Override
+    public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
+        if (musicLyricsPanel == null && currentPanel instanceof PlaylistPanel playlistPanel) {
+            playlistPanel.onMouseReleased(mouseX, mouseY, mouseButton);
+        }
+    }
+
     public enum ColorType {
         GENERIC_BACKGROUND,
         ELEMENT_BACKGROUND,

@@ -30,6 +30,8 @@ public class MusicWidget extends RoundedRectWidget {
     private final Style style;
     private double emphasizeAnim;
     private double playingAnimation;
+    private double pressAnimation;
+    private boolean leftPressed;
     private RoundedImageWidget gridCover;
 
     private final int index;
@@ -60,6 +62,9 @@ public class MusicWidget extends RoundedRectWidget {
         this.setTransformations(() -> {
             float ep = this.entranceProgress();
             RenderContext.graphics().pose().translate(0, (1f - ep) * (float) ENTRANCE_SLIDE);
+            if (style == Style.GRID && pressAnimation > .001) {
+                this.scaleAtPos(this.getX() + this.getWidth() * .5, this.getY() + this.getHeight() * .5, 1 - pressAnimation * .04);
+            }
         });
 
         if (style == Style.GRID) {
@@ -241,6 +246,7 @@ public class MusicWidget extends RoundedRectWidget {
         }
 
         boolean playing = isPlaying();
+        pressAnimation = Interpolations.interpolate(pressAnimation, leftPressed ? 1 : 0, leftPressed ? .45f : .28f);
         playingAnimation = Interpolations.interpolate(playingAnimation, playing ? 1 : 0, .3f);
         if (gridCover != null && playingAnimation > .01) {
             int alpha = (int) (255 * this.getAlpha() * playingAnimation);
@@ -268,7 +274,6 @@ public class MusicWidget extends RoundedRectWidget {
                 if (ep >= 1f) {
                     entranceDone = true;
                     this.setAlpha(1f);
-                    this.setTransformations(null);
                 } else {
                     this.setAlpha(ep);
                 }
@@ -284,7 +289,7 @@ public class MusicWidget extends RoundedRectWidget {
 
         this.setOnClickCallback((x, y, mouseButton) -> {
             if (mouseButton == 0) {
-                CloudMusic.play(playList.getMusics(), index);
+                leftPressed = true;
             } else if (mouseButton == 1) {
                 owner.openMusicMenu(this, this.getX() + x, this.getY() + y);
             }
@@ -363,6 +368,13 @@ public class MusicWidget extends RoundedRectWidget {
                         );
                     });
         }
+    }
+
+    public void onMouseReleased(double mouseX, double mouseY, int mouseButton, boolean insidePanel) {
+        if (style != Style.GRID || mouseButton != 0) return;
+        boolean shouldPlay = leftPressed && insidePanel && testHovered(mouseX, mouseY);
+        leftPressed = false;
+        if (shouldPlay) CloudMusic.play(playList.getMusics(), index);
     }
 
     private boolean isPlaying() {

@@ -305,6 +305,7 @@ public class PlaylistPanel extends NCMPanel {
         musicsPanel.setAlignment(grid ? ScrollPanel.Alignment.VERTICAL_WITH_HORIZONTAL_FILL : ScrollPanel.Alignment.VERTICAL);
         musicsPanel.setSpacing(grid ? 12 : 0);
         musicsPanel.setVerticalSpacing(grid ? 2 : 0);
+        musicsPanel.setContentPadding(grid ? 3 : 0);
     }
 
     private void rebuildMusicWidgets() {
@@ -410,6 +411,15 @@ public class PlaylistPanel extends NCMPanel {
         }
 
         super.onMouseClickReceived(mouseX, mouseY, mouseButton);
+    }
+
+    public void onMouseReleased(double mouseX, double mouseY, int mouseButton) {
+        if (musicsPanel == null) return;
+        boolean insidePanel = musicsPanel.isHovered(mouseX, mouseY, musicsPanel.getX(), musicsPanel.getY(), musicsPanel.getWidth(), musicsPanel.getHeight());
+        musicsPanel.getChildren().stream()
+                .filter(child -> child instanceof MusicWidget)
+                .map(child -> (MusicWidget) child)
+                .forEach(widget -> widget.onMouseReleased(mouseX, mouseY, mouseButton, insidePanel));
     }
 
     @Override

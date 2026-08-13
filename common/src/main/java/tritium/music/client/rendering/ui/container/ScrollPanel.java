@@ -14,6 +14,10 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
     private double spacing = 0;
     private double horizontalSpacing = 0;
     private double verticalSpacing = 0;
+    private double contentPaddingLeft = 0;
+    private double contentPaddingTop = 0;
+    private double contentPaddingRight = 0;
+    private double contentPaddingBottom = 0;
     public double actualScrollOffset = 0, targetScrollOffset = 0;
 
     @Getter
@@ -59,6 +63,14 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
 
     public ScrollPanel setVerticalSpacing(double verticalSpacing) {
         this.verticalSpacing = verticalSpacing;
+        return this;
+    }
+
+    public ScrollPanel setContentPadding(double padding) {
+        this.contentPaddingLeft = padding;
+        this.contentPaddingTop = padding;
+        this.contentPaddingRight = padding;
+        this.contentPaddingBottom = padding;
         return this;
     }
 
@@ -166,14 +178,14 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
     }
 
     public void alignChildren() {
-        double offsetX = 0;
-        double offsetY = 0;
+        double offsetX = contentPaddingLeft;
+        double offsetY = contentPaddingTop;
         double rowHeight = 0;
 
         if (this.alignment == Alignment.VERTICAL || this.alignment == Alignment.VERTICAL_WITH_HORIZONTAL_FILL)
-            offsetY = -this.actualScrollOffset;
+            offsetY -= this.actualScrollOffset;
         else
-            offsetX = -this.actualScrollOffset;
+            offsetX -= this.actualScrollOffset;
 
         switch (this.alignment) {
             case VERTICAL -> {
@@ -219,8 +231,8 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
                     offsetX += width + horizontalSpacing;
                 }
                 case VERTICAL_WITH_HORIZONTAL_FILL -> {
-                    if (offsetX > 0 && offsetX + width > this.getWidth()) {
-                        offsetX = 0;
+                    if (offsetX > contentPaddingLeft && offsetX + width > this.getWidth() - contentPaddingRight) {
+                        offsetX = contentPaddingLeft;
                         offsetY += rowHeight + verticalSpacing;
                         rowHeight = 0;
                     }
@@ -266,8 +278,8 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
     }
 
     protected double getChildrenHeightSumHorizontalFill() {
-        double result = 0;
-        double offsetX = 0;
+        double result = contentPaddingTop + contentPaddingBottom;
+        double offsetX = contentPaddingLeft;
         double rowHeight = 0;
         boolean hasRow = false;
 
@@ -278,9 +290,9 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
             if (child.isHidden())
                 continue;
 
-            if (offsetX > 0 && offsetX + width > this.getWidth()) {
+            if (offsetX > contentPaddingLeft && offsetX + width > this.getWidth() - contentPaddingRight) {
                 result += rowHeight + verticalSpacing;
-                offsetX = 0;
+                offsetX = contentPaddingLeft;
                 rowHeight = 0;
             }
 

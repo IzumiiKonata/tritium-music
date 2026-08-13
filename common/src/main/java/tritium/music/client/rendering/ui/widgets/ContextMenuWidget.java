@@ -1,6 +1,7 @@
 package tritium.music.client.rendering.ui.widgets;
 
 import tritium.music.client.rendering.Rect;
+import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.AbstractWidget;
@@ -15,6 +16,7 @@ public final class ContextMenuWidget extends AbstractWidget<ContextMenuWidget> {
     private final CFontRenderer font = FontManager.pf14bold;
     private volatile List<Item> items = List.of();
     private boolean open;
+    private float menuAlpha;
     private int firstVisibleIndex;
 
     public record Item(String label, Runnable action, boolean selected, boolean enabled) {
@@ -46,7 +48,6 @@ public final class ContextMenuWidget extends AbstractWidget<ContextMenuWidget> {
 
     public void close() {
         open = false;
-        setHidden(true);
     }
 
     public boolean isOpen() {
@@ -87,8 +88,15 @@ public final class ContextMenuWidget extends AbstractWidget<ContextMenuWidget> {
 
     @Override
     public void onRender(double mouseX, double mouseY) {
+        menuAlpha = Interpolations.interpolate(menuAlpha, open ? 1f : 0f, open ? .35f : .25f);
+        if (!open && menuAlpha <= .01f) {
+            menuAlpha = 0f;
+            setHidden(true);
+            return;
+        }
+        float renderAlpha = getAlpha() * menuAlpha;
         clampPosition();
-        roundedRect(getX(), getY(), getWidth(), getHeight(), 4, reAlpha(0xFF202126, getAlpha()));
+        roundedRect(getX(), getY(), getWidth(), getHeight(), 4, reAlpha(0xFF202126, renderAlpha));
         int visibleItems = visibleItemCount();
         int endIndex = Math.min(items.size(), firstVisibleIndex + visibleItems);
         for (int index = firstVisibleIndex; index < endIndex; index++) {
@@ -97,12 +105,12 @@ public final class ContextMenuWidget extends AbstractWidget<ContextMenuWidget> {
             boolean hovered = item.enabled() && isHovered(mouseX, mouseY, getX() + PADDING, itemY, getWidth() - PADDING * 2, ITEM_HEIGHT);
             if (hovered || item.selected()) {
                 Rect.draw(getX() + PADDING, itemY + 1, getWidth() - PADDING * 2, ITEM_HEIGHT - 2,
-                        reAlpha(hovered ? 0xFF373940 : 0xFF2D2F35, getAlpha()));
+                        reAlpha(hovered ? 0xFF373940 : 0xFF2D2F35, renderAlpha));
             }
             String text = item.selected() ? "✓  " + item.label() : item.label();
             int color = item.enabled() ? 0xFFF1F2F4 : 0xFF777A82;
             double textY = itemY + (ITEM_HEIGHT - font.getStringHeight(text)) * .5;
-            font.drawString(text, getX() + 10, textY, reAlpha(color, getAlpha()));
+            font.drawString(text, getX() + 10, textY, reAlpha(color, renderAlpha));
         }
         if (items.size() > visibleItems) {
             double trackX = getX() + getWidth() - 5;
@@ -110,9 +118,9 @@ public final class ContextMenuWidget extends AbstractWidget<ContextMenuWidget> {
             double trackHeight = visibleItems * ITEM_HEIGHT - 4;
             double thumbHeight = Math.max(18, trackHeight * visibleItems / items.size());
             double progress = firstVisibleIndex / (double) (items.size() - visibleItems);
-            Rect.draw(trackX, trackY, 2, trackHeight, reAlpha(0xFF34363C, getAlpha()));
+            Rect.draw(trackX, trackY, 2, trackHeight, reAlpha(0xFF34363C, renderAlpha));
             Rect.draw(trackX, trackY + (trackHeight - thumbHeight) * progress, 2, thumbHeight,
-                    reAlpha(0xFF8A8D95, getAlpha()));
+                    reAlpha(0xFF8A8D95, renderAlpha));
         }
     }
 
