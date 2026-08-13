@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
@@ -133,6 +134,17 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     public boolean charTyped(CharacterEvent event) {
         this.onKeyTyped((char) event.codepoint(), 0);
         return true;
+    }
+
+    @Override
+    public boolean preeditUpdated(PreeditEvent event) {
+        return TextField.preeditUpdated(event);
+    }
+
+    @Override
+    public void removed() {
+        TextField.clearFocus();
+        super.removed();
     }
 
     @Override

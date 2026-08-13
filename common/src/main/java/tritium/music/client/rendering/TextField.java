@@ -1,7 +1,11 @@
 package tritium.music.client.rendering;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.PreeditEvent;
+import org.joml.Vector2f;
 import org.lwjgl.glfw.GLFW;
+import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.util.MouseUtil;
@@ -75,6 +79,7 @@ public class TextField {
     }
 
     public TextField setFocused(boolean focused) {
+        boolean changed = this.focused != focused;
         if (focused && !this.focused) {
             if (focusedTextField != null && focusedTextField != this) {
                 focusedTextField.setFocused(false);
@@ -87,7 +92,26 @@ public class TextField {
         } else if (focusedTextField == this) {
             focusedTextField = null;
         }
+        if (changed) {
+            Minecraft minecraft = Minecraft.getInstance();
+            Screen screen = minecraft.gui.screen();
+            if (screen != null) {
+                minecraft.onTextInputFocusChange(screen, focused);
+            } else {
+                minecraft.textInputManager().onTextInputFocusChange(focused);
+            }
+        }
         return this;
+    }
+
+    public static boolean preeditUpdated(PreeditEvent event) {
+        return focusedTextField != null;
+    }
+
+    public static void clearFocus() {
+        if (focusedTextField != null) {
+            focusedTextField.setFocused(false);
+        }
     }
 
     public static void clearFocusOutside(double mouseX, double mouseY) {
@@ -361,6 +385,27 @@ public class TextField {
         color = RGBA.color(color, (int) (RGBA.alpha(color) * wholeAlpha));
 
         double textY = yPosition + (height - fontRenderer.getFontHeight()) * 0.5;
+
+        if (focused) {
+            double caretX = xPosition + fontRenderer.getStringWidthD(text.substring(0, cursorPosition)) - scrollOffset;
+            caretX = Math.max(xPosition, Math.min(xPosition + width, caretX));
+            Vector2f areaStart = RenderContext.graphics().pose().transformPosition(
+                    (float) caretX,
+                    (float) textY,
+                    new Vector2f()
+            );
+            Vector2f areaEnd = RenderContext.graphics().pose().transformPosition(
+                    (float) (caretX + 1),
+                    (float) (textY + fontRenderer.getFontHeight()),
+                    new Vector2f()
+            );
+            Minecraft.getInstance().textInputManager().setTextInputArea(
+                    (int) Math.floor(Math.min(areaStart.x, areaEnd.x)),
+                    (int) Math.floor(Math.min(areaStart.y, areaEnd.y)),
+                    (int) Math.ceil(Math.max(areaStart.x, areaEnd.x)),
+                    (int) Math.ceil(Math.max(areaStart.y, areaEnd.y))
+            );
+        }
 
         if (drawUnderline) {
             Rect.draw(xPosition, yPosition + height, width, 0.5, RGBA.color(lineColor.getRGB(), wholeAlpha));
