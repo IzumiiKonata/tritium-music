@@ -36,6 +36,7 @@ public class PlaylistPanel extends NCMPanel {
     private double tfOpenAnimation = 20;
     private ScrollPanel musicsPanel;
     private List<Music> loadedMusics = List.of();
+    private RoundedButtonWidget searchViewModeAnchor;
 
     private static boolean isCtrlDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
@@ -219,7 +220,13 @@ public class PlaylistPanel extends NCMPanel {
 
             musicsContainerOffsetY = cover.getRelativeY() + cover.getHeight() + 24;
         } else {
-            musicsContainerOffsetY = 18;
+            searchViewModeAnchor = new RoundedButtonWidget("", FontManager.pf14bold);
+            searchViewModeAnchor.setHidden(true);
+            searchViewModeAnchor.setBounds(36, 17);
+            searchViewModeAnchor.setPosition(0, 18);
+            this.addChild(searchViewModeAnchor);
+            addViewModeControls(searchViewModeAnchor);
+            musicsContainerOffsetY = 47;
         }
 
         Panel rwMusicsContainer = new Panel();
@@ -329,6 +336,13 @@ public class PlaylistPanel extends NCMPanel {
         }
 
         filterMusics(tfSearch == null ? "" : tfSearch.getText());
+    }
+
+    public void updateSearchResults(List<Music> musics) {
+        playList.musics.clear();
+        playList.musics.addAll(musics);
+        loadedMusics = List.copyOf(musics);
+        rebuildMusicWidgets();
     }
 
     private void filterMusics(String text) {

@@ -298,7 +298,14 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                 : CloudMusic.currentLyric;
         if (layoutLyric == null || !CloudMusic.lyrics.contains(layoutLyric)) return;
 
-        if (CloudMusic.lyrics.stream().anyMatch(lyric -> lyric.spring == null || lyric.height <= 0)) {
+        boolean layoutRequired = false;
+        for (LyricLine lyric : CloudMusic.lyrics) {
+            if (lyric.spring == null || lyric.height <= 0) {
+                layoutRequired = true;
+                break;
+            }
+        }
+        if (layoutRequired) {
             if (progressBarDragging) {
                 updateLyricPositionsImmediate(lyricsWidth, overridePlaybackProgress);
             } else {
@@ -339,7 +346,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         RenderSystem.drawGradientRectTopToBottom(dividerX, posY + height * 0.16, dividerX + 1, dividerMidY, hexColor(1f, 1f, 1f, 0f), hexColor(1f, 1f, 1f, alpha * 0.06f));
         RenderSystem.drawGradientRectTopToBottom(dividerX, dividerMidY, dividerX + 1, posY + height * 0.84, hexColor(1f, 1f, 1f, alpha * 0.06f), hexColor(1f, 1f, 1f, 0f));
 
-        StencilClipManager.beginClip(() -> Rect.draw(posX + 2.5, posY + 2.5, width - 4.5, height, -1));
+        StencilClipManager.beginClip(posX + 2.5, posY + 2.5, width - 4.5, height);
 
         LyricLine currentLyric = progressBarDragging ? CloudMusic.findCurrentLyric(overridePlaybackProgress) : CloudMusic.currentLyric;
         int currentIndex = CloudMusic.lyrics.indexOf(currentLyric);
@@ -404,23 +411,16 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
                     double emphasizeWholeWord = word.emphasizes[fragment.startInWord()];
 
-                    char[] charArray = fragment.text().toCharArray();
+                    String fragmentText = fragment.text();
+                    char[] charArray = fragmentText.toCharArray();
 
                     double emphasizeTarget = 1;
                     double emphasizeSpeed = 0.05;
 
                     if (isCurrentLyric) {
-                        if (charArray.length > 1) {
-                            double x = renderX;
-                            for (int j = 0; j < charArray.length; j++) {
-                                char c = charArray[j];
-                                int charIndex = fragment.startInWord() + j;
-                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[charIndex], hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
-                                x += FontManager.pf65bold.getCharWidth(c, j + 1 < charArray.length ? charArray[j + 1] : '\0');
-                            }
-                        } else {
-                            FontManager.pf65bold.drawString(fragment.text(), renderX, renderY - emphasizeWholeWord, hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)));
-                        }
+                        FontManager.pf65bold.drawStringWithVerticalOffsets(fragmentText, renderX, renderY,
+                                hexColor(1, 1, 1, alpha * (.35f + .15f * lyric.alpha)),
+                                word.emphasizes, fragment.startInWord());
                     } else {
                         FontManager.pf65bold.drawString(fragment.text(), renderX, renderY, hexColor(1, 1, 1, alpha * .35f));
                     }
@@ -477,18 +477,15 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             stencilShader.draw(targets.base(), targets.stencil(), renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
 
                         } else if (progress >= 1.0) {
-                            double x = renderX;
                             for (int j = 0; j < charArray.length; j++) {
-                                char c = charArray[j];
                                 int charIndex = fragment.startInWord() + j;
 
                                 if (lyric.renderEmphasizes)
                                     word.emphasizes[charIndex] = Interpolations.interpolate(word.emphasizes[charIndex], emphasizeTarget, emphasizeSpeed);
-
-                                FontManager.pf65bold.drawString(String.valueOf(c), x, renderY - word.emphasizes[charIndex],
-                                        hexColor(1f, 1f, 1f, alpha * lyric.alpha));
-                                x += FontManager.pf65bold.getCharWidth(c, j + 1 < charArray.length ? charArray[j + 1] : '\0');
                             }
+                            FontManager.pf65bold.drawStringWithVerticalOffsets(fragmentText, renderX, renderY,
+                                    hexColor(1f, 1f, 1f, alpha * lyric.alpha),
+                                    word.emphasizes, fragment.startInWord());
                         }
                     } else {
                         FontManager.pf65bold.drawString(fragment.text(), renderX, renderY - emphasizeWholeWord, hexColor(1, 1, 1, alpha * lyric.alpha));
@@ -648,8 +645,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         float totalTimeMillis = player == null ? 0.01f : player.getTotalTimeMillis();
         double perc = player == null ? 0 : (progressBarDragging ? progressBarProgressOverride : currentTimeMillis / totalTimeMillis);
 
-        double fElementsXOffset = elementsXOffset, fProgressBarYOffset = progressBarYOffset, fPerc = perc, fProgressBarWidth = progressBarWidth;
-        StencilClipManager.beginClip(() -> Rect.draw(fElementsXOffset, fProgressBarYOffset - progressBarHeight * .5, fProgressBarWidth * fPerc, progressBarHeight, -1));
+        StencilClipManager.beginClip(elementsXOffset, progressBarYOffset - progressBarHeight * .5,
+                progressBarWidth * perc, progressBarHeight);
         roundedRect(elementsXOffset, progressBarYOffset - progressBarHeight * .5, progressBarWidth, progressBarHeight, (this.progressBarHeight / 8.0f) * 2.5, hexColor(1, 1, 1, alpha));
         StencilClipManager.endClip();
 
@@ -700,9 +697,9 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         double volumeBarXOffset = elementsXOffset + FontManager.music40.getStringWidthD("I") - 2;
         roundedRect(volumeBarXOffset, volumeBarYOffset - volumeBarHeight * .5, volumeBarWidth, volumeBarHeight, (this.volumeBarHeight / 8.0f) * 2.5, hexColor(1, 1, 1, alpha * .22f));
 
-        double fVolBarX = volumeBarXOffset, fVolBarY = volumeBarYOffset, fVolBarW = volumeBarWidth;
         double vol = player == null ? 0 : player.getVolume();
-        StencilClipManager.beginClip(() -> Rect.draw(fVolBarX, fVolBarY - volumeBarHeight * .5, fVolBarW * vol, volumeBarHeight, -1));
+        StencilClipManager.beginClip(volumeBarXOffset, volumeBarYOffset - volumeBarHeight * .5,
+                volumeBarWidth * vol, volumeBarHeight);
         roundedRect(volumeBarXOffset, volumeBarYOffset - volumeBarHeight * .5, volumeBarWidth, volumeBarHeight, (this.volumeBarHeight / 8.0f) * 2.5, hexColor(1, 1, 1, alpha));
         StencilClipManager.endClip();
 

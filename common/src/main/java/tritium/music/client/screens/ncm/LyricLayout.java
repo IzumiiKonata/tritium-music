@@ -18,6 +18,7 @@ import java.util.WeakHashMap;
 public final class LyricLayout {
 
     private static final Map<LyricLine, WordLayout> WORD_LAYOUT_CACHE = new WeakHashMap<>();
+    private static final Map<LyricLine, HeightLayout> HEIGHT_LAYOUT_CACHE = new WeakHashMap<>();
 
     private LyricLayout() {
     }
@@ -33,19 +34,42 @@ public final class LyricLayout {
 
     public static void computeHeight(LyricLine line, double width) {
         CFontRenderer fr = FontManager.pf65bold;
+        CFontRenderer frTranslation = FontManager.pf34bold;
+        long widthBits = Double.doubleToLongBits(width);
+        long primaryGeneration = fr.getLayoutGeneration();
+        long translationGeneration = frTranslation.getLayoutGeneration();
+        int boundaryHash = 1;
+        for (LyricLine.Word word : line.words) {
+            boundaryHash = 31 * boundaryHash + word.word.length();
+        }
+
+        synchronized (HEIGHT_LAYOUT_CACHE) {
+            HeightLayout cached = HEIGHT_LAYOUT_CACHE.get(line);
+            if (cached != null && cached.matches(line, widthBits, primaryGeneration, translationGeneration, boundaryHash)) {
+                line.height = cached.height();
+                return;
+            }
+        }
 
         if (!line.words.isEmpty()) {
             int lineCount = wordLayout(line, width).lineCount();
             line.height = fr.getHeight() + Math.max(0, lineCount - 1) * (fr.getHeight() * .85 + 4);
         } else {
-            int length = fr.fitWidth(line.lyric, width).length;
+            int length = fr.fitWidthLines(line.lyric, width).size();
             line.height = length * fr.getHeight() * .85 + length * 4;
         }
 
         if (line.translationText != null) {
-            CFontRenderer frTranslation = FontManager.pf34bold;
-            String[] strings = frTranslation.fitWidth(line.translationText, width);
-            line.height += frTranslation.getHeight() * strings.length + 4 * (strings.length - 1) + 8;
+            int lineCount = frTranslation.fitWidthLines(line.translationText, width).size();
+            line.height += frTranslation.getHeight() * lineCount + 4 * (lineCount - 1) + 8;
+        }
+
+        if (fr.isLayoutStable(line.lyric)
+                && (line.translationText == null || frTranslation.isLayoutStable(line.translationText))) {
+            synchronized (HEIGHT_LAYOUT_CACHE) {
+                HEIGHT_LAYOUT_CACHE.put(line, new HeightLayout(line.lyric, line.translationText, widthBits,
+                        primaryGeneration, translationGeneration, boundaryHash, line.height));
+            }
         }
     }
 
@@ -120,5 +144,18 @@ public final class LyricLayout {
 
     private record WordLayout(String lyric, long widthBits, long layoutGeneration, int boundaryHash, int lineCount,
                               List<WordFragment> fragments) {
+    }
+
+    private record HeightLayout(String lyric, String translation, long widthBits, long primaryGeneration,
+                                long translationGeneration, int boundaryHash, double height) {
+        private boolean matches(LyricLine line, long requestedWidthBits, long requestedPrimaryGeneration,
+                                long requestedTranslationGeneration, int requestedBoundaryHash) {
+            return widthBits == requestedWidthBits
+                    && primaryGeneration == requestedPrimaryGeneration
+                    && translationGeneration == requestedTranslationGeneration
+                    && boundaryHash == requestedBoundaryHash
+                    && lyric.equals(line.lyric)
+                    && java.util.Objects.equals(translation, line.translationText);
+        }
     }
 }

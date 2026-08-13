@@ -79,6 +79,12 @@ public class CloudMusicApi {
 
     }
 
+    public RequestUtil.RequestAnswer searchSuggest(String keyWord) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("s", keyWord);
+        return RequestUtil.createRequest("/api/search/suggest/web", data, OptionsUtil.createOptions("weapi"));
+    }
+
     public enum SearchType {
 
         Single(1),

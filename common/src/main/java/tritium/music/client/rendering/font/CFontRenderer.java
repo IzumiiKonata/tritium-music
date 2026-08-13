@@ -120,6 +120,45 @@ public class CFontRenderer implements Closeable {
         return (float) getStringWidthD(s);
     }
 
+    public float drawStringWithVerticalOffsets(String text, double x, double y, int color,
+                                               double[] verticalOffsets, int offsetStart) {
+        GuiGraphicsExtractor graphics = RenderContext.graphics();
+        Matrix3x2fStack pose = graphics.pose();
+        pose.pushMatrix();
+        pose.translate((float) x, (float) (y - 2.0));
+        pose.scale(0.5f, 0.5f);
+
+        List<GlyphBatch> batches = new ArrayList<>();
+        float xOffset = 0f;
+        for (int i = 0; i < text.length(); i++) {
+            char source = text.charAt(i);
+            char nextChar = i + 1 < text.length() ? text.charAt(i + 1) : '\0';
+            char glyphChar = source;
+            if (glyphChar == '（') glyphChar = '(';
+            if (glyphChar == '）') glyphChar = ')';
+            if (glyphChar == '・') glyphChar = '·';
+
+            Glyph glyph = locateGlyph(glyphChar);
+            if (glyph == null) {
+                glyph = allGlyphs[glyphChar];
+            }
+            if (glyph != null) {
+                if (glyph.uploaded && glyph.atlasIdentifier != null) {
+                    float glyphY = (float) (-verticalOffsets[offsetStart + i] * 2.0);
+                    addGlyph(batches, glyph, xOffset, glyphY, color, color);
+                }
+                xOffset += glyph.width;
+                if (fontKerning != null && nextChar != '\0') {
+                    xOffset += fontKerning.getKerning(source, nextChar, sizePx) * 2;
+                }
+            }
+        }
+
+        drawBatches(batches);
+        pose.popMatrix();
+        return xOffset * 0.5f;
+    }
+
     public float drawCharGradient(char c, double x, double y, int color, float leftAlphaMul, float rightAlphaMul) {
         float r = ((color >> 16) & 0xff) * RGBA.DIVIDE_BY_255;
         float g = ((color >> 8) & 0xff) * RGBA.DIVIDE_BY_255;

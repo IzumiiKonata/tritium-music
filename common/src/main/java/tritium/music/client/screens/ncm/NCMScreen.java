@@ -192,7 +192,7 @@ public class NCMScreen extends BaseScreen {
                 this.currentPanel.setAlpha(Math.min(this.basePanel.getAlpha(), curPanelAlphaAnimation));
                 this.currentPanel.setBounds(this.currentPanelBg.getX(), this.currentPanelBg.getY(), this.currentPanelBg.getWidth(), this.currentPanelBg.getHeight());
 
-                StencilClipManager.beginClip(() -> Rect.draw(this.currentPanelBg.getX(), this.currentPanelBg.getY(), this.currentPanelBg.getWidth(), this.currentPanelBg.getHeight(), -1));
+                StencilClipManager.beginClip(this.currentPanelBg.getX(), this.currentPanelBg.getY(), this.currentPanelBg.getWidth(), this.currentPanelBg.getHeight());
 
                 RenderContext.graphics().pose().pushMatrix();
                 this.scaleAtPos(this.currentPanelBg.getX() + this.currentPanelBg.getWidth() * .5, this.currentPanelBg.getY() + this.currentPanelBg.getHeight() * .5, 1.1 - (curPanelAlphaAnimation * 0.1));
@@ -211,10 +211,12 @@ public class NCMScreen extends BaseScreen {
             double sepX = this.currentPanelBg.getX();
             Rect.draw(sepX, this.basePanel.getY(), 1, this.basePanel.getHeight(), hairline);
             Rect.draw(sepX, this.currentPanelBg.getY() + this.currentPanelBg.getHeight(), this.currentPanelBg.getWidth(), 1, hairline);
+
+            this.playlistsPanel.renderSuggestionOverlay(mouseX, mouseY);
         }
 
         if (this.musicLyricsPanel != null) {
-            StencilClipManager.beginClip(() -> Rect.draw(basePanel.getX(), basePanel.getY(), basePanel.getWidth(), basePanel.getHeight(), -1));
+            StencilClipManager.beginClip(basePanel.getX(), basePanel.getY(), basePanel.getWidth(), basePanel.getHeight());
             Rect.draw(basePanel.getX(), basePanel.getY(), basePanel.getWidth(), basePanel.getHeight(), getColor(ColorType.GENERIC_BACKGROUND) | ((int) (this.musicLyricsPanel.alpha * 255)) << 24);
             this.musicLyricsPanel.onRender(mouseX, mouseY, basePanel.getX(), basePanel.getY(), basePanel.getWidth(), basePanel.getHeight(), dWheel);
             StencilClipManager.endClip();
@@ -275,7 +277,8 @@ public class NCMScreen extends BaseScreen {
         FontManager.pf25bold.drawCenteredString(String.valueOf(downloadSpeed), RenderSystem.getWidth() * .5, offsetY + 8 + FontManager.pf34bold.getHeight(), hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
         roundedRect(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth, progressBarHeight, 3, hexColor(1f, 1f, 1f, .5f * downloadPanelAlpha * alpha));
 
-        StencilClipManager.beginClip(() -> Rect.draw(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth * downloadProgress, progressBarHeight, -1));
+        StencilClipManager.beginClip(RenderSystem.getWidth() * .5 - progressBarWidth * .5,
+                offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth * downloadProgress, progressBarHeight);
         roundedRect(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth, progressBarHeight, 3, hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
         StencilClipManager.endClip();
     }
@@ -374,6 +377,9 @@ public class NCMScreen extends BaseScreen {
     @Override
     public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (musicLyricsPanel == null) {
+            if (this.playlistsPanel != null && this.playlistsPanel.handleSuggestionClick(mouseX, mouseY, mouseButton)) {
+                return;
+            }
             this.basePanel.onMouseClickReceived(mouseX, mouseY, mouseButton);
 
             if (this.currentPanel != null)

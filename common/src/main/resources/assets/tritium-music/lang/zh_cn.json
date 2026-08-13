@@ -39,6 +39,7 @@
   "tritium-music.ui.home.welcome": "欢迎来到 Tritium Music！",
   "tritium-music.ui.home.recommended_playlists": "推荐歌单",
   "tritium-music.ui.search.placeholder": "搜索...",
+  "tritium-music.ui.search.song_count": "%s 首单曲",
   "tritium-music.ui.navigation.home": "主页",
   "tritium-music.ui.navigation.hud_settings": "HUD 设置",
   "tritium-music.ui.navigation.my_playlists": "我的歌单",

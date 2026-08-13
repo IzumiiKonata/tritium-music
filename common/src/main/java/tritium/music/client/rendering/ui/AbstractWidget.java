@@ -404,7 +404,9 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
     }
 
     public SELF setColor(int color) {
-        this.color = new Color(color);
+        if ((this.color.getRGB() & 0x00FFFFFF) != (color & 0x00FFFFFF)) {
+            this.color = new Color(color);
+        }
         return (SELF) this;
     }
 
@@ -471,8 +473,10 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
     }
 
     public SELF setAlpha(float alpha) {
+        if (this.alpha == alpha) {
+            return (SELF) this;
+        }
         this.alpha = alpha;
-        this.color = new Color(this.color.getRed(), this.color.getGreen(), this.color.getBlue(), (int) (alpha * 255));
         invalidateLayout();
         return (SELF) this;
     }
@@ -530,16 +534,28 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
     }
 
     public SELF setWidth(double width) {
+        if (this.getBounds().width == width) {
+            return (SELF) this;
+        }
         this.getBounds().width = width;
+        invalidateLayout();
         return (SELF) this;
     }
 
     public SELF setHeight(double height) {
+        if (this.getBounds().height == height) {
+            return (SELF) this;
+        }
         this.getBounds().height = height;
+        invalidateLayout();
         return (SELF) this;
     }
 
     public SELF setBounds(double x, double y, double width, double height) {
+        if (this.getBounds().x == x && this.getBounds().y == y
+                && this.getBounds().width == width && this.getBounds().height == height) {
+            return (SELF) this;
+        }
         this.getBounds().x = x;
         this.getBounds().y = y;
         this.getBounds().width = width;
@@ -561,6 +577,9 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
     }
 
     public SELF setPosition(double x, double y) {
+        if (this.getBounds().x == x && this.getBounds().y == y) {
+            return (SELF) this;
+        }
         this.getBounds().x = x;
         this.getBounds().y = y;
         invalidateLayout();
@@ -581,8 +600,12 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
     }
 
     public SELF setBounds(double width, double height) {
+        if (this.getBounds().width == width && this.getBounds().height == height) {
+            return (SELF) this;
+        }
         this.getBounds().width = width;
         this.getBounds().height = height;
+        invalidateLayout();
         return (SELF) this;
     }
 

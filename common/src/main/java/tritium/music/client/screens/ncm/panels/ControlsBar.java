@@ -1,6 +1,7 @@
 package tritium.music.client.screens.ncm.panels;
 
 import net.minecraft.client.resources.language.I18n;
+import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.widgets.*;
@@ -9,6 +10,7 @@ import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.util.MouseUtil;
 import tritium.music.core.CloudMusic;
+import tritium.music.core.MusicState;
 import tritium.music.core.audio.AudioPlayer;
 
 public class ControlsBar extends NCMPanel {
@@ -246,6 +248,53 @@ public class ControlsBar extends NCMPanel {
                                 playingCover.getRelativeX() + playingCover.getWidth() + 4,
                                 lblMusicArtist.getRelativeY() + lblMusicArtist.getHeight() * .5 + 2
                         ));
+
+        LabelWidget volumeIcon = new LabelWidget("I", FontManager.music18);
+        this.addChild(volumeIcon);
+        volumeIcon
+                .setClickable(false)
+                .setBeforeRenderCallback(() -> volumeIcon
+                        .setColor(NCMScreen.getColor(NCMScreen.ColorType.SECONDARY_TEXT))
+                        .setPosition(this.getWidth() - 112, this.getHeight() * .5 - volumeIcon.getHeight() * .5));
+
+        RoundedRectWidget volumeBarBg = new RoundedRectWidget() {
+            private boolean dragging;
+
+            @Override
+            public void onRender(double mouseX, double mouseY) {
+                super.onRender(mouseX, mouseY);
+                boolean leftDown = MouseUtil.isLeftDown();
+                if (this.testHovered(mouseX, mouseY, 3) && leftDown) dragging = true;
+                if (dragging && leftDown) {
+                    float volume = (float) Math.max(0, Math.min(1, (mouseX - getX()) / getWidth()));
+                    MusicState.get().setVolume(volume);
+                    if (CloudMusic.player != null) CloudMusic.player.setVolume(volume);
+                } else if (dragging) {
+                    dragging = false;
+                    WidgetConfig.get().volume = MusicState.get().getVolume();
+                    WidgetConfig.get().save();
+                }
+            }
+        };
+        this.addChild(volumeBarBg);
+        volumeBarBg
+                .setColor(0xFFFFFFFF)
+                .setAlpha(.2f)
+                .setRadius(1.5)
+                .setBounds(82, 4)
+                .setShouldOverrideMouseCursor(true)
+                .setBeforeRenderCallback(() -> volumeBarBg
+                        .setPosition(this.getWidth() - 94, this.getHeight() * .5 - volumeBarBg.getHeight() * .5));
+
+        RoundedRectWidget volumeBar = new RoundedRectWidget();
+        volumeBarBg.addChild(volumeBar);
+        volumeBar
+                .setColor(0xFFFFFFFF)
+                .setClickable(false)
+                .setBeforeRenderCallback(() -> volumeBar
+                        .setMargin(0)
+                        .setWidth(volumeBarBg.getWidth() * MusicState.get().getVolume())
+                        .setRadius(1.5));
     }
 
     private String formatDuration(float totalMillis) {
