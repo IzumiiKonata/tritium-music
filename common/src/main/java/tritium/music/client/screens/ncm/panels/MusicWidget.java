@@ -247,11 +247,11 @@ public class MusicWidget extends RoundedRectWidget {
             this.roundedOutline(
                     gridCover.getX(),
                     gridCover.getY(),
-                    gridCover.getWidth(),
-                    gridCover.getHeight(),
-                    gridCover.getRadius() + 2.5,
+                    gridCover.getWidth() + .5,
+                    gridCover.getHeight() + .5,
+                    gridCover.getRadius() + 4,
                     1.5,
-                    1.5,
+                    2,
                     new Color(214, 0, 23, alpha)
             );
         }
