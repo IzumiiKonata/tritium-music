@@ -256,21 +256,31 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     }
 
     TRenderTarget rt = null;
-    TRenderTarget baseRt = null;
-    TRenderTarget stencilRt = null;
+    private final List<TRenderTarget> baseRenderTargets = new ArrayList<>();
+    private final List<TRenderTarget> stencilRenderTargets = new ArrayList<>();
+    private final String renderTargetName = Integer.toUnsignedString(System.identityHashCode(this));
     StencilShader stencilShader = new StencilShader();
 
-    private void ensureRt(int w, int h) {
-        if (baseRt == null) {
-            baseRt = TRenderTarget.create("lyric-base", w, h);
-        } else if (w != baseRt.width() || h != baseRt.height()) {
-            baseRt.resize(w, h);
+    private RenderTargets acquireRenderTargets(int index, int w, int h) {
+        while (baseRenderTargets.size() <= index) {
+            int targetIndex = baseRenderTargets.size();
+            baseRenderTargets.add(TRenderTarget.create("lyric-base-" + renderTargetName + "-" + targetIndex, w, h));
+            stencilRenderTargets.add(TRenderTarget.create("lyric-stencil-" + renderTargetName + "-" + targetIndex, w, h));
         }
-        if (stencilRt == null) {
-            stencilRt = TRenderTarget.create("lyric-stencil", w, h);
-        } else if (w != stencilRt.width() || h != stencilRt.height()) {
-            stencilRt.resize(w, h);
+
+        TRenderTarget base = baseRenderTargets.get(index);
+        TRenderTarget stencil = stencilRenderTargets.get(index);
+        int targetWidth = Math.max(w, Math.max(base.width(), stencil.width()));
+        if (base.width() != targetWidth || base.height() != h) {
+            base.resize(targetWidth, h);
         }
+        if (stencil.width() != targetWidth || stencil.height() != h) {
+            stencil.resize(targetWidth, h);
+        }
+        return new RenderTargets(base, stencil);
+    }
+
+    private record RenderTargets(TRenderTarget base, TRenderTarget stencil) {
     }
 
     private void renderLyrics(double mouseX, double mouseY, double posX, double posY, double width, double height, int dWheel, float alpha) {
@@ -333,6 +343,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
         LyricLine currentLyric = progressBarDragging ? CloudMusic.findCurrentLyric(overridePlaybackProgress) : CloudMusic.currentLyric;
         int currentIndex = CloudMusic.lyrics.indexOf(currentLyric);
+        int renderTargetIndex = 0;
 
         for (int k = 0; k < CloudMusic.lyrics.size(); k++) {
             LyricLine lyric = CloudMusic.lyrics.get(k);
@@ -427,17 +438,14 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             int fbWidth = (int) (stringWidthD * scale);
                             int fbHeight = (FontManager.pf65bold.getHeight() + 6) * scale;
 
-                            int allocW = fbWidth;
-                            if (baseRt != null) allocW = Math.max(allocW, baseRt.width());
-                            if (stencilRt != null) allocW = Math.max(allocW, stencilRt.width());
+                            RenderTargets targets = acquireRenderTargets(renderTargetIndex++, fbWidth, fbHeight);
+                            int allocW = targets.base().width();
                             double uMax = fbWidth / (double) allocW;
-
-                            ensureRt(allocW, fbHeight);
 
                             double sungW = progress * (stringWidthD + gradientWidth) * scale;
                             double gradW = gradientWidth * scale;
 
-                            LyricOffscreen.renderStencilMask(stencilRt, allocW, fbHeight, sungW, gradW);
+                            LyricOffscreen.renderStencilMask(targets.stencil(), allocW, fbHeight, sungW, gradW);
 
                             int prog = (int) (wordProgress * word.word.length());
                             int glyphBlitScale = scale / 2;
@@ -461,12 +469,12 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                                 xScaled += FontManager.pf65bold.getCharWidth(c, nextChar) * scale;
                             }
 
-                            LyricOffscreen.renderBaseGlyphs(baseRt, allocW, fbHeight,
+                            LyricOffscreen.renderBaseGlyphs(targets.base(), allocW, fbHeight,
                                     FontManager.pf65bold.allGlyphs, baseTextColor,
                                     baseGlyphs, glyphBlitScale);
 
                             double invScale = 1.0 / scale;
-                            stencilShader.draw(baseRt, stencilRt, renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
+                            stencilShader.draw(targets.base(), targets.stencil(), renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
 
                         } else if (progress >= 1.0) {
                             double x = renderX;
