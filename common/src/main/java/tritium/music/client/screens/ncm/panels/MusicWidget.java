@@ -253,8 +253,8 @@ public class MusicWidget extends RoundedRectWidget {
             this.roundedOutline(
                     gridCover.getX(),
                     gridCover.getY(),
-                    gridCover.getWidth() + .5,
-                    gridCover.getHeight() + .5,
+                    gridCover.getWidth() + .3,
+                    gridCover.getHeight() + .3,
                     gridCover.getRadius() + 4,
                     1.5,
                     2,
@@ -315,10 +315,10 @@ public class MusicWidget extends RoundedRectWidget {
         playingIndicator
                 .setClickable(false)
                 .setColor(0xFF18181A)
-                .setRadius(4)
+                .setRadius(3)
                 .setAlpha(0f)
                 .setBeforeRenderCallback(() -> {
-                    playingIndicator.setAlpha(Interpolations.interpolate(playingIndicator.getWidgetAlpha(), isPlaying() ? .92f : 0f, .35f));
+                    playingIndicator.setAlpha(Interpolations.interpolate(playingIndicator.getWidgetAlpha(), isPlaying() ? .75f : 0f, .35f));
                     playingIndicator.setPosition(
                             gridCover.getRelativeX() + gridCover.getWidth() - playingIndicator.getWidth() - 5,
                             gridCover.getRelativeY() + 5
