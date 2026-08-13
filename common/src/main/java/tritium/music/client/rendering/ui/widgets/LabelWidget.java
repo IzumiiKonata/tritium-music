@@ -1,6 +1,7 @@
 package tritium.music.client.rendering.ui.widgets;
 
 import lombok.Getter;
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.rendering.ScrollText;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
@@ -10,7 +11,7 @@ import java.util.function.Supplier;
 
 public class LabelWidget extends AbstractWidget<LabelWidget> {
 
-    Supplier<String> label = () -> "点击输入文字";
+    Supplier<String> label = () -> I18n.get("tritium-music.ui.label.placeholder");
     @Getter
     CFontRenderer font = FontManager.pf18;
 
@@ -94,7 +95,7 @@ public class LabelWidget extends AbstractWidget<LabelWidget> {
 
     public String getLabel() {
         String lbl = label.get();
-        return lbl == null ? "null" : lbl;
+        return lbl == null ? I18n.get("tritium-music.ui.label.null") : lbl;
     }
 
     public LabelWidget setLabel(String label) {

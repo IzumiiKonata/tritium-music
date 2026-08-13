@@ -12,6 +12,8 @@ import java.awt.*;
 
 public class TextField {
 
+    private static TextField focusedTextField;
+
     public interface TextChangedCallback {
         void onTextChanged(String text);
     }
@@ -74,10 +76,31 @@ public class TextField {
 
     public TextField setFocused(boolean focused) {
         if (focused && !this.focused) {
+            if (focusedTextField != null && focusedTextField != this) {
+                focusedTextField.setFocused(false);
+            }
             cursorForceShowTimer.reset();
         }
         this.focused = focused;
+        if (focused) {
+            focusedTextField = this;
+        } else if (focusedTextField == this) {
+            focusedTextField = null;
+        }
         return this;
+    }
+
+    public static void clearFocusOutside(double mouseX, double mouseY) {
+        if (focusedTextField == null) {
+            return;
+        }
+        boolean inside = mouseX >= focusedTextField.xPosition
+                && mouseX <= focusedTextField.xPosition + focusedTextField.width
+                && mouseY >= focusedTextField.yPosition
+                && mouseY <= focusedTextField.yPosition + focusedTextField.height;
+        if (!inside) {
+            focusedTextField.setFocused(false);
+        }
     }
 
     public boolean isEnabled() {

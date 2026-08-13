@@ -1,5 +1,6 @@
 package tritium.music.client.screens.ncm.panels;
 
+import net.minecraft.client.resources.language.I18n;
 import lombok.Getter;
 import lombok.Setter;
 import org.lwjgl.glfw.GLFW;
@@ -111,7 +112,7 @@ public class NavigateBar extends NCMPanel {
 
         searchBar.addChild(searchField);
 
-        this.searchField.setPlaceholder("搜索...");
+        this.searchField.setPlaceholder(I18n.get("tritium-music.ui.search.placeholder"));
 
         this.searchField.setOnKeyTypedCallback((character, keyCode) -> {
             if (this.searchField.isFocused()) {
@@ -160,7 +161,7 @@ public class NavigateBar extends NCMPanel {
 
         this.playlistPanel.setSpacing(4);
 
-        LabelWidget lbl = new LabelWidget("Tritium Music", FontManager.pf14bold);
+        LabelWidget lbl = new LabelWidget(I18n.get("tritium-music.ui.app_name"), FontManager.pf14bold);
         lbl.setBeforeRenderCallback(() -> {
             lbl.setColor(Color.GRAY);
             lbl.setPosition(6, lbl.getRelativeY());
@@ -169,13 +170,13 @@ public class NavigateBar extends NCMPanel {
         this.playlistPanel.addChild(lbl);
 
         {
-            PlaylistItem item = new PlaylistItem("A", () -> 0xFFC30218, () -> "主页", () -> NCMScreen.getInstance().setCurrentPanel(new HomePanel()));
+            PlaylistItem item = new PlaylistItem("A", () -> 0xFFC30218, () -> I18n.get("tritium-music.ui.navigation.home"), () -> NCMScreen.getInstance().setCurrentPanel(new HomePanel()));
             item.setShouldOverrideMouseCursor(true);
             this.playlistPanel.addChild(item);
         }
 
         {
-            PlaylistItem item = new PlaylistItem("", Color.GRAY::getRGB, () -> "HUD 设置",
+            PlaylistItem item = new PlaylistItem("", Color.GRAY::getRGB, () -> I18n.get("tritium-music.ui.navigation.hud_settings"),
                     () -> NCMScreen.getInstance().setCurrentPanel(new HudSettingsPanel()));
             item.setShouldOverrideMouseCursor(true);
             this.playlistPanel.addChild(item);
@@ -196,7 +197,7 @@ public class NavigateBar extends NCMPanel {
             creatorAvatar.setRadius(7.25);
         });
 
-        LabelWidget lblCreator = new LabelWidget(() -> CloudMusic.profile == null ? "未登录" : CloudMusic.profile.name(), FontManager.pf16bold);
+        LabelWidget lblCreator = new LabelWidget(() -> CloudMusic.profile == null ? I18n.get("tritium-music.ui.account.not_logged_in") : CloudMusic.profile.name(), FontManager.pf16bold);
         this.addChild(lblCreator);
 
         lblCreator.setBeforeRenderCallback(() -> {
@@ -212,7 +213,7 @@ public class NavigateBar extends NCMPanel {
     }
 
     private void populatePlaylists(long selectedPlaylistId) {
-        LabelWidget lblPlaylists = new LabelWidget("我的歌单", FontManager.pf14bold);
+        LabelWidget lblPlaylists = new LabelWidget(I18n.get("tritium-music.ui.navigation.my_playlists"), FontManager.pf14bold);
         lblPlaylists.setBeforeRenderCallback(() -> {
             lblPlaylists.setColor(Color.GRAY);
             lblPlaylists.setPosition(6, lblPlaylists.getRelativeY());
@@ -233,7 +234,7 @@ public class NavigateBar extends NCMPanel {
             }
         }
 
-        LabelWidget lblSubscribed = new LabelWidget("收藏歌单", FontManager.pf14bold);
+        LabelWidget lblSubscribed = new LabelWidget(I18n.get("tritium-music.ui.navigation.subscribed_playlists"), FontManager.pf14bold);
         lblSubscribed.setBeforeRenderCallback(() -> {
             lblSubscribed.setColor(Color.GRAY);
             lblSubscribed.setPosition(6, lblSubscribed.getRelativeY());

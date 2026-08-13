@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
@@ -115,6 +116,11 @@ public class MinecraftMusicPlatform implements MusicPlatform {
                 mc().player.sendSystemMessage(Component.literal(message));
             }
         });
+    }
+
+    @Override
+    public String translate(String key, Object... arguments) {
+        return I18n.get(key, arguments);
     }
 
     @Override

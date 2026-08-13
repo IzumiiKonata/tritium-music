@@ -18,7 +18,7 @@ public class MusicSpectrumWidget extends HudWidget {
     private long[] indicatorTimeStamp = new long[1];
 
     public MusicSpectrumWidget() {
-        super("Music Spectrum");
+        super("tritium-music.ui.widget.music_spectrum");
     }
 
     @Override

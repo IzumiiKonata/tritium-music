@@ -49,6 +49,10 @@ public final class Platform {
         get().sendChatMessage(message);
     }
 
+    public static String translate(String key, Object... arguments) {
+        return get().translate(key, arguments);
+    }
+
     public static void log(String message) {
         get().log(message);
     }

@@ -2,6 +2,7 @@ package tritium.music.client.screens;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.language.I18n;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.RGBA;
@@ -62,7 +63,7 @@ public class WidgetEditorScreen extends BaseScreen {
 
             if (!enabled) {
                 Rect.draw(wx, wy, ww, wh, RGBA.color(40, 40, 48, 160));
-                String disabledText = widget.getName() + " (关闭)";
+                String disabledText = I18n.get("tritium-music.ui.editor.disabled", widget.getName());
                 double disabledTextY = wy + (wh - FontManager.pf14bold.getStringHeight(disabledText)) * 0.5;
                 FontManager.pf14bold.drawCenteredString(disabledText, wx + ww / 2.0, disabledTextY, RGBA.color(160, 160, 160, 220));
             }
@@ -92,7 +93,7 @@ public class WidgetEditorScreen extends BaseScreen {
                 && mouseY >= SETTINGS_BTN_Y && mouseY <= SETTINGS_BTN_Y + SETTINGS_BTN_H;
         roundedRect(settingsBtnX(), SETTINGS_BTN_Y, SETTINGS_BTN_W, SETTINGS_BTN_H, 4,
                 overSettings ? RGBA.color(120, 200, 255, 230) : RGBA.color(60, 60, 70, 230));
-        String settingsText = "设置";
+        String settingsText = I18n.get("tritium-music.ui.editor.settings");
         double settingsTextY = SETTINGS_BTN_Y + (SETTINGS_BTN_H - FontManager.pf16bold.getStringHeight(settingsText)) * 0.5;
         FontManager.pf16bold.drawCenteredString(settingsText, settingsBtnX() + SETTINGS_BTN_W / 2.0, settingsTextY, -1);
     }

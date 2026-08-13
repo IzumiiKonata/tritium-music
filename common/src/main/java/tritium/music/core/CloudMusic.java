@@ -115,7 +115,7 @@ public class CloudMusic {
         lyrics.addAll(parsedLyrics);
 
         if (lyrics.isEmpty()) {
-            lyrics.add(new LyricLine(0L, "暂无歌词"));
+            lyrics.add(new LyricLine(0L, Platform.translate("tritium-music.ui.lyrics.unavailable")));
         }
     }
 
@@ -739,8 +739,10 @@ public class CloudMusic {
         }
 
         private void handleUnplayableSong(Music song) {
-            Platform.sendChatMessage("§c无法播放: " + song.getName() + " - " + song.getArtistsName());
-            Platform.log("§c无法播放: " + song.getName() + " - " + song.getArtistsName() + ", 可能因为该歌曲没有版权");
+            Platform.sendChatMessage("§c" + Platform.translate(
+                    "tritium-music.ui.playback.unplayable", song.getName(), song.getArtistsName()));
+            Platform.log(Platform.translate(
+                    "tritium-music.ui.playback.unplayable_copyright", song.getName(), song.getArtistsName()));
         }
 
         private void handlePlayerInitializationError(Exception e) {

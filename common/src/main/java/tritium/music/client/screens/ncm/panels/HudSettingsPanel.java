@@ -1,5 +1,6 @@
 package tritium.music.client.screens.ncm.panels;
 
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.animation.Interpolations;
@@ -28,12 +29,12 @@ public class HudSettingsPanel extends NCMPanel {
     public void onInit() {
         getChildren().clear();
 
-        LabelWidget title = new LabelWidget("HUD 小组件", FontManager.pf25bold);
+        LabelWidget title = new LabelWidget(text("title"), FontManager.pf25bold);
         title.setColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         title.setBeforeRenderCallback(() -> title.setPosition(24, 22));
         addChild(title);
 
-        LabelWidget subtitle = new LabelWidget("调整音乐信息、歌词与频谱", FontManager.pf12);
+        LabelWidget subtitle = new LabelWidget(text("subtitle"), FontManager.pf12);
         subtitle.setColor(getColor(NCMScreen.ColorType.SECONDARY_TEXT));
         subtitle.setBeforeRenderCallback(() -> {
             double titleHeight = FontManager.pf25bold.getStringHeight(title.getLabel());
@@ -43,7 +44,7 @@ public class HudSettingsPanel extends NCMPanel {
 
         double tabWidth = 82;
         double tabSpacing = 6;
-        RoundedButtonWidget layoutTab = new RoundedButtonWidget("布局", FontManager.pf14bold);
+        RoundedButtonWidget layoutTab = new RoundedButtonWidget(text("layout"), FontManager.pf14bold);
         layoutTab.setRadius(5);
         layoutTab.setBounds(tabWidth, 26);
         layoutTab.setBeforeRenderCallback(() -> {
@@ -62,7 +63,7 @@ public class HudSettingsPanel extends NCMPanel {
 
         for (int index = 0; index < Page.values().length; index++) {
             Page target = Page.values()[index];
-            RoundedButtonWidget tab = new RoundedButtonWidget(target.label, FontManager.pf14bold);
+            RoundedButtonWidget tab = new RoundedButtonWidget(target.label(), FontManager.pf14bold);
             tab.setRadius(5);
             tab.setBounds(tabWidth, 26);
             int tabIndex = index;
@@ -82,7 +83,7 @@ public class HudSettingsPanel extends NCMPanel {
             addChild(tab);
         }
 
-        RoundedButtonWidget reset = new RoundedButtonWidget("重置本页", FontManager.pf14bold);
+        RoundedButtonWidget reset = new RoundedButtonWidget(text("reset_page"), FontManager.pf14bold);
         reset.setRadius(5);
         reset.setBounds(88, 26);
         reset.setBeforeRenderCallback(() -> {
@@ -123,24 +124,24 @@ public class HudSettingsPanel extends NCMPanel {
 
     private void buildGeneralPage() {
         WidgetConfig config = WidgetConfig.get();
-        content.addChild(new SectionRow("播放"));
+        content.addChild(new SectionRow(text("section.playback")));
         content.addChild(row(
-                "音乐品质",
-                "控制后续播放歌曲使用的音源品质",
+                text("quality.title"),
+                text("quality.description"),
                 dropdown(
                         () -> config.quality,
                         value -> config.quality = value,
                         Quality.values(),
                         HudSettingsPanel::qualityName)));
 
-        content.addChild(new SectionRow("音乐信息"));
+        content.addChild(new SectionRow(text("section.music_info")));
         content.addChild(row(
-                "显示组件",
-                "显示封面、曲名和播放进度",
+                text("visible.title"),
+                text("music_info.visible.description"),
                 toggle(() -> config.musicInfo.enabled, value -> config.musicInfo.enabled = value)));
         content.addChild(row(
-                "组件缩放",
-                "调整音乐信息组件的整体尺寸",
+                text("scale.title"),
+                text("music_info.scale.description"),
                 slider(() -> config.musicInfo.scale, value -> config.musicInfo.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
     }
 
@@ -148,91 +149,91 @@ public class HudSettingsPanel extends NCMPanel {
         WidgetConfig config = WidgetConfig.get();
         WidgetConfig.Lyrics lyrics = config.lyrics;
 
-        content.addChild(new SectionRow("常规"));
-        content.addChild(row("显示组件", "在 HUD 中显示同步歌词",
+        content.addChild(new SectionRow(text("section.general")));
+        content.addChild(row(text("visible.title"), text("lyrics.visible.description"),
                 toggle(() -> config.musicLyrics.enabled, value -> config.musicLyrics.enabled = value)));
-        content.addChild(row("组件缩放", "调整歌词组件的整体尺寸",
+        content.addChild(row(text("scale.title"), text("lyrics.scale.description"),
                 slider(() -> config.musicLyrics.scale, value -> config.musicLyrics.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
-        content.addChild(row("逐字歌词动效", "选择歌词行进入时的动画",
+        content.addChild(row(text("lyrics.effect.title"), text("lyrics.effect.description"),
                 dropdown(
                         () -> lyrics.scrollEffect,
                         value -> lyrics.scrollEffect = value,
                         MusicLyricsWidget.ScrollEffects.values(),
                         HudSettingsPanel::scrollEffectName)));
-        content.addChild(row("文字对齐", "控制歌词在组件内的排列方向",
+        content.addChild(row(text("lyrics.alignment.title"), text("lyrics.alignment.description"),
                 dropdown(
                         () -> lyrics.alignMode,
                         value -> lyrics.alignMode = value,
                         MusicLyricsWidget.AlignMode.values(),
                         HudSettingsPanel::alignName)));
 
-        content.addChild(new SectionRow("内容"));
-        content.addChild(row("显示翻译", "存在翻译时显示翻译文本",
+        content.addChild(new SectionRow(text("section.content")));
+        content.addChild(row(text("lyrics.translation.title"), text("lyrics.translation.description"),
                 toggle(() -> lyrics.showTranslation, value -> lyrics.showTranslation = value)));
-        content.addChild(row("显示罗马音", "存在罗马音时显示读音文本",
+        content.addChild(row(text("lyrics.romanization.title"), text("lyrics.romanization.description"),
                 toggle(() -> lyrics.showRoman, value -> lyrics.showRoman = value)));
-        content.addChild(row("文字阴影", "为歌词添加阴影以提高可读性",
+        content.addChild(row(text("lyrics.shadow.title"), text("lyrics.shadow.description"),
                 toggle(() -> lyrics.shadow, value -> lyrics.shadow = value)));
-        content.addChild(row("单行模式", "只显示当前播放的一行歌词",
+        content.addChild(row(text("lyrics.single_line.title"), text("lyrics.single_line.description"),
                 toggle(() -> lyrics.singleLine, value -> lyrics.singleLine = value)));
-        content.addChild(row("平滑滚动", "切换歌词时使用平滑位移",
+        content.addChild(row(text("lyrics.smooth_scroll.title"), text("lyrics.smooth_scroll.description"),
                 toggle(() -> lyrics.graceScroll, value -> lyrics.graceScroll = value)));
 
-        content.addChild(new SectionRow("尺寸"));
-        content.addChild(row("歌词字号", "控制主歌词的基础字号",
+        content.addChild(new SectionRow(text("section.size")));
+        content.addChild(row(text("lyrics.font_size.title"), text("lyrics.font_size.description"),
                 slider(() -> lyrics.lyricHeight, value -> lyrics.lyricHeight = value, 12, 40, 1, HudSettingsPanel::pixels)));
-        content.addChild(row("区域宽度", "设置歌词组件的可用宽度",
+        content.addChild(row(text("lyrics.width.title"), text("lyrics.width.description"),
                 slider(() -> lyrics.width, value -> lyrics.width = (int) value, 220, 900, 10, HudSettingsPanel::pixels)));
-        content.addChild(row("区域高度", "设置歌词组件的可用高度",
+        content.addChild(row(text("lyrics.height.title"), text("lyrics.height.description"),
                 slider(() -> lyrics.height, value -> lyrics.height = (int) value, 60, 300, 5, HudSettingsPanel::pixels)));
 
-        content.addChild(new SectionRow("极光"));
-        content.addChild(row("极光辉光", "显示当前歌词的背景辉光",
+        content.addChild(new SectionRow(text("section.aurora")));
+        content.addChild(row(text("lyrics.aurora_bloom.title"), text("lyrics.aurora_bloom.description"),
                 toggle(() -> lyrics.auroraBloom, value -> lyrics.auroraBloom = value)));
-        content.addChild(row("音频响应", "让极光强度跟随音乐变化",
+        content.addChild(row(text("lyrics.audio_reactive.title"), text("lyrics.audio_reactive.description"),
                 toggle(() -> lyrics.audioReactive, value -> lyrics.audioReactive = value)));
-        content.addChild(row("未唱部分亮度", "控制未播放文字的可见度",
+        content.addChild(row(text("lyrics.unsung_opacity.title"), text("lyrics.unsung_opacity.description"),
                 slider(() -> lyrics.auroraUnsungOpacity, value -> lyrics.auroraUnsungOpacity = value, 0.05, 1, 0.05, HudSettingsPanel::percent)));
-        addColorRows("辉光", () -> lyrics.glowColor, value -> lyrics.glowColor = value);
+        addColorRows(text("lyrics.glow_prefix"), () -> lyrics.glowColor, value -> lyrics.glowColor = value);
     }
 
     private void buildSpectrumPage() {
         WidgetConfig config = WidgetConfig.get();
         WidgetConfig.Spectrum spectrum = config.spectrum;
 
-        content.addChild(new SectionRow("常规"));
-        content.addChild(row("显示组件", "在 HUD 中显示音乐频谱",
+        content.addChild(new SectionRow(text("section.general")));
+        content.addChild(row(text("visible.title"), text("spectrum.visible.description"),
                 toggle(() -> config.musicSpectrum.enabled, value -> config.musicSpectrum.enabled = value)));
-        content.addChild(row("组件缩放", "调整紧凑频谱的整体尺寸",
+        content.addChild(row(text("scale.title"), text("spectrum.scale.description"),
                 slider(() -> config.musicSpectrum.scale, value -> config.musicSpectrum.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
-        content.addChild(row("紧凑模式", "将柱状频谱限制在可移动区域内",
+        content.addChild(row(text("spectrum.compact.title"), text("spectrum.compact.description"),
                 toggle(() -> spectrum.compatMode, value -> spectrum.compatMode = value)));
-        content.addChild(row("峰值指示", "显示频段的短时峰值",
+        content.addChild(row(text("spectrum.indicator.title"), text("spectrum.indicator.description"),
                 toggle(() -> spectrum.indicator, value -> spectrum.indicator = value)));
 
-        content.addChild(new SectionRow("音频分析"));
-        content.addChild(row("响应强度", "放大或减弱频谱高度",
+        content.addChild(new SectionRow(text("section.audio_analysis")));
+        content.addChild(row(text("spectrum.multiplier.title"), text("spectrum.multiplier.description"),
                 slider(() -> spectrum.multiplier, value -> spectrum.multiplier = value, 0.1, 4, 0.1, value -> format(value, 1) + "×")));
-        content.addChild(row("平滑程度", "数值越高，频谱变化越平缓",
+        content.addChild(row(text("spectrum.smoothing.title"), text("spectrum.smoothing.description"),
                 slider(() -> spectrum.smoothing, value -> spectrum.smoothing = value, 0, 0.95, 0.05, HudSettingsPanel::percent)));
-        content.addChild(row("高频倾斜", "补偿高频能量的显示强度",
+        content.addChild(row(text("spectrum.tilt.title"), text("spectrum.tilt.description"),
                 slider(() -> spectrum.spectrumTilt, value -> spectrum.spectrumTilt = value, 0, 8, 0.25, value -> format(value, 2))));
-        content.addChild(row("绝对音量", "使用音频绝对幅度驱动频谱",
+        content.addChild(row(text("spectrum.absolute_volume.title"), text("spectrum.absolute_volume.description"),
                 toggle(() -> spectrum.absVol, value -> spectrum.absVol = value)));
 
-        content.addChild(new SectionRow("颜色"));
-        content.addChild(row("频谱颜色", "点击色板直接选择颜色，并实时预览结果",
+        content.addChild(new SectionRow(text("section.color")));
+        content.addChild(row(text("spectrum.color.title"), text("spectrum.color.description"),
                 colorPicker(() -> spectrum.rectColor, value -> spectrum.rectColor = value, true)));
     }
 
     private void addColorRows(String prefix, java.util.function.IntSupplier getter, java.util.function.IntConsumer setter) {
-        content.addChild(row(prefix + "色相", "调整颜色的色相",
+        content.addChild(row(prefix + text("color.hue"), text("color.hue.description"),
                 slider(() -> colorComponent(getter.getAsInt(), 0), value -> setColorComponent(getter, setter, 0, value), 0, 1, 0.01, HudSettingsPanel::percent)));
-        content.addChild(row(prefix + "饱和度", "调整颜色的饱和程度",
+        content.addChild(row(prefix + text("color.saturation"), text("color.saturation.description"),
                 slider(() -> colorComponent(getter.getAsInt(), 1), value -> setColorComponent(getter, setter, 1, value), 0, 1, 0.01, HudSettingsPanel::percent)));
-        content.addChild(row(prefix + "明度", "调整颜色的亮度",
+        content.addChild(row(prefix + text("color.brightness"), text("color.brightness.description"),
                 slider(() -> colorComponent(getter.getAsInt(), 2), value -> setColorComponent(getter, setter, 2, value), 0, 1, 0.01, HudSettingsPanel::percent)));
-        content.addChild(row(prefix + "透明度", "调整颜色的透明度",
+        content.addChild(row(prefix + text("color.opacity"), text("color.opacity.description"),
                 slider(() -> colorComponent(getter.getAsInt(), 3), value -> setColorComponent(getter, setter, 3, value), 0, 1, 0.01, HudSettingsPanel::percent)));
     }
 
@@ -412,31 +413,31 @@ public class HudSettingsPanel extends NCMPanel {
 
     private static String scrollEffectName(MusicLyricsWidget.ScrollEffects effect) {
         return switch (effect) {
-            case Scroll -> "滚动";
-            case FadeIn -> "淡入";
-            case SlideIn -> "滑入";
-            case Aurora -> "极光";
+            case Scroll -> text("effect.scroll");
+            case FadeIn -> text("effect.fade_in");
+            case SlideIn -> text("effect.slide_in");
+            case Aurora -> text("effect.aurora");
         };
     }
 
     private static String alignName(MusicLyricsWidget.AlignMode alignMode) {
         return switch (alignMode) {
-            case Left -> "左对齐";
-            case Center -> "居中";
-            case Right -> "右对齐";
+            case Left -> text("alignment.left");
+            case Center -> text("alignment.center");
+            case Right -> text("alignment.right");
         };
     }
 
     private static String qualityName(Quality quality) {
         return switch (quality) {
-            case STANDARD -> "标准";
-            case HIGHER -> "较高";
-            case EXHIGH -> "极高";
-            case LOSSLESS -> "无损";
-            case HIRES -> "Hi-Res";
-            case JYEFFECT -> "高清环绕声";
-            case SKY -> "沉浸环绕声";
-            case JYMASTER -> "超清母带";
+            case STANDARD -> text("quality.standard");
+            case HIGHER -> text("quality.higher");
+            case EXHIGH -> text("quality.exhigh");
+            case LOSSLESS -> text("quality.lossless");
+            case HIRES -> text("quality.hires");
+            case JYEFFECT -> text("quality.jyeffect");
+            case SKY -> text("quality.sky");
+            case JYMASTER -> text("quality.jymaster");
         };
     }
 
@@ -445,7 +446,7 @@ public class HudSettingsPanel extends NCMPanel {
     }
 
     private static String pixels(double value) {
-        return Math.round(value) + " px";
+        return I18n.get("tritium-music.ui.unit.pixels", Math.round(value));
     }
 
     private static String format(double value, int digits) {
@@ -457,15 +458,23 @@ public class HudSettingsPanel extends NCMPanel {
     }
 
     private enum Page {
-        GENERAL("通用"),
-        LYRICS("歌词"),
-        SPECTRUM("频谱");
+        GENERAL("page.general"),
+        LYRICS("page.lyrics"),
+        SPECTRUM("page.spectrum");
 
-        private final String label;
+        private final String labelKey;
 
-        Page(String label) {
-            this.label = label;
+        Page(String labelKey) {
+            this.labelKey = labelKey;
         }
+
+        private String label() {
+            return text(labelKey);
+        }
+    }
+
+    private static String text(String key) {
+        return I18n.get("tritium-music.ui.settings." + key);
     }
 
 }

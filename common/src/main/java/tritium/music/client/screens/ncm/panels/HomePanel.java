@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import lombok.Getter;
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
@@ -70,7 +71,7 @@ public class HomePanel extends NCMPanel {
     public ScrollPanel scrollPanel;
 
     private void layout() {
-        LabelWidget lblWelcome = new LabelWidget("欢迎来到 Tritium Music!", FontManager.pf25bold);
+        LabelWidget lblWelcome = new LabelWidget(I18n.get("tritium-music.ui.home.welcome"), FontManager.pf25bold);
 
         this.addChild(lblWelcome);
 
@@ -80,7 +81,7 @@ public class HomePanel extends NCMPanel {
                 .setPosition(margin, margin)
                 .setColor(NCMScreen.getColor(NCMScreen.ColorType.PRIMARY_TEXT)));
 
-        LabelWidget lblRecommendations = new LabelWidget("推荐歌单", FontManager.pf14bold);
+        LabelWidget lblRecommendations = new LabelWidget(I18n.get("tritium-music.ui.home.recommended_playlists"), FontManager.pf14bold);
 
         this.addChild(lblRecommendations);
 

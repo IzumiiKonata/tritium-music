@@ -1,6 +1,7 @@
 package tritium.music.client.screens.ncm;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
@@ -795,7 +796,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         Music current = CloudMusic.currentlyPlaying == null ? music : CloudMusic.currentlyPlaying;
         long request = ++providerMenuRequest;
         contextMenu.open(mouseX, mouseY, List.of(
-                new ContextMenuWidget.Item("正在检测可用歌词源…", null, false, false)));
+                new ContextMenuWidget.Item(I18n.get("tritium-music.ui.lyrics.checking_sources"), null, false, false)));
         Platform.runAsync(() -> {
             List<LyricsFetcher.AvailableLyrics> available = CloudMusic.availableLyrics(current);
             String selected = CloudMusic.selectedLyricsProvider(current);
@@ -805,12 +806,13 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                     return;
                 if (available.isEmpty()) {
                     contextMenu.updateItems(List.of(
-                            new ContextMenuWidget.Item("没有可用的歌词源", null, false, false)));
+                            new ContextMenuWidget.Item(I18n.get("tritium-music.ui.lyrics.no_sources"), null, false, false)));
                     return;
                 }
                 contextMenu.updateItems(available.stream()
                         .map(provider -> new ContextMenuWidget.Item(
-                                provider.displayName() + (provider.wordTimed() ? "（逐字歌词）" : ""),
+                                providerName(provider.id(), provider.displayName())
+                                        + (provider.wordTimed() ? I18n.get("tritium-music.ui.lyrics.word_timed_suffix") : ""),
                                 () -> CloudMusic.selectLyricsProvider(current, provider.id()),
                                 provider.id().equals(selected) || selected.isBlank()
                                         && CloudMusic.currentLyricsSongId == current.getId()
@@ -819,6 +821,15 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                         .toList());
             });
         });
+    }
+
+    private static String providerName(String id, String fallback) {
+        return switch (id) {
+            case "local" -> I18n.get("tritium-music.ui.lyrics.provider.local");
+            case "netease" -> I18n.get("tritium-music.ui.lyrics.provider.netease");
+            case "qq" -> I18n.get("tritium-music.ui.lyrics.provider.qq");
+            default -> fallback;
+        };
     }
 
     private String formatDuration(float totalMillis) {

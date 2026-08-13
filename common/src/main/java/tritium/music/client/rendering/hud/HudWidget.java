@@ -1,8 +1,8 @@
 package tritium.music.client.rendering.hud;
 
-import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
@@ -35,14 +35,17 @@ public abstract class HudWidget implements SharedRenderingConstants {
         }
     }
 
-    @Getter
-    private final String name;
+    private final String nameKey;
 
     @Setter
     private double width = -1, height = -1;
 
-    protected HudWidget(String name) {
-        this.name = name;
+    protected HudWidget(String nameKey) {
+        this.nameKey = nameKey;
+    }
+
+    public String getName() {
+        return I18n.get(nameKey);
     }
 
     /**

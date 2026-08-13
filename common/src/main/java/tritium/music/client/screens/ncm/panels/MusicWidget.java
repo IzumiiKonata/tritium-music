@@ -249,7 +249,7 @@ public class MusicWidget extends RoundedRectWidget {
                     gridCover.getY(),
                     gridCover.getWidth(),
                     gridCover.getHeight(),
-                    gridCover.getRadius() + 1.5,
+                    gridCover.getRadius() + 2.5,
                     1.5,
                     1.5,
                     new Color(214, 0, 23, alpha)

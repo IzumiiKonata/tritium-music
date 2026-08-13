@@ -1,6 +1,7 @@
 package tritium.music.client.screens.ncm.panels;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.RenderSystem;
@@ -60,11 +61,11 @@ public class PlaylistPanel extends NCMPanel {
 
             cover.setBeforeRenderCallback(() -> cover.setRadius(4));
 
-            RoundedButtonWidget btnPlay = new RoundedButtonWidget("播放歌单", FontManager.pf16bold);
+            RoundedButtonWidget btnPlay = new RoundedButtonWidget(I18n.get("tritium-music.ui.playlist.play"), FontManager.pf16bold);
             this.addChild(btnPlay);
 
             btnPlay.setBeforeRenderCallback(() -> {
-                btnPlay.setBounds(57, 17);
+                btnPlay.setBounds(Math.max(57, FontManager.pf16bold.getStringWidthD(I18n.get("tritium-music.ui.playlist.play")) + 12), 17);
                 btnPlay.setPosition(cover.getRelativeX() + cover.getWidth() + 12, cover.getRelativeY() + cover.getHeight() - btnPlay.getHeight());
                 btnPlay.setRadius(3);
                 btnPlay.setColor(0xFFd60017);
@@ -78,11 +79,11 @@ public class PlaylistPanel extends NCMPanel {
                 return true;
             });
 
-            RoundedButtonWidget btnPlayRandomOrder = new RoundedButtonWidget("乱序播放歌单", FontManager.pf16bold);
+            RoundedButtonWidget btnPlayRandomOrder = new RoundedButtonWidget(I18n.get("tritium-music.ui.playlist.shuffle"), FontManager.pf16bold);
             this.addChild(btnPlayRandomOrder);
 
             btnPlayRandomOrder.setBeforeRenderCallback(() -> {
-                btnPlayRandomOrder.setBounds(57, 17);
+                btnPlayRandomOrder.setBounds(Math.max(57, FontManager.pf16bold.getStringWidthD(I18n.get("tritium-music.ui.playlist.shuffle")) + 12), 17);
                 btnPlayRandomOrder.setPosition(cover.getRelativeX() + cover.getWidth() + 12 + btnPlay.getWidth() + 8, cover.getRelativeY() + cover.getHeight() - btnPlayRandomOrder.getHeight());
                 btnPlayRandomOrder.setRadius(3);
                 btnPlayRandomOrder.setColor(0xFFd60017);
@@ -257,8 +258,8 @@ public class PlaylistPanel extends NCMPanel {
         double controlSpacing = 6;
         double rightMargin = 24;
 
-        RoundedButtonWidget btnListView = new RoundedButtonWidget("列表", FontManager.pf14bold);
-        RoundedButtonWidget btnGridView = new RoundedButtonWidget("平铺", FontManager.pf14bold);
+        RoundedButtonWidget btnListView = new RoundedButtonWidget(I18n.get("tritium-music.ui.playlist.list_view"), FontManager.pf14bold);
+        RoundedButtonWidget btnGridView = new RoundedButtonWidget(I18n.get("tritium-music.ui.playlist.grid_view"), FontManager.pf14bold);
         this.addChild(btnListView, btnGridView);
 
         btnListView.setBeforeRenderCallback(() -> {
@@ -346,19 +347,19 @@ public class PlaylistPanel extends NCMPanel {
     public void openMusicMenu(MusicWidget widget, double mouseX, double mouseY) {
         List<ContextMenuWidget.Item> items = new ArrayList<>();
         boolean liked = CloudMusic.likeList != null && CloudMusic.likeList.contains(widget.music.getId());
-        items.add(new ContextMenuWidget.Item("播放", () -> {
+        items.add(new ContextMenuWidget.Item(I18n.get("tritium-music.ui.menu.play"), () -> {
             int index = playList.getMusics().indexOf(widget.music);
             if (index >= 0) CloudMusic.play(playList.getMusics(), index);
         }));
-        items.add(new ContextMenuWidget.Item("下一首播放", () -> CloudMusic.playNext(widget.music)));
-        items.add(new ContextMenuWidget.Item(liked ? "取消喜欢" : "喜欢",
+        items.add(new ContextMenuWidget.Item(I18n.get("tritium-music.ui.menu.play_next"), () -> CloudMusic.playNext(widget.music)));
+        items.add(new ContextMenuWidget.Item(I18n.get(liked ? "tritium-music.ui.menu.unlike" : "tritium-music.ui.menu.like"),
                 () -> runLibraryOperation(() -> widget.music.setLike(!liked))));
-        items.add(new ContextMenuWidget.Item("添加到歌单", () -> openAddToPlaylistMenu(widget, mouseX, mouseY)));
-        items.add(new ContextMenuWidget.Item("复制 ID", () -> {
+        items.add(new ContextMenuWidget.Item(I18n.get("tritium-music.ui.menu.add_to_playlist"), () -> openAddToPlaylistMenu(widget, mouseX, mouseY)));
+        items.add(new ContextMenuWidget.Item(I18n.get("tritium-music.ui.menu.copy_id"), () -> {
             Minecraft.getInstance().keyboardHandler.setClipboard(String.valueOf(widget.music.getId()));
         }));
         if (!playList.isSearchMode()) {
-            items.add(new ContextMenuWidget.Item("从歌单中删除", () -> removeMusic(widget)));
+            items.add(new ContextMenuWidget.Item(I18n.get("tritium-music.ui.menu.remove_from_playlist"), () -> removeMusic(widget)));
         }
         contextMenu.open(mouseX - getX(), mouseY - getY(), items);
     }
@@ -369,7 +370,7 @@ public class PlaylistPanel extends NCMPanel {
                 : CloudMusic.playLists.stream().filter(candidate -> !candidate.isSubscribed()).toList();
         if (playlists.isEmpty()) {
             contextMenu.open(mouseX - getX(), mouseY - getY(), List.of(
-                    new ContextMenuWidget.Item("没有可用的歌单", null, false, false)));
+                    new ContextMenuWidget.Item(I18n.get("tritium-music.ui.menu.no_playlists"), null, false, false)));
             return;
         }
         contextMenu.open(mouseX - getX(), mouseY - getY(), playlists.stream()
@@ -427,20 +428,20 @@ public class PlaylistPanel extends NCMPanel {
         StringBuilder sb = new StringBuilder();
 
         if (hours > 0) {
-            sb.append(String.format("%02d时", hours));
+            sb.append(I18n.get("tritium-music.ui.duration.hours", String.format("%02d", hours)));
         }
 
         if (minutes > 0) {
-            sb.append(String.format("%02d分", minutes));
+            sb.append(I18n.get("tritium-music.ui.duration.minutes", String.format("%02d", minutes)));
         }
 
-        sb.append(String.format("%02d秒", seconds));
+        sb.append(I18n.get("tritium-music.ui.duration.seconds", String.format("%02d", seconds)));
 
         return sb.toString();
     }
 
-    String cached = "";
     int lastSize = -1;
+    long cachedDuration;
 
     private String getPlayListInfo() {
         if (!playList.musicsLoaded)
@@ -450,14 +451,12 @@ public class PlaylistPanel extends NCMPanel {
 
         if (lastSize != musics.size()) {
             lastSize = musics.size();
-            if (musics.isEmpty()) {
-                cached = playList.getCount() + "首歌曲";
-            } else {
-                cached = musics.size() + "首歌曲 · " + this.formatDuration(musics.stream().mapToLong(Music::getDuration).sum());
-            }
+            cachedDuration = musics.stream().mapToLong(Music::getDuration).sum();
         }
 
-        return cached;
+        int count = musics.isEmpty() ? playList.getCount() : musics.size();
+        String songCount = I18n.get("tritium-music.ui.playlist.song_count", count);
+        return musics.isEmpty() ? songCount : songCount + " · " + this.formatDuration(cachedDuration);
     }
 
     private void loadCover() {

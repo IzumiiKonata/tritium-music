@@ -1,6 +1,7 @@
 package tritium.music.client.rendering.hud;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
@@ -35,7 +36,7 @@ public class MusicInfoWidget extends HudWidget {
     private Music prevMusic = null;
 
     public MusicInfoWidget() {
-        super("Music");
+        super("tritium-music.ui.widget.music_info");
     }
 
     @Override
@@ -122,7 +123,7 @@ public class MusicInfoWidget extends HudWidget {
 
                 CFontRenderer fr = FontManager.pf18bold;
 
-                fr.drawString("Downloading...", imgX, offsetY, new Color(1f, 1f, 1f, downloadPanelAlpha).getRGB());
+                fr.drawString(I18n.get("tritium-music.ui.download.downloading"), imgX, offsetY, new Color(1f, 1f, 1f, downloadPanelAlpha).getRGB());
                 fr.drawString(downloadSpeed, imgX + width - imgSpacing * 2 - fr.getStringWidthD(downloadSpeed), offsetY, new Color(1f, 1f, 1f, downloadPanelAlpha).getRGB());
 
                 this.roundedRect(imgX, offsetY + fr.getHeight() + 4, width - imgSpacing * 2, 6, 2, 1, 1, 1, downloadPanelAlpha * 0.25f);
@@ -146,7 +147,7 @@ public class MusicInfoWidget extends HudWidget {
                 this.roundedRect(imgX, imgY, imgSize, imgSize, coverRound, 195, 2, 24, (int) (alpha * 255));
             }
 
-            String secondaryText = hasMusic ? playingMusic.getArtistsName() : "正在等待播放";
+            String secondaryText = hasMusic ? playingMusic.getArtistsName() : I18n.get("tritium-music.ui.playback.waiting");
 
             if (this.turnComposerIntoLyric && CloudMusic.player != null) {
                 LyricLine currentDisplaying = CloudMusic.currentLyric;
@@ -183,7 +184,7 @@ public class MusicInfoWidget extends HudWidget {
 
             double progressBarWidth = width - (imgSize + imgSpacing * 3.25);
 
-            String name1 = hasMusic ? playingMusic.getName() : "Tritium Music";
+            String name1 = hasMusic ? playingMusic.getName() : I18n.get("tritium-music.ui.app_name");
 
             double musicNameY = imgY + 3;
             musicName.render(FontManager.pf25bold, name1, imgX + imgSize + imgSpacing, musicNameY, progressBarWidth, new Color(1f, 1f, 1f, alpha).getRGB());

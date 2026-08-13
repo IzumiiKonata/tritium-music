@@ -11,6 +11,7 @@ import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.SharedRenderingConstants;
+import tritium.music.client.rendering.TextField;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.shader.EffectQueue;
 import tritium.music.client.util.CursorUtils;
@@ -142,6 +143,7 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         lastClick = System.currentTimeMillis();
         if (event.button() == 0) lmbPressed = true;
         if (event.button() == 1) rmbPressed = true;
+        TextField.clearFocusOutside(mx, my);
         this.mouseClicked(mx, my, event.button());
         return true;
     }

@@ -1,5 +1,6 @@
 package tritium.music.client.screens.ncm.panels;
 
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.widgets.*;
@@ -211,7 +212,7 @@ public class ControlsBar extends NCMPanel {
                         .setColor(NCMScreen.getColor(NCMScreen.ColorType.SECONDARY_TEXT))
                         .setPosition(progressBarBg.getRelativeX() + progressBarBg.getWidth() + 4, lblCurTime.getRelativeY()));
 
-        LabelWidget lblMusicName = new LabelWidget(() -> CloudMusic.currentlyPlaying == null ? "未在播放" : CloudMusic.currentlyPlaying.getName(), FontManager.pf14bold);
+        LabelWidget lblMusicName = new LabelWidget(() -> CloudMusic.currentlyPlaying == null ? I18n.get("tritium-music.ui.playback.not_playing") : CloudMusic.currentlyPlaying.getName(), FontManager.pf14bold);
         this.addChild(lblMusicName);
 
         lblMusicName
@@ -228,7 +229,7 @@ public class ControlsBar extends NCMPanel {
         LabelWidget lblMusicArtist = new LabelWidget(
                 () -> {
                     if (CloudMusic.currentlyPlaying == null)
-                        return "无";
+                        return I18n.get("tritium-music.ui.common.none");
                     return CloudMusic.currentlyPlaying.getArtistsName() + " - " + CloudMusic.currentlyPlaying.getAlbum().getName();
                 },
                 FontManager.pf14bold

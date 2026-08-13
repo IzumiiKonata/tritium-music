@@ -19,5 +19,7 @@ public interface MusicPlatform {
 
     void sendChatMessage(String message);
 
+    String translate(String key, Object... arguments);
+
     void log(String message);
 }

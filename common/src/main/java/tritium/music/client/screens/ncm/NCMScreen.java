@@ -2,6 +2,7 @@ package tritium.music.client.screens.ncm;
 
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.gui.screens.Screen;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
@@ -270,7 +271,7 @@ public class NCMScreen extends BaseScreen {
 
         double offsetY = 8 + -(8 + downloadPanelHeight) * (1 - downloadPanelAlpha);
         Rect.draw(RenderSystem.getWidth() * .5 - downloadPanelWidth * .5, offsetY, downloadPanelWidth, downloadPanelHeight, RenderSystem.reAlpha(0x202020, downloadPanelAlpha * alpha));
-        FontManager.pf34bold.drawCenteredString("Downloading...", RenderSystem.getWidth() * .5, offsetY + 8, hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
+        FontManager.pf34bold.drawCenteredString(I18n.get("tritium-music.ui.download.downloading"), RenderSystem.getWidth() * .5, offsetY + 8, hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
         FontManager.pf25bold.drawCenteredString(String.valueOf(downloadSpeed), RenderSystem.getWidth() * .5, offsetY + 8 + FontManager.pf34bold.getHeight(), hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
         roundedRect(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth, progressBarHeight, 3, hexColor(1f, 1f, 1f, .5f * downloadPanelAlpha * alpha));
 

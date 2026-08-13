@@ -1,6 +1,7 @@
 package tritium.music.client.rendering.hud;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
@@ -50,7 +51,7 @@ public class MusicLyricsWidget extends HudWidget {
     private double auroraEnergy = 0;
 
     public MusicLyricsWidget() {
-        super("MusicLyrics");
+        super("tritium-music.ui.widget.music_lyrics");
     }
 
     @Override
@@ -136,11 +137,11 @@ public class MusicLyricsWidget extends HudWidget {
                 WordInfo wordInfo = calculateCurrentWordInfo(currentLine, songProgress);
 
                 LyricLine.Word current = currentLine.words.get(wordInfo.currentIndex);
-                FontManager.pf28bold.drawStringWithShadow("Current word: " + current.word, 100, 100, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.current_word", current.word), 100, 100, -1);
                 double value = (songProgress - current.timestamp) / (double) (current.duration);
-                FontManager.pf28bold.drawStringWithShadow("Perc: " + value, 100, 120, -1);
-                FontManager.pf28bold.drawStringWithShadow("Dur: " + current.duration, 100, 140, -1);
-                FontManager.pf28bold.drawStringWithShadow("Pos: " + (songProgress - current.timestamp), 100, 160, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.percentage", value), 100, 120, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.duration", current.duration), 100, 140, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.position", songProgress - current.timestamp), 100, 160, -1);
             }
         }
     }
@@ -155,7 +156,11 @@ public class MusicLyricsWidget extends HudWidget {
         fontH = getFontRenderer().getHeight();
         lyricH = getLyricHeight(true);
 
-        String[] secondaryLyrics = {"让音乐在此刻响起", "Tritium Music", "拖动组件调整位置"};
+        String[] secondaryLyrics = {
+                I18n.get("tritium-music.ui.editor.lyric.previous_secondary"),
+                I18n.get("tritium-music.ui.editor.lyric.current_secondary"),
+                I18n.get("tritium-music.ui.editor.lyric.next_secondary")
+        };
         int currentIndex = 1;
         float progress = System.currentTimeMillis() % 3200;
         double startY = getY() + getHeight() * 0.5 - fontH * 0.5 - lyricH;
@@ -201,14 +206,14 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private static LyricLine[] createEditorLyrics() {
-        LyricLine previous = new LyricLine(0, "欢迎使用 Tritium Music");
-        LyricLine current = new LyricLine(0, "正在播放的歌词");
+        LyricLine previous = new LyricLine(0, I18n.get("tritium-music.ui.editor.lyric.previous"));
+        LyricLine current = new LyricLine(0, I18n.get("tritium-music.ui.editor.lyric.current"));
         current.duration = 3200;
-        current.words.add(new LyricLine.Word("正在", 0, 800));
-        current.words.add(new LyricLine.Word("播放", 800, 800));
-        current.words.add(new LyricLine.Word("的", 1600, 500));
-        current.words.add(new LyricLine.Word("歌词", 2100, 1100));
-        LyricLine next = new LyricLine(3200, "下一句歌词将在这里显示");
+        current.words.add(new LyricLine.Word(I18n.get("tritium-music.ui.editor.lyric.word_1"), 0, 800));
+        current.words.add(new LyricLine.Word(I18n.get("tritium-music.ui.editor.lyric.word_2"), 800, 800));
+        current.words.add(new LyricLine.Word(I18n.get("tritium-music.ui.editor.lyric.word_3"), 1600, 500));
+        current.words.add(new LyricLine.Word(I18n.get("tritium-music.ui.editor.lyric.word_4"), 2100, 1100));
+        LyricLine next = new LyricLine(3200, I18n.get("tritium-music.ui.editor.lyric.next"));
         return new LyricLine[]{previous, current, next};
     }
 

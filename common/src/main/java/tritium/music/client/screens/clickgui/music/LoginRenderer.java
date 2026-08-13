@@ -1,6 +1,7 @@
 package tritium.music.client.screens.clickgui.music;
 
 import lombok.Getter;
+import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Interpolations;
@@ -26,8 +27,6 @@ public class LoginRenderer implements SharedRenderingConstants {
     float qrAlpha = 0;
     float avatarAlpha = 0f;
     double scale = .975;
-
-    private static final String LOGIN_PROMPT = "使用网易云音乐 App 扫描二维码登录";
 
     public boolean avatarLoaded = false;
     public TextureHandle scannedAvatar = TextureHandle.of("textures/tempavatar.png");
@@ -76,11 +75,11 @@ public class LoginRenderer implements SharedRenderingConstants {
 
         double centerX = cardX + cardWidth * .5;
         double titleY = cardY + 27;
-        FontManager.pf20bold.drawCenteredString("扫码登录", centerX, titleY,
+        FontManager.pf20bold.drawCenteredString(I18n.get("tritium-music.ui.login.title"), centerX, titleY,
                 reAlpha(NCMScreen.getColor(PRIMARY_TEXT), visibleAlpha));
 
         double promptY = titleY + FontManager.pf20bold.getHeight() + 9;
-        String[] promptLines = FontManager.pf14.fitWidth(LOGIN_PROMPT, cardWidth - 40);
+        String[] promptLines = FontManager.pf14.fitWidth(I18n.get("tritium-music.ui.login.prompt"), cardWidth - 40);
         for (String line : promptLines) {
             FontManager.pf14.drawCenteredString(line, centerX, promptY,
                     reAlpha(NCMScreen.getColor(NCMScreen.ColorType.SECONDARY_TEXT), visibleAlpha * .82f));
@@ -112,19 +111,19 @@ public class LoginRenderer implements SharedRenderingConstants {
 
         String status;
         if (success) {
-            status = "登录成功";
+            status = I18n.get("tritium-music.ui.login.success");
         } else if (failed) {
-            status = "登录服务暂时不可用";
+            status = I18n.get("tritium-music.ui.login.unavailable");
         } else if (qrReady) {
 
             if (avatarLoaded) {
-                status = "请在设备上点击登录";
+                status = I18n.get("tritium-music.ui.login.confirm");
             } else {
-                status = "等待扫码确认";
+                status = I18n.get("tritium-music.ui.login.waiting_confirmation");
             }
 
         } else {
-            status = "正在生成二维码";
+            status = I18n.get("tritium-music.ui.login.generating_qr");
         }
 
         double statusWidth = FontManager.pf12.getStringWidthD(status);
