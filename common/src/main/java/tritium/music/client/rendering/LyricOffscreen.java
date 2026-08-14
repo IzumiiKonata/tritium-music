@@ -191,15 +191,6 @@ public final class LyricOffscreen {
     private record GlyphBatch(AbstractTexture texture, int firstQuad, int quadCount) {
     }
 
-    public static final class GlyphCmd {
-        public final char ch;
-        public final float x;
-        public final float y;
-
-        public GlyphCmd(char ch, float x, float y) {
-            this.ch = ch;
-            this.x = x;
-            this.y = y;
-        }
+    public record GlyphCmd(char ch, float x, float y) {
     }
 }

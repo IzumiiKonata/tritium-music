@@ -45,9 +45,6 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        // Skip vanilla's panorama/menu background (the screen draws its own dark overlay) and
-        // fade the backdrop blur with the screen alpha — vanilla's blur is binary, so it drops
-        // out partway through the close animation rather than snapping at the very end.
         if (screenAlpha() > 0.5f && minecraft.options.getMenuBackgroundBlurriness() >= 1.0f) {
             graphics.blurBeforeThisStratum();
         }

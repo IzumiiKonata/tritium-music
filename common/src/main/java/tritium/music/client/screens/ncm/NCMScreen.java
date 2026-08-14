@@ -2,8 +2,8 @@ package tritium.music.client.screens.ncm;
 
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.language.I18n;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.Rect;

@@ -30,12 +30,8 @@ import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 public class MusicLyricsPanel implements SharedRenderingConstants {
 

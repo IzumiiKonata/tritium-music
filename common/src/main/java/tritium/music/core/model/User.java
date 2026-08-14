@@ -17,7 +17,7 @@ public record User(@SerializedName("userId") long id, @SerializedName("nickname"
                    @SerializedName("signature") String signature, @SerializedName("vipType") int vip,
                    @SerializedName("avatarUrl") String avatarUrl) {
 
-    public final TextureHandle getAvatarLocation() {
+    public TextureHandle getAvatarLocation() {
         return TextureHandle.of("textures/user/" + this.id + "/avatar.png");
     }
 

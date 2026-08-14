@@ -85,16 +85,10 @@ public class IFFParser extends FilterInputStream {
         return read(bar, 0, bar.length);
     }
 
-    /**
-     * @return Next byte array from stream. Increment offset by len.
-     */
     @Override
     public int read(byte[] bar, int off, int len) throws IOException {
-        // Reading from a URL can return before all the bytes are available.
-        // So we keep reading until we get the whole thing.
         int cursor = off;
         int numLeft = len;
-        // keep reading data until we get it all
         while (numLeft > 0) {
             int numRead = super.read(bar, cursor, numLeft);
             if (numRead < 0)
@@ -102,8 +96,6 @@ public class IFFParser extends FilterInputStream {
             cursor += numRead;
             numBytesRead += numRead;
             numLeft -= numRead;
-            // LOGGER.debug("read " + numRead + ", cursor = " + cursor +
-            // ", len = " + len);
         }
         return cursor - off;
     }

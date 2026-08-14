@@ -1,11 +1,11 @@
 package tritium.music.client.screens.ncm.panels;
 
-import net.minecraft.client.resources.language.I18n;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
+import net.minecraft.client.resources.language.I18n;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
@@ -29,8 +29,8 @@ import tritium.music.platform.TextureHandle;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -407,7 +407,7 @@ public class NavigateBar extends NCMPanel {
             setShouldOverrideMouseCursor(true);
             setTransformations(() -> {
                 double scale = .975 + visibility * .025;
-                RenderContext.graphics().pose().translate(0, (float) ((1 - visibility) * -5));
+                RenderContext.graphics().pose().translate(0, (1 - visibility) * -5);
                 scaleAtPos(getX() + getWidth() * .5, getY(), scale);
             });
         }

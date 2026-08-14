@@ -12,11 +12,7 @@ import net.minecraft.client.renderer.DynamicUniformStorage;
 import org.joml.Vector4f;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalDouble;
+import java.util.*;
 
 public final class PostEffectRenderer {
 

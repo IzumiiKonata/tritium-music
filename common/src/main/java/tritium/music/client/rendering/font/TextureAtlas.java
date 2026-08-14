@@ -161,22 +161,7 @@ public class TextureAtlas {
         }
     }
 
-    public static class AtlasRegion {
-        public final float u0, v0, u1, v1;
-        public final int width, height;
-        public final Identifier identifier;
-        public final NativeImage image;
-
-        public AtlasRegion(float u0, float v0, float u1, float v1, int width, int height,
-                           Identifier identifier, NativeImage image) {
-            this.u0 = u0;
-            this.v0 = v0;
-            this.u1 = u1;
-            this.v1 = v1;
-            this.width = width;
-            this.height = height;
-            this.identifier = identifier;
-            this.image = image;
-        }
+    public record AtlasRegion(float u0, float v0, float u1, float v1, int width, int height, Identifier identifier,
+                              NativeImage image) {
     }
 }

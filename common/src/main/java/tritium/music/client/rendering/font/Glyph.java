@@ -15,12 +15,12 @@ public class Glyph {
     public NativeImage atlasImage;
 
     public void setAtlasRegion(TextureAtlas.AtlasRegion region) {
-        this.u0 = region.u0;
-        this.v0 = region.v0;
-        this.u1 = region.u1;
-        this.v1 = region.v1;
-        this.atlasIdentifier = region.identifier;
-        this.atlasImage = region.image;
+        this.u0 = region.u0();
+        this.v0 = region.v0();
+        this.u1 = region.u1();
+        this.v1 = region.v1();
+        this.atlasIdentifier = region.identifier();
+        this.atlasImage = region.image();
         this.uploaded = true;
     }
 }
