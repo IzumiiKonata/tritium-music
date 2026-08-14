@@ -173,8 +173,18 @@ final class StreamingSoundPlayer {
             try (InputStream opened = streamFactory.open();
                  InputStream prefetched = new PrefetchInputStream(opened, PREFETCH_BUFFER_BYTES)) {
                 input = prefetched;
-                try (PcmStream pcm = openPcmStream(new BufferedInputStream(prefetched), type)) {
-                    SourceDataLine currentLine = openLine(pcm.format());
+                try (PcmStream decoded = openPcmStream(new BufferedInputStream(prefetched), type)) {
+                    PcmStream pcm = decoded;
+                    SourceDataLine currentLine;
+                    try {
+                        currentLine = openLine(pcm.format());
+                    } catch (IllegalArgumentException e) {
+                        if (!Pcm16Stream.supports(pcm.format())) {
+                            throw e;
+                        }
+                        pcm = new Pcm16Stream(pcm);
+                        currentLine = openLine(pcm.format());
+                    }
                     line = currentLine;
                     lineStartMillis = startMillis;
                     applyVolume(currentLine);
@@ -352,6 +362,90 @@ final class StreamingSoundPlayer {
         @Override
         public void close() throws IOException {
             stream.close();
+        }
+    }
+
+    private static final class Pcm16Stream implements PcmStream {
+        private final PcmStream source;
+        private final AudioFormat sourceFormat;
+        private final AudioFormat format;
+        private byte[] sourceBuffer = new byte[0];
+
+        private Pcm16Stream(PcmStream source) {
+            this.source = source;
+            sourceFormat = source.format();
+            int channels = sourceFormat.getChannels();
+            format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, sourceFormat.getSampleRate(), 16,
+                    channels, channels * 2, sourceFormat.getFrameRate(), false);
+        }
+
+        private static boolean supports(AudioFormat format) {
+            int sampleSize = format.getSampleSizeInBits();
+            int channels = format.getChannels();
+            return format.getEncoding().equals(AudioFormat.Encoding.PCM_SIGNED)
+                    && sampleSize > 16
+                    && sampleSize <= 32
+                    && sampleSize % 8 == 0
+                    && channels > 0
+                    && format.getFrameSize() == channels * sampleSize / 8;
+        }
+
+        @Override
+        public AudioFormat format() {
+            return format;
+        }
+
+        @Override
+        public int read(byte[] buffer) throws IOException {
+            int outputFrameSize = format.getFrameSize();
+            int frameCapacity = buffer.length / outputFrameSize;
+            if (frameCapacity == 0) {
+                return 0;
+            }
+            int sourceLength = frameCapacity * sourceFormat.getFrameSize();
+            if (sourceBuffer.length != sourceLength) {
+                sourceBuffer = new byte[sourceLength];
+            }
+            int read = source.read(sourceBuffer);
+            if (read <= 0) {
+                return read;
+            }
+            int sourceFrameSize = sourceFormat.getFrameSize();
+            int sourceBytesPerSample = sourceFormat.getSampleSizeInBits() / 8;
+            int frames = read / sourceFrameSize;
+            int outputOffset = 0;
+            for (int frame = 0; frame < frames; frame++) {
+                int sourceFrameOffset = frame * sourceFrameSize;
+                for (int channel = 0; channel < sourceFormat.getChannels(); channel++) {
+                    int sourceOffset = sourceFrameOffset + channel * sourceBytesPerSample;
+                    int sample = readSample(sourceBuffer, sourceOffset, sourceBytesPerSample,
+                            sourceFormat.isBigEndian());
+                    sample >>= sourceFormat.getSampleSizeInBits() - 16;
+                    buffer[outputOffset++] = (byte) sample;
+                    buffer[outputOffset++] = (byte) (sample >>> 8);
+                }
+            }
+            return outputOffset;
+        }
+
+        private static int readSample(byte[] data, int offset, int bytes, boolean bigEndian) {
+            int value = 0;
+            if (bigEndian) {
+                for (int i = 0; i < bytes; i++) {
+                    value = (value << 8) | (data[offset + i] & 0xff);
+                }
+            } else {
+                for (int i = bytes - 1; i >= 0; i--) {
+                    value = (value << 8) | (data[offset + i] & 0xff);
+                }
+            }
+            int shift = 32 - bytes * 8;
+            return value << shift >> shift;
+        }
+
+        @Override
+        public void close() throws IOException {
+            source.close();
         }
     }
 

@@ -12,7 +12,9 @@ import net.minecraft.client.renderer.DynamicUniformStorage;
 import org.joml.Vector4f;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
@@ -44,11 +46,20 @@ public final class PostEffectRenderer {
 
             if (!blurs.isEmpty()) {
                 copy(main, source);
-                ScissorBounds blurBounds = bounds(blurs, minecraft.getWindow().getGuiScale(), main.width, main.height, 12);
-                gaussian(source, scratch, 5f, 0.5f, 1f, 0f, blurBounds);
-                gaussian(scratch, output, 5f, 0.5f, 0f, 1f, blurBounds);
+                Map<Float, List<EffectQueue.Region>> blursByRadius = new LinkedHashMap<>();
                 for (EffectQueue.Region region : blurs) {
-                    compositeBlur(main, region, minecraft.getWindow().getGuiScale());
+                    blursByRadius.computeIfAbsent(region.blurRadius(), ignored -> new java.util.ArrayList<>()).add(region);
+                }
+                for (Map.Entry<Float, List<EffectQueue.Region>> entry : blursByRadius.entrySet()) {
+                    float radius = entry.getKey();
+                    List<EffectQueue.Region> regions = entry.getValue();
+                    int padding = (int) Math.ceil(radius * 2.5f);
+                    ScissorBounds blurBounds = bounds(regions, minecraft.getWindow().getGuiScale(), main.width, main.height, padding);
+                    gaussian(source, scratch, radius, 0.5f, 1f, 0f, blurBounds);
+                    gaussian(scratch, output, radius, 0.5f, 0f, 1f, blurBounds);
+                    for (EffectQueue.Region region : regions) {
+                        compositeBlur(main, region, minecraft.getWindow().getGuiScale());
+                    }
                 }
             }
 

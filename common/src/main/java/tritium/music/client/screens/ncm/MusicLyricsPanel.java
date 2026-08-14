@@ -33,7 +33,9 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MusicLyricsPanel implements SharedRenderingConstants {
 
@@ -319,7 +321,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             this.updateLyricPositions(posY, height, lyricsWidth);
         }
 
-        List<Runnable> blurRects = new ArrayList<>();
+        Map<Float, List<Runnable>> blurRects = new LinkedHashMap<>();
 
         boolean hoveringLyrics = isHovered(mouseX, mouseY, posX + width * .5, posY, width * .5, height);
 
@@ -354,6 +356,13 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
         for (int k = 0; k < CloudMusic.lyrics.size(); k++) {
             LyricLine lyric = CloudMusic.lyrics.get(k);
+            int lyricDistance = Math.abs(k - currentIndex);
+            float blurTarget = !hoveringLyrics && lyricDistance > 0 ? Math.min(1f, .45f + (lyricDistance - 1) * .2f) : 0f;
+            lyric.blurAlpha = Interpolations.interpolate(lyric.blurAlpha, blurTarget, 0.05f);
+        }
+
+        for (int k = 0; k < CloudMusic.lyrics.size(); k++) {
+            LyricLine lyric = CloudMusic.lyrics.get(k);
 
             if (lyric.posY + lyric.height + getLyricLineSpacing() + scrollOffset < posY) {
                 continue;
@@ -367,7 +376,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             lyric.alpha = Interpolations.interpolate(lyric.alpha, isCurrentLyric ? 1f : 0f, isCurrentLyric ? 0.15f : .1f);
             boolean isHovering = isHovered(mouseX, mouseY - scrollOffset, lyricRenderOffsetX, lyric.posY, lyricsWidth, lyric.height);
             lyric.hoveringAlpha = Interpolations.interpolate(lyric.hoveringAlpha, isHovering ? 1f : 0f, 0.2f);
-            lyric.blurAlpha = Interpolations.interpolate(lyric.blurAlpha, !hoveringLyrics ? Math.min(1f, Math.abs(k - currentIndex) * .85f) : 0f, 0.05f);
+            int lyricDistance = Math.abs(k - currentIndex);
 
             if (isHovering) {
                 CursorUtils.setOverride(CursorUtils.HAND);
@@ -517,7 +526,9 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
             if (Shaders.BLUR_SHADER.isAvailable() && alpha * lyric.blurAlpha > 0.004f) {
                 double by = lyric.posY + scrollOffset;
-                blurRects.add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1, 1, 1, alpha * lyric.blurAlpha)));
+                float blurRadius = Math.min(16f, 7f + Math.min(3, Math.max(0, lyricDistance - 1)) * 3f);
+                blurRects.computeIfAbsent(blurRadius, ignored -> new ArrayList<>())
+                        .add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1, 1, 1, alpha * lyric.blurAlpha)));
             }
         }
 
@@ -525,7 +536,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
         RenderContext.graphics().pose().pushMatrix();
         this.scaleAtPos(lyricRenderOffsetX, RenderSystem.getHeight() * .5, 1 / (1.1 - (alpha * 0.1)));
-        Shaders.BLUR_SHADER.runNoCaching(blurRects);
+        blurRects.forEach((radius, rects) -> Shaders.BLUR_SHADER.runNoCaching(rects, radius));
         RenderContext.graphics().pose().popMatrix();
     }
 

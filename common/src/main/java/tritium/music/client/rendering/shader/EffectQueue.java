@@ -29,20 +29,24 @@ public final class EffectQueue {
     }
 
     public static void captureBlur(List<Runnable> renderers) {
-        capture(renderers, BLURS);
+        captureBlur(renderers, 5f);
+    }
+
+    public static void captureBlur(List<Runnable> renderers, float blurRadius) {
+        capture(renderers, BLURS, blurRadius);
     }
 
     public static void captureBloom(List<Runnable> renderers) {
-        capture(renderers, BLOOMS);
+        capture(renderers, BLOOMS, 0f);
     }
 
     public static void captureBackdrop(Runnable renderer) {
-        capture(List.of(renderer), BLURS);
+        captureBlur(List.of(renderer));
     }
 
-    private static void capture(List<Runnable> renderers, List<Region> destination) {
+    private static void capture(List<Runnable> renderers, List<Region> destination, float blurRadius) {
         Capture previous = CAPTURE.get();
-        CAPTURE.set(new Capture(destination));
+        CAPTURE.set(new Capture(destination, blurRadius));
         try {
             renderers.forEach(Runnable::run);
         } finally {
@@ -73,7 +77,7 @@ public final class EffectQueue {
         float sy = (float) Math.hypot(pose.m10(), pose.m11());
         float transformedRadius = radius * Math.min(sx, sy);
         float alpha = ((color >>> 24) & 255) / 255f;
-        capture.destination.add(new Region(minX, minY, maxX - minX, maxY - minY, transformedRadius, alpha));
+        capture.destination.add(new Region(minX, minY, maxX - minX, maxY - minY, transformedRadius, alpha, capture.blurRadius));
         return true;
     }
 
@@ -85,9 +89,9 @@ public final class EffectQueue {
         return List.copyOf(BLOOMS);
     }
 
-    private record Capture(List<Region> destination) {
+    private record Capture(List<Region> destination, float blurRadius) {
     }
 
-    public record Region(float x, float y, float width, float height, float radius, float alpha) {
+    public record Region(float x, float y, float width, float height, float radius, float alpha, float blurRadius) {
     }
 }

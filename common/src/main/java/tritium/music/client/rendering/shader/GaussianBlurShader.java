@@ -15,4 +15,8 @@ public class GaussianBlurShader {
     public void runNoCaching(List<Runnable> runnables) {
         EffectQueue.captureBlur(runnables);
     }
+
+    public void runNoCaching(List<Runnable> runnables, float blurRadius) {
+        EffectQueue.captureBlur(runnables, blurRadius);
+    }
 }
