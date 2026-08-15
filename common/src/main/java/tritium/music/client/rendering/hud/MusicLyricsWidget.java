@@ -50,6 +50,7 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private double auroraEnergy = 0;
+    private boolean karaokeRightAligned;
 
     public MusicLyricsWidget() {
         super("tritium-music.ui.widget.music_lyrics");
@@ -216,23 +217,24 @@ public class MusicLyricsWidget extends HudWidget {
         int currentIndex = 1;
         double margin = karaokeMargin(true);
         double smallFontHeight = getSmallFontRenderer().getHeight();
+        karaokeRightAligned = false;
 
         StencilClipManager.beginClip(() -> Rect.draw(getX() - 2, getY(), getWidth() + 4, getHeight(), -1));
 
         LyricLine current = editorLyrics[currentIndex];
         updateLyricAnimation(current, true);
         LyricRenderInfo currentInfo = new LyricRenderInfo();
-        currentInfo.yPosition = getY() + margin + smallFontHeight + 2;
+        currentInfo.yPosition = karaokeY(true, true, smallFontHeight, margin);
         currentInfo.fade = computeEdgeFade(currentInfo.yPosition);
-        renderKaraokeCurrentLine(current, currentInfo, progress, secondaryLyrics[currentIndex]);
+        renderKaraokeCurrentLine(current, currentInfo, progress, true, secondaryLyrics[currentIndex]);
 
         LyricLine next = editorLyrics[currentIndex + 1];
         updateLyricAnimation(next, false);
         next.auroraGlow = Interpolations.interpolate(next.auroraGlow, 0f, 0.06f);
         LyricRenderInfo nextInfo = new LyricRenderInfo();
-        nextInfo.yPosition = getY() + getHeight() - margin - fontH;
+        nextInfo.yPosition = karaokeY(false, true, smallFontHeight, margin);
         nextInfo.fade = computeEdgeFade(nextInfo.yPosition);
-        renderKaraokeLine(next, nextInfo, false, secondaryLyrics[currentIndex + 1]);
+        renderKaraokeLine(next, nextInfo, false, false, secondaryLyrics[currentIndex + 1]);
 
         StencilClipManager.endClip();
     }
@@ -367,51 +369,55 @@ public class MusicLyricsWidget extends HudWidget {
     private void renderKaraokeLyrics(boolean singleLineMode, float songProgress) {
         int indexOf = CloudMusic.lyrics.indexOf(currentLyric());
         LyricLine current;
-        LyricLine next;
+        LyricLine preview;
         synchronized (CloudMusic.lyrics) {
             current = indexOf >= 0 ? CloudMusic.lyrics.get(indexOf) : null;
             if (current != null) {
-                next = indexOf + 1 < CloudMusic.lyrics.size() ? CloudMusic.lyrics.get(indexOf + 1) : null;
+                preview = indexOf + 1 < CloudMusic.lyrics.size() ? CloudMusic.lyrics.get(indexOf + 1) : null;
             } else {
-                next = CloudMusic.lyrics.isEmpty() ? null : CloudMusic.lyrics.getFirst();
+                preview = CloudMusic.lyrics.isEmpty() ? null : CloudMusic.lyrics.getFirst();
             }
         }
 
+        boolean currentOnLeft = indexOf >= 0 && indexOf % 2 == 0;
         boolean hasSecondary = hasSecondaryLyrics();
         double margin = karaokeMargin(hasSecondary);
         double smallFontHeight = getSmallFontRenderer().getHeight();
 
         if (current != null) {
             updateLyricAnimation(current, true);
+            karaokeRightAligned = !currentOnLeft;
             LyricRenderInfo info = new LyricRenderInfo();
-            info.yPosition = getY() + margin + (hasSecondary ? smallFontHeight + 2 : 0);
+            info.yPosition = karaokeY(currentOnLeft, hasSecondary, smallFontHeight, margin);
             info.fade = computeEdgeFade(info.yPosition);
-            renderKaraokeCurrentLine(current, info, songProgress, hasSecondary ? getSecondaryLyrics(current) : "");
+            renderKaraokeCurrentLine(current, info, songProgress, currentOnLeft, hasSecondary ? getSecondaryLyrics(current) : "");
         }
 
-        if (next != null && !singleLineMode) {
-            updateLyricAnimation(next, false);
-            next.auroraGlow = Interpolations.interpolate(next.auroraGlow, 0f, 0.06f);
+        if (preview != null && !singleLineMode) {
+            updateLyricAnimation(preview, false);
+            preview.auroraGlow = Interpolations.interpolate(preview.auroraGlow, 0f, 0.06f);
+            boolean previewOnLeft = !currentOnLeft;
             LyricRenderInfo info = new LyricRenderInfo();
-            info.yPosition = getY() + getHeight() - margin - fontH;
+            info.yPosition = karaokeY(previewOnLeft, hasSecondary, smallFontHeight, margin);
             info.fade = computeEdgeFade(info.yPosition);
-            renderKaraokeLine(next, info, false, hasSecondary ? getSecondaryLyrics(next) : "");
+            renderKaraokeLine(preview, info, previewOnLeft, false, hasSecondary ? getSecondaryLyrics(preview) : "");
         }
     }
 
-    private void renderKaraokeCurrentLine(LyricLine line, LyricRenderInfo info, float songProgress, String secondaryLyric) {
+    private void renderKaraokeCurrentLine(LyricLine line, LyricRenderInfo info, float songProgress, boolean onLeft, String secondaryLyric) {
         double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
+        double pivotX = onLeft ? getX() : getX() + getWidth();
         RenderContext.graphics().pose().pushMatrix();
-        scaleAtPos(getX(), info.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+        scaleAtPos(pivotX, info.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
         updateAuroraLinger(line, info, true);
-        renderKaraokeLine(line, info, true, secondaryLyric);
+        renderKaraokeLine(line, info, onLeft, true, secondaryLyric);
         if (!line.words.isEmpty()) {
             handleScrollEffects(line, info, songProgress);
         }
         RenderContext.graphics().pose().popMatrix();
     }
 
-    private void renderKaraokeLine(LyricLine line, LyricRenderInfo info, boolean isCurrent, String secondaryLyric) {
+    private void renderKaraokeLine(LyricLine line, LyricRenderInfo info, boolean onLeft, boolean isCurrent, String secondaryLyric) {
         boolean hasWords = !line.words.isEmpty();
         ScrollEffects effect = cfg().scrollEffect;
         boolean selfRendered = isCurrent && hasWords
@@ -428,14 +434,20 @@ public class MusicLyricsWidget extends HudWidget {
         double secondaryY = y - smallFont.getHeight() - 2;
 
         if (!selfRendered) {
-            double x = isCurrent ? getX() : getX() + getWidth() - bigFont.getStringWidthD(line.getLyric());
+            double x = onLeft ? getX() : getX() + getWidth() - bigFont.getStringWidthD(line.getLyric());
             bigFrString(line.getLyric(), x, y, primaryColor);
         }
 
         if (!secondaryLyric.isEmpty()) {
-            double x = isCurrent ? getX() : getX() + getWidth() - smallFont.getStringWidthD(secondaryLyric);
+            double x = onLeft ? getX() : getX() + getWidth() - smallFont.getStringWidthD(secondaryLyric);
             smallFrString(secondaryLyric, x, secondaryY, secondaryColor);
         }
+    }
+
+    private double karaokeY(boolean onLeft, boolean hasSecondary, double smallFontHeight, double margin) {
+        return onLeft
+                ? getY() + margin + (hasSecondary ? smallFontHeight + 2 : 0)
+                : getY() + getHeight() - margin - fontH;
     }
 
     private double karaokeMargin(boolean hasSecondary) {
@@ -878,8 +890,12 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private double calculateAlignmentX(String text, AlignMode alignMode) {
-        if (alignMode == AlignMode.Left || alignMode == AlignMode.Karaoke) {
+        if (alignMode == AlignMode.Left) {
             return this.getX();
+        } else if (alignMode == AlignMode.Karaoke) {
+            return karaokeRightAligned
+                    ? this.getX() + this.getWidth() - getFontRenderer().getStringWidthD(text)
+                    : this.getX();
         } else if (alignMode == AlignMode.Center) {
             return this.getX() + this.getWidth() / 2.0f - getFontRenderer().getStringWidthD(text) / 2.0f;
         } else {
@@ -888,8 +904,12 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private double calculateSlideInTargetX(LyricLine line, AlignMode alignMode) {
-        if (alignMode == AlignMode.Left || alignMode == AlignMode.Karaoke) {
+        if (alignMode == AlignMode.Left) {
             return this.getX();
+        } else if (alignMode == AlignMode.Karaoke) {
+            return karaokeRightAligned
+                    ? this.getX() + this.getWidth() - line.targetOffsetX
+                    : this.getX();
         } else if (alignMode == AlignMode.Center) {
             return this.getX() + this.getWidth() / 2.0 - line.targetOffsetX / 2.0;
         } else {
@@ -898,8 +918,14 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private void renderAlignedText(String text, double y, int color, AlignMode alignMode) {
-        if (alignMode == AlignMode.Left || alignMode == AlignMode.Karaoke) {
+        if (alignMode == AlignMode.Left) {
             bigFrString(text, this.getX(), y, color);
+        } else if (alignMode == AlignMode.Karaoke) {
+            if (karaokeRightAligned) {
+                bigFrString(text, this.getX() + this.getWidth() - getFontRenderer().getStringWidthD(text), y, color);
+            } else {
+                bigFrString(text, this.getX(), y, color);
+            }
         } else if (alignMode == AlignMode.Center) {
             bigFrStringCentered(text, this.getX() + this.getWidth() / 2.0, y, color);
         } else {
