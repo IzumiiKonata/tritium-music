@@ -1,9 +1,9 @@
 package tritium.music.client.render;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState;
@@ -22,12 +22,12 @@ public record ClipElement(
         @Nullable ScreenRectangle bounds
 ) implements GuiElementRenderState {
 
-    public static final VertexFormat FORMAT = VertexFormat.builder(0)
-            .addAttribute("Position", GpuFormat.RGB32_FLOAT)
-            .addAttribute("UV0", GpuFormat.RG32_FLOAT)
-            .addAttribute("Color", GpuFormat.RGBA8_UNORM)
-            .addAttribute("UV1", GpuFormat.RG16_SINT)
-            .addAttribute("UV2", GpuFormat.RG16_SINT)
+    public static final VertexFormat FORMAT = VertexFormat.builder()
+            .add("Position", VertexFormatElement.POSITION)
+            .add("UV0", VertexFormatElement.UV0)
+            .add("Color", VertexFormatElement.COLOR)
+            .add("UV1", VertexFormatElement.UV1)
+            .add("UV2", VertexFormatElement.UV2)
             .build();
 
     public ClipElement(RenderPipeline pipeline, TextureSetup textureSetup, Matrix3x2fc pose, List<Vertex> vertices,

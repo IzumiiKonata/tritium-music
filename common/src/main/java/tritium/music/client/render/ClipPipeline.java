@@ -1,10 +1,10 @@
 package tritium.music.client.render;
 
-import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.renderer.BindGroupLayouts;
+import com.mojang.blaze3d.shaders.UniformType;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -21,14 +21,14 @@ public final class ClipPipeline {
                 .withLocation(id("pipeline/" + name))
                 .withVertexShader(id("core/" + name))
                 .withFragmentShader(id("core/" + name))
-                .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-                .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+                .withUniform("Globals", UniformType.UNIFORM_BUFFER)
+                .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+                .withUniform("Projection", UniformType.UNIFORM_BUFFER)
                 .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-                .withVertexBinding(0, ClipElement.FORMAT)
-                .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                .withVertexFormat(ClipElement.FORMAT, VertexFormat.Mode.QUADS)
                 .withCull(false);
         if (textured) {
-            builder.withBindGroupLayout(BindGroupLayouts.SAMPLER0);
+            builder.withSampler("Sampler0");
         }
         return RenderPipelines.register(builder.build());
     }

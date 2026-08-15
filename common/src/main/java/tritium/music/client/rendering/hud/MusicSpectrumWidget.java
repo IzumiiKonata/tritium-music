@@ -33,7 +33,7 @@ public class MusicSpectrumWidget extends HudWidget {
     @Override
     public void onRender() {
         boolean compatMode = cfg().compatMode;
-        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
+        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
 
         if (CloudMusic.player != null) {
             if (compatMode) {

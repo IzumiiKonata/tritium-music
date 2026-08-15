@@ -1,11 +1,9 @@
 package tritium.music.client.rendering;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.textures.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import org.joml.Vector4f;
 
 import java.nio.ByteBuffer;
 import java.util.OptionalDouble;
@@ -35,17 +33,17 @@ public final class TRenderTarget implements AutoCloseable {
         var device = com.mojang.blaze3d.systems.RenderSystem.getDevice();
 
         final var colorTexture = device.createTexture(
-                "tritium-rt-color",
+                () -> "tritium-rt-color",
                 GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
-                GpuFormat.RGBA8_UNORM,
+                TextureFormat.RGBA8,
                 width, height, 1, 1
         );
         final var colorView = device.createTextureView(colorTexture);
 
         depthTexture = device.createTexture(
-                "tritium-rt-depth",
+                () -> "tritium-rt-depth",
                 GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
-                GpuFormat.D32_FLOAT,
+                TextureFormat.DEPTH32,
                 width, height, 1, 1
         );
         depthView = device.createTextureView(depthTexture);
@@ -76,8 +74,7 @@ public final class TRenderTarget implements AutoCloseable {
     public void clear() {
         var device = com.mojang.blaze3d.systems.RenderSystem.getDevice();
         var encoder = device.createCommandEncoder();
-        encoder.clearColorAndDepthTextures(colorTexture.getTexture(), new Vector4f(0, 0, 0, 0), depthTexture, 1.0);
-        encoder.submit();
+        encoder.clearColorAndDepthTextures(colorTexture.getTexture(), 0, depthTexture, 1.0);
     }
 
     public GpuTextureView colorView() {

@@ -75,7 +75,7 @@ public class TritiumMusicMod implements ClientModInitializer {
             public void onSongStart(Music music) {
                 MusicToastState.set(music.getArtistsName() + " - " + music.getName());
                 Minecraft mc = Minecraft.getInstance();
-                mc.execute(() -> mc.gui.toastManager().showNowPlayingToast());
+                mc.execute(() -> mc.getToastManager().showNowPlayingToast());
             }
 
             @Override
@@ -107,7 +107,7 @@ public class TritiumMusicMod implements ClientModInitializer {
             AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
             AudioPlayer.absoluteVolume = spectrum.absVol;
 
-            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || Minecraft.getInstance().screen instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
 
@@ -116,7 +116,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     }
 
     private void onClientTick(Minecraft client) {
-        if (client.gui.screen() != null) {
+        if (client.screen != null) {
             return;
         }
 

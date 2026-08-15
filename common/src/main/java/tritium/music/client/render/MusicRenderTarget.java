@@ -1,6 +1,5 @@
 package tritium.music.client.render;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -22,7 +21,7 @@ public class MusicRenderTarget {
             if (target != null) {
                 target.destroyBuffers();
             }
-            target = new TextureTarget(label, width, height, false, GpuFormat.RGBA8_UNORM);
+            target = new TextureTarget(label, width, height, false);
             this.width = width;
             this.height = height;
         }

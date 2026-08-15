@@ -94,7 +94,7 @@ public class TextField {
         }
         if (changed) {
             Minecraft minecraft = Minecraft.getInstance();
-            Screen screen = minecraft.gui.screen();
+            Screen screen = minecraft.screen;
             if (screen != null) {
                 minecraft.onTextInputFocusChange(screen, focused);
             } else {

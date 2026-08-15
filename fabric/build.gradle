@@ -46,7 +46,7 @@ dependencies {
 			: 'natives-linux'
 	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
 
-	implementation "maven.modrinth:mOgUt4GM:gKOCZzz9"
+	implementation "maven.modrinth:mOgUt4GM:3rsoV1bk"
 }
 
 processResources {

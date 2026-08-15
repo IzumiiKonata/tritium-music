@@ -51,7 +51,7 @@ public class MusicInfoWidget extends HudWidget {
         double height = 56;
 
         Music playingMusic = CloudMusic.currentlyPlaying;
-        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
+        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
         boolean realPlayback = playingMusic != null && CloudMusic.player != null && !CloudMusic.player.isFinished();
         boolean hasMusic = playingMusic != null;
 
