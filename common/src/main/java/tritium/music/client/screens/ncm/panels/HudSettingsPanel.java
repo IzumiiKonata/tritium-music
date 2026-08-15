@@ -17,7 +17,6 @@ import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.screens.widget.ColorPickerWidget;
 import tritium.music.core.model.Quality;
 
-import java.awt.*;
 import java.util.function.*;
 
 public class HudSettingsPanel extends NCMPanel {
@@ -194,7 +193,8 @@ public class HudSettingsPanel extends NCMPanel {
                 toggle(() -> lyrics.audioReactive, value -> lyrics.audioReactive = value)));
         content.addChild(row(text("lyrics.unsung_opacity.title"), text("lyrics.unsung_opacity.description"),
                 slider(() -> lyrics.auroraUnsungOpacity, value -> lyrics.auroraUnsungOpacity = value, 0.05, 1, 0.05, HudSettingsPanel::percent)));
-        addColorRows(text("lyrics.glow_prefix"), () -> lyrics.glowColor, value -> lyrics.glowColor = value);
+        content.addChild(row(text("lyrics.glow_color.title"), text("lyrics.glow_color.description"),
+                colorPicker(() -> lyrics.glowColor, value -> lyrics.glowColor = value, true)));
     }
 
     private void buildSpectrumPage() {
@@ -224,17 +224,6 @@ public class HudSettingsPanel extends NCMPanel {
         content.addChild(new SectionRow(text("section.color")));
         content.addChild(row(text("spectrum.color.title"), text("spectrum.color.description"),
                 colorPicker(() -> spectrum.rectColor, value -> spectrum.rectColor = value, true)));
-    }
-
-    private void addColorRows(String prefix, java.util.function.IntSupplier getter, java.util.function.IntConsumer setter) {
-        content.addChild(row(prefix + text("color.hue"), text("color.hue.description"),
-                slider(() -> colorComponent(getter.getAsInt(), 0), value -> setColorComponent(getter, setter, 0, value), 0, 1, 0.01, HudSettingsPanel::percent)));
-        content.addChild(row(prefix + text("color.saturation"), text("color.saturation.description"),
-                slider(() -> colorComponent(getter.getAsInt(), 1), value -> setColorComponent(getter, setter, 1, value), 0, 1, 0.01, HudSettingsPanel::percent)));
-        content.addChild(row(prefix + text("color.brightness"), text("color.brightness.description"),
-                slider(() -> colorComponent(getter.getAsInt(), 2), value -> setColorComponent(getter, setter, 2, value), 0, 1, 0.01, HudSettingsPanel::percent)));
-        content.addChild(row(prefix + text("color.opacity"), text("color.opacity.description"),
-                slider(() -> colorComponent(getter.getAsInt(), 3), value -> setColorComponent(getter, setter, 3, value), 0, 1, 0.01, HudSettingsPanel::percent)));
     }
 
     private SettingRow row(String title, String description, AbstractWidget<?> control) {
@@ -388,29 +377,6 @@ public class HudSettingsPanel extends NCMPanel {
         }
     }
 
-    private static double colorComponent(int color, int component) {
-        Color source = new Color(color, true);
-        float[] hsb = Color.RGBtoHSB(source.getRed(), source.getGreen(), source.getBlue(), null);
-        return component == 3 ? source.getAlpha() / 255.0 : hsb[component];
-    }
-
-    private static void setColorComponent(
-            java.util.function.IntSupplier getter,
-            java.util.function.IntConsumer setter,
-            int component,
-            double value) {
-        Color source = new Color(getter.getAsInt(), true);
-        float[] hsb = Color.RGBtoHSB(source.getRed(), source.getGreen(), source.getBlue(), null);
-        int alpha = source.getAlpha();
-        if (component < 3) {
-            hsb[component] = (float) value;
-        } else {
-            alpha = (int) Math.round(value * 255);
-        }
-        int rgb = Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
-        setter.accept((rgb & 0x00FFFFFF) | (alpha << 24));
-    }
-
     private static String scrollEffectName(MusicLyricsWidget.ScrollEffects effect) {
         return switch (effect) {
             case Scroll -> text("effect.scroll");
@@ -425,6 +391,7 @@ public class HudSettingsPanel extends NCMPanel {
             case Left -> text("alignment.left");
             case Center -> text("alignment.center");
             case Right -> text("alignment.right");
+            case Karaoke -> text("alignment.karaoke");
         };
     }
 
