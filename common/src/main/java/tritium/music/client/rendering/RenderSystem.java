@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.Window;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import tritium.music.client.render.Render;
@@ -28,7 +28,7 @@ public class RenderSystem {
         return mc.getWindow();
     }
 
-    private static GuiGraphicsExtractor g() {
+    private static GuiGraphics g() {
         return RenderContext.graphics();
     }
 

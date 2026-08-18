@@ -38,7 +38,7 @@ public class WidgetEditorScreen extends BaseScreen {
 
     public static void open() {
         Minecraft minecraft = Minecraft.getInstance();
-        minecraft.setScreenAndShow(new WidgetEditorScreen(minecraft.gui.screen()));
+        minecraft.setScreenAndShow(new WidgetEditorScreen(minecraft.screen));
     }
 
     @Override

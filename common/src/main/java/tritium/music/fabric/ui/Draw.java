@@ -1,7 +1,7 @@
 package tritium.music.fabric.ui;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import tritium.music.platform.TextureHandle;
@@ -11,18 +11,18 @@ public final class Draw {
     private Draw() {
     }
 
-    public static void rect(GuiGraphicsExtractor g, float x, float y, float w, float h, int color) {
+    public static void rect(GuiGraphics g, float x, float y, float w, float h, int color) {
         g.fill(Math.round(x), Math.round(y), Math.round(x + w), Math.round(y + h), color);
     }
 
-    public static void gradientV(GuiGraphicsExtractor g, float x, float y, float w, float h, int top, int bottom) {
+    public static void gradientV(GuiGraphics g, float x, float y, float w, float h, int top, int bottom) {
         g.fillGradient(Math.round(x), Math.round(y), Math.round(x + w), Math.round(y + h), top, bottom);
     }
 
     /**
      * Rounded rectangle approximated with horizontal spans — no shader required.
      */
-    public static void roundedRect(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius, int color) {
+    public static void roundedRect(GuiGraphics g, float x, float y, float w, float h, float radius, int color) {
         int xi = Math.round(x), yi = Math.round(y), wi = Math.round(w), hi = Math.round(h);
         int r = Math.round(Math.min(radius, Math.min(wi, hi) / 2f));
         if (r <= 0) {
@@ -41,23 +41,23 @@ public final class Draw {
         }
     }
 
-    public static void texture(GuiGraphicsExtractor g, TextureHandle handle, float x, float y, float w, float h, float alpha) {
+    public static void texture(GuiGraphics g, TextureHandle handle, float x, float y, float w, float h, float alpha) {
         texture(g, Identifiers.of(handle), x, y, w, h, alpha);
     }
 
-    public static void texture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float alpha) {
+    public static void texture(GuiGraphics g, Identifier id, float x, float y, float w, float h, float alpha) {
         int a = (int) (Ease.clamp01(alpha) * 255f) & 0xFF;
         int color = (a << 24) | 0xFFFFFF;
         int xi = Math.round(x), yi = Math.round(y), wi = Math.round(w), hi = Math.round(h);
         g.blit(RenderPipelines.GUI_TEXTURED, id, xi, yi, 0f, 0f, wi, hi, wi, hi, wi, hi, color);
     }
 
-    public static void text(GuiGraphicsExtractor g, Font font, String str, float x, float y, int color) {
-        g.text(font, str, Math.round(x), Math.round(y), color, true);
+    public static void text(GuiGraphics g, Font font, String str, float x, float y, int color) {
+        g.drawString(font, str, Math.round(x), Math.round(y), color, true);
     }
 
-    public static void textNoShadow(GuiGraphicsExtractor g, Font font, String str, float x, float y, int color) {
-        g.text(font, str, Math.round(x), Math.round(y), color, false);
+    public static void textNoShadow(GuiGraphics g, Font font, String str, float x, float y, int color) {
+        g.drawString(font, str, Math.round(x), Math.round(y), color, false);
     }
 
     public static String trim(Font font, String str, int maxWidth) {

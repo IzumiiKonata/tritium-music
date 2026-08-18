@@ -37,7 +37,7 @@ public final class PostEffectRenderer {
             RenderSystem.assertOnRenderThread();
             ensureUniforms();
             Minecraft minecraft = Minecraft.getInstance();
-            RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+            RenderTarget main = minecraft.getMainRenderTarget();
             ensureTargets(main.width, main.height);
 
             if (!blurs.isEmpty()) {
@@ -75,9 +75,9 @@ public final class PostEffectRenderer {
                 scratch.destroyBuffers();
                 output.destroyBuffers();
             }
-            source = new TextureTarget("Tritium effect source", width, height, false, com.mojang.blaze3d.GpuFormat.RGBA8_UNORM);
-            scratch = new TextureTarget("Tritium effect scratch", width, height, false, com.mojang.blaze3d.GpuFormat.RGBA8_UNORM);
-            output = new TextureTarget("Tritium effect output", width, height, false, com.mojang.blaze3d.GpuFormat.RGBA8_UNORM);
+            source = new TextureTarget("Tritium effect source", width, height, false);
+            scratch = new TextureTarget("Tritium effect scratch", width, height, false);
+            output = new TextureTarget("Tritium effect output", width, height, false);
         }
     }
 
@@ -96,7 +96,7 @@ public final class PostEffectRenderer {
             pass.bindTexture("InSampler", from.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
             pass.setUniform("BlurInfo", uniform);
             bounds.apply(pass);
-            pass.draw(3, 1, 0, 0);
+            pass.draw(0, 3);
         }
     }
 
@@ -108,19 +108,19 @@ public final class PostEffectRenderer {
             pass.bindTexture("InSampler", output.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
             pass.setUniform("EffectInfo", uniform);
             applyScissor(pass, region, guiScale, main.width, main.height, 7);
-            pass.draw(3, 1, 0, 0);
+            pass.draw(0, 3);
         }
     }
 
     private static void renderBloom(RenderTarget main, EffectQueue.Region region, int guiScale) {
-        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(source.getColorTexture(), new Vector4f(0f));
+        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(source.getColorTexture(), 0);
         GpuBufferSlice shape = shapeUniform(region, guiScale, main.height);
         try (RenderPass pass = pass("Tritium bloom mask", source)) {
             pass.setPipeline(EffectPipelines.BLOOM_MASK);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("ShapeInfo", shape);
             bounds(List.of(region), guiScale, main.width, main.height, 1).apply(pass);
-            pass.draw(3, 1, 0, 0);
+            pass.draw(0, 3);
         }
         ScissorBounds bloomBounds = bounds(List.of(region), guiScale, main.width, main.height, 74);
         gaussian(source, scratch, 12f, 2f, 1f, 0f, bloomBounds);
@@ -131,7 +131,7 @@ public final class PostEffectRenderer {
             pass.bindTexture("InSampler", output.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
             pass.setUniform("ShapeInfo", shape);
             applyScissor(pass, region, guiScale, main.width, main.height, 50);
-            pass.draw(3, 1, 0, 0);
+            pass.draw(0, 3);
         }
     }
 
@@ -139,7 +139,7 @@ public final class PostEffectRenderer {
         return RenderSystem.getDevice().createCommandEncoder().createRenderPass(
                 () -> label,
                 target.getColorTextureView(),
-                Optional.empty(),
+                OptionalInt.empty(),
                 null,
                 OptionalDouble.empty()
         );

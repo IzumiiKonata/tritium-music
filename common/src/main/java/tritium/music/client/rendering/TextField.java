@@ -1,8 +1,6 @@
 package tritium.music.client.rendering;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.PreeditEvent;
 import org.joml.Vector2f;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
@@ -92,21 +90,21 @@ public class TextField {
         } else if (focusedTextField == this) {
             focusedTextField = null;
         }
-        if (changed) {
-            Minecraft minecraft = Minecraft.getInstance();
-            Screen screen = minecraft.gui.screen();
-            if (screen != null) {
-                minecraft.onTextInputFocusChange(screen, focused);
-            } else {
-                minecraft.textInputManager().onTextInputFocusChange(focused);
-            }
-        }
+//        if (changed) {
+//            Minecraft minecraft = Minecraft.getInstance();
+//            Screen screen = minecraft.screen;
+//            if (screen != null) {
+//                minecraft.onTextInputFocusChange(screen, focused);
+//            } else {
+//                minecraft.textInputManager().onTextInputFocusChange(focused);
+//            }
+//        }
         return this;
     }
 
-    public static boolean preeditUpdated(PreeditEvent event) {
-        return focusedTextField != null;
-    }
+//    public static boolean preeditUpdated(PreeditEvent event) {
+//        return focusedTextField != null;
+//    }
 
     public static void clearFocus() {
         if (focusedTextField != null) {
@@ -399,12 +397,12 @@ public class TextField {
                     (float) (textY + fontRenderer.getFontHeight()),
                     new Vector2f()
             );
-            Minecraft.getInstance().textInputManager().setTextInputArea(
-                    (int) Math.floor(Math.min(areaStart.x, areaEnd.x)),
-                    (int) Math.floor(Math.min(areaStart.y, areaEnd.y)),
-                    (int) Math.ceil(Math.max(areaStart.x, areaEnd.x)),
-                    (int) Math.ceil(Math.max(areaStart.y, areaEnd.y))
-            );
+//            Minecraft.getInstance().textInputManager().setTextInputArea(
+//                    (int) Math.floor(Math.min(areaStart.x, areaEnd.x)),
+//                    (int) Math.floor(Math.min(areaStart.y, areaEnd.y)),
+//                    (int) Math.ceil(Math.max(areaStart.x, areaEnd.x)),
+//                    (int) Math.ceil(Math.max(areaStart.y, areaEnd.y))
+//            );
         }
 
         if (drawUnderline) {

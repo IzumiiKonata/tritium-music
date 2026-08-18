@@ -107,7 +107,7 @@ public class MusicLyricsWidget extends HudWidget {
     public void onRender() {
 
         if (!shouldRender()) {
-            if (Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen) {
+            if (Minecraft.getInstance().screen instanceof WidgetEditorScreen) {
                 renderEditorData();
             }
             return;

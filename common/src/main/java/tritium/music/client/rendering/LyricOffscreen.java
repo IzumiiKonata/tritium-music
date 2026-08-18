@@ -1,13 +1,9 @@
 package tritium.music.client.rendering;
 
-import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
@@ -41,13 +37,13 @@ public final class LyricOffscreen {
         }
 
         if (quads.isEmpty()) {
-            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(rt.colorTexture(), new Vector4f(0f));
+            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(rt.colorTexture(), 0);
             return;
         }
 
         int vertexCount = quads.size() * 4;
         try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(vertexCount * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
-            BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_COLOR);
+            BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
             for (MaskQuad quad : quads) {
                 int leftColor = alphaColor(quad.leftAlpha());
                 int rightColor = alphaColor(quad.rightAlpha());
@@ -61,15 +57,16 @@ public final class LyricOffscreen {
 
             try (MeshData mesh = builder.buildOrThrow()) {
                 GpuBuffer vertices = rt.uploadVertices(mesh.vertexBuffer());
-                RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+                RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
                 GpuBuffer indexBuffer = indices.getBuffer(mesh.drawState().indexCount());
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
                         () -> "Tritium lyric stencil",
-                        rt.colorView(), Optional.of(new Vector4f(0f)))) {
+                        rt.colorView(), OptionalInt.of(0))) {
                     pass.setPipeline(LyricOffscreenPipelines.MASK);
-                    pass.setVertexBuffer(0, vertices.slice());
+                    pass.setVertexBuffer(0, vertices);
                     pass.setIndexBuffer(indexBuffer, indices.type());
-                    pass.drawIndexed(mesh.drawState().indexCount(), 1, 0, 0, 0);
+//                    pass.drawIndexed(mesh.drawState().indexCount(), 1, 0, 0, 0);
+                    pass.drawIndexed(0, 0, mesh.drawState().indexCount(), 1);
                 }
             }
         }
@@ -93,7 +90,7 @@ public final class LyricOffscreen {
         }
 
         if (quadCount == 0) {
-            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(rt.colorTexture(), new Vector4f(0f));
+            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(rt.colorTexture(), 0);
             return;
         }
 
@@ -102,7 +99,7 @@ public final class LyricOffscreen {
         int vertexCount = quadCount * 4;
 
         try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(vertexCount * DefaultVertexFormat.POSITION_TEX_COLOR.getVertexSize())) {
-            BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
             int firstQuad = 0;
 
             for (Map.Entry<Identifier, List<GlyphQuad>> entry : batches.entrySet()) {
@@ -135,18 +132,19 @@ public final class LyricOffscreen {
 
             try (MeshData mesh = builder.buildOrThrow()) {
                 GpuBuffer vertices = rt.uploadVertices(mesh.vertexBuffer());
-                RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+                RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
                 GpuBuffer indexBuffer = indices.getBuffer(mesh.drawState().indexCount());
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
                         () -> "Tritium lyric glyphs",
-                        rt.colorView(), Optional.of(new Vector4f(0f)))) {
+                        rt.colorView(), OptionalInt.of(0))) {
                     pass.setPipeline(LyricOffscreenPipelines.GLYPH);
-                    pass.setVertexBuffer(0, vertices.slice());
+                    pass.setVertexBuffer(0, vertices);
                     pass.setIndexBuffer(indexBuffer, indices.type());
                     for (GlyphBatch draw : draws) {
                         pass.bindTexture("Sampler0", draw.texture().getTextureView(),
                                 RenderSystem.getSamplerCache().getClampToEdge(com.mojang.blaze3d.textures.FilterMode.LINEAR));
-                        pass.drawIndexed(draw.quadCount() * 6, 1, draw.firstQuad() * 6, 0, 0);
+//                        pass.drawIndexed(draw.quadCount() * 6, 1, draw.firstQuad() * 6, 0, 0);
+                        pass.drawIndexed(0, draw.firstQuad() * 6, draw.quadCount() * 6, 1);
                     }
                 }
             }

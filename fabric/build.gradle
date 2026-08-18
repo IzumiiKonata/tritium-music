@@ -1,5 +1,5 @@
 plugins {
-	id 'net.fabricmc.fabric-loom'
+	id 'net.fabricmc.fabric-loom-remap'
 	id 'maven-publish'
 }
 
@@ -16,12 +16,16 @@ sourceSets {
 
 loom {
 	accessWidenerPath = project(':common').file('src/main/resources/tritium-music.accesswidener')
+	enableTransitiveAccessWideners = false
 }
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	mappings loom.officialMojangMappings()
+
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
 	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
@@ -46,7 +50,7 @@ dependencies {
 			: 'natives-linux'
 	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
 
-	implementation "maven.modrinth:mOgUt4GM:gKOCZzz9"
+	modImplementation "maven.modrinth:mOgUt4GM:Tyk71iSw"
 }
 
 processResources {
@@ -57,15 +61,15 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	options.release = 25
+	options.release = 21
 	options.encoding = 'UTF-8'
 }
 
 java {
-	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	toolchain.languageVersion = JavaLanguageVersion.of(21)
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 }
 
 jar {

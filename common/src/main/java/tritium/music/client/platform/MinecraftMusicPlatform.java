@@ -113,7 +113,7 @@ public class MinecraftMusicPlatform implements MusicPlatform {
     public void sendChatMessage(String message) {
         runOnRenderThread(() -> {
             if (mc().player != null) {
-                mc().player.sendSystemMessage(Component.literal(message));
+                mc().player.displayClientMessage(Component.literal(message), false);
             }
         });
     }

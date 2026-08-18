@@ -22,6 +22,6 @@ side = "CLIENT"
 [[dependencies.tritium_music]]
 modId = "minecraft"
 type = "required"
-versionRange = "[26.2]"
+versionRange = "[1.21.11]"
 ordering = "NONE"
 side = "CLIENT"

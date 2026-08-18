@@ -1,6 +1,6 @@
 # Tritium Music
 
-Tritium Music is a NetEase Cloud Music client mod for Minecraft 26.2.
+Tritium Music is a NetEase Cloud Music client mod for Minecraft.
 
 ## License
 

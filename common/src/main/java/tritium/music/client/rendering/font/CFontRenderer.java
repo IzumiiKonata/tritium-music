@@ -2,7 +2,7 @@ package tritium.music.client.rendering.font;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import lombok.SneakyThrows;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2fStack;
 import tritium.music.client.render.Render;
@@ -122,7 +122,7 @@ public class CFontRenderer implements Closeable {
 
     public float drawStringWithVerticalOffsets(String text, double x, double y, int color,
                                                double[] verticalOffsets, int offsetStart) {
-        GuiGraphicsExtractor graphics = RenderContext.graphics();
+        GuiGraphics graphics = RenderContext.graphics();
         Matrix3x2fStack pose = graphics.pose();
         pose.pushMatrix();
         pose.translate((float) x, (float) (y - 2.0));
@@ -165,7 +165,7 @@ public class CFontRenderer implements Closeable {
         float b = ((color) & 0xff) * RGBA.DIVIDE_BY_255;
         float baseA = ((color >> 24) & 0xff) * RGBA.DIVIDE_BY_255;
 
-        GuiGraphicsExtractor graphics = RenderContext.graphics();
+        GuiGraphics graphics = RenderContext.graphics();
         Matrix3x2fStack pose = graphics.pose();
 
         y -= 2.0f;
@@ -228,7 +228,7 @@ public class CFontRenderer implements Closeable {
     }
 
     public boolean drawString(String s, double x, double y, float r, float g, float b, float a) {
-        GuiGraphicsExtractor graphics = RenderContext.graphics();
+        GuiGraphics graphics = RenderContext.graphics();
         Matrix3x2fStack pose = graphics.pose();
 
         y -= 2.0f;

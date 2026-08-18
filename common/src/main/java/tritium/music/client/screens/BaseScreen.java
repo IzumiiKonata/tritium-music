@@ -1,12 +1,11 @@
 package tritium.music.client.screens;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
@@ -43,12 +42,12 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         return 1f;
     }
 
-    @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        if (screenAlpha() > 0.5f && minecraft.options.getMenuBackgroundBlurriness() >= 1.0f) {
-            graphics.blurBeforeThisStratum();
-        }
-    }
+//    @Override
+//    public void extractBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+//        if (screenAlpha() > 0.5f && minecraft.options.getMenuBackgroundBlurriness() >= 1.0f) {
+//            graphics.blurBeforeThisStratum();
+//        }
+//    }
 
     public void drawScreen(double mouseX, double mouseY) {
     }
@@ -76,7 +75,7 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         EffectQueue.beginFrame();
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
@@ -133,10 +132,10 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         return true;
     }
 
-    @Override
-    public boolean preeditUpdated(PreeditEvent event) {
-        return TextField.preeditUpdated(event);
-    }
+//    @Override
+//    public boolean preeditUpdated(PreeditEvent event) {
+//        return TextField.preeditUpdated(event);
+//    }
 
     @Override
     public void removed() {

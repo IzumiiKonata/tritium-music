@@ -46,7 +46,7 @@ public class StencilShader {
         verts.add(new MeshElement.Vertex(x1, (float) y, u1, 0f, quadColor));
 
         var g = RenderContext.graphics();
-        RenderContext.graphics().guiRenderState.addGuiElement(new MeshElement(
+        RenderContext.graphics().guiRenderState.submitGuiElement(new MeshElement(
                 StencilCompositePipeline.PIPELINE,
                 textureSetup,
                 new Matrix3x2f(g.pose()),

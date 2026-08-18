@@ -20,7 +20,7 @@ public abstract class ToastManagerMixin {
     }
 
     @Redirect(
-            method = "extractRenderState",
+            method = "render",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/MusicToastDisplayState;renderToast()Z"
