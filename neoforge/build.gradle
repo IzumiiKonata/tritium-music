@@ -52,6 +52,23 @@ def harfbuzzNativesJar = tasks.register('harfbuzzNativesJar', Jar) {
 	}
 }
 
+def os = org.gradle.internal.os.OperatingSystem.current()
+def arch = System.getProperty("os.arch")
+
+def harfbuzzRuntimeNatives
+
+if (os.isWindows()) {
+	harfbuzzRuntimeNatives = arch == "aarch64"
+			? "natives-windows-arm64"
+			: "natives-windows"
+} else if (os.isMacOsX()) {
+	harfbuzzRuntimeNatives = arch == "aarch64"
+			? "natives-macos-arm64"
+			: "natives-macos"
+} else if (os.isLinux()) {
+	harfbuzzRuntimeNatives = "natives-linux"
+}
+
 dependencies {
 	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
 	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
@@ -71,6 +88,8 @@ dependencies {
 			prefer project.lwjgl_version
 		}
 	}
+
+	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:${harfbuzzRuntimeNatives}"
 
 	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
 		add(harfbuzzNatives.name, "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it")
