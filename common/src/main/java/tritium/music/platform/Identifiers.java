@@ -1,7 +1,6 @@
-package tritium.music.fabric.ui;
+package tritium.music.platform;
 
 import net.minecraft.resources.Identifier;
-import tritium.music.platform.TextureHandle;
 
 public final class Identifiers {
 

@@ -11,7 +11,7 @@ import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.lyric.LyricLine;
 import tritium.music.core.model.Music;
-import tritium.music.fabric.ui.Identifiers;
+import tritium.music.platform.Identifiers;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 

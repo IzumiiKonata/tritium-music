@@ -1,4 +1,4 @@
-package tritium.music.client.screens.clickgui.music;
+package tritium.music.client.screens.ncm;
 
 import lombok.Getter;
 import net.minecraft.client.resources.language.I18n;
@@ -6,11 +6,10 @@ import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.FontManager;
-import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.ncm.OptionsUtil;
 import tritium.music.core.ncm.QRCodeGenerator;
-import tritium.music.fabric.ui.Identifiers;
+import tritium.music.platform.Identifiers;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 

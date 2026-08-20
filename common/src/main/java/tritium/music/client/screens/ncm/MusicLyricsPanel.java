@@ -26,6 +26,7 @@ import tritium.music.core.lyric.LyricLine;
 import tritium.music.core.lyric.provider.LyricsFetcher;
 import tritium.music.core.model.Music;
 import tritium.music.core.util.Timer;
+import tritium.music.platform.Identifiers;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
@@ -629,7 +630,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             TextureHandle musicCover = CloudMusic.currentlyPlaying.getCoverLocation();
             if (Platform.hasTexture(musicCover)) {
                 coverAlpha = Interpolations.interpolate(coverAlpha, 1.0f, 0.2f);
-                RenderSystem.bindTexture(tritium.music.fabric.ui.Identifiers.of(musicCover));
+                RenderSystem.bindTexture(Identifiers.of(musicCover));
                 this.roundedRectTextured(center - coverSize * .5 + xOffset, center - coverSize * .575, coverSize, coverSize, coverRadius * coverSizePerc, alpha * coverAlpha);
             }
         }

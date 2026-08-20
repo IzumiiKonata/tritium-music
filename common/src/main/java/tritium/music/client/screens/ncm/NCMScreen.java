@@ -14,7 +14,6 @@ import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.widgets.RectWidget;
 import tritium.music.client.screens.BaseScreen;
-import tritium.music.client.screens.clickgui.music.LoginRenderer;
 import tritium.music.client.screens.ncm.panels.ControlsBar;
 import tritium.music.client.screens.ncm.panels.HomePanel;
 import tritium.music.client.screens.ncm.panels.NavigateBar;

@@ -5,7 +5,7 @@ import lombok.Setter;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.ui.AbstractWidget;
-import tritium.music.fabric.ui.Identifiers;
+import tritium.music.platform.Identifiers;
 import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 

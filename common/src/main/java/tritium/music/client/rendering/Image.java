@@ -3,7 +3,7 @@ package tritium.music.client.rendering;
 import net.minecraft.resources.Identifier;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
-import tritium.music.fabric.ui.Identifiers;
+import tritium.music.platform.Identifiers;
 import tritium.music.platform.TextureHandle;
 
 public class Image {
