@@ -43,9 +43,9 @@ public class MusicWidget extends RoundedRectWidget {
     private static final long ENTRANCE_DURATION_MS = 520;
     private static final int ENTRANCE_INDEX_CAP = 16;
     private static final double ENTRANCE_SLIDE = 12;
-    private static final double GRID_COVER_SIZE = 100;
+    private static final double GRID_COVER_SIZE = 102;
     private static final double GRID_EMPHASIZE_MAX = 5;
-    private static final double GRID_WIDTH = GRID_COVER_SIZE + GRID_EMPHASIZE_MAX;
+    private static final double GRID_WIDTH = GRID_COVER_SIZE + GRID_EMPHASIZE_MAX + 6;
 
     public MusicWidget(Music music, PlayList playList, int index, long revealStart, PlaylistPanel owner) {
         this(music, playList, index, revealStart, owner, Style.LIST);
@@ -253,7 +253,7 @@ public class MusicWidget extends RoundedRectWidget {
             this.roundedOutline(
                     gridCover.getX(),
                     gridCover.getY(),
-                    gridCover.getWidth() + .3,
+                    gridCover.getWidth() + .2,
                     gridCover.getHeight() + .3,
                     gridCover.getRadius() + 4,
                     1.5,
