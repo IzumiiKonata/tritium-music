@@ -87,7 +87,7 @@ try {
 	Write-Host "Artifacts written to $outputPath"
 } finally {
 	foreach ($worktreePath in $createdWorktrees) {
-		& git -C $repositoryRoot worktree remove --force $worktreePath
+		& git -C $repositoryRoot worktree remove --force $worktreePath 2>$null
 		if (Test-Path -LiteralPath $worktreePath) {
 			$resolvedWorktree = [System.IO.Path]::GetFullPath($worktreePath)
 			$resolvedTemporaryRoot = [System.IO.Path]::GetFullPath($temporaryRoot)
