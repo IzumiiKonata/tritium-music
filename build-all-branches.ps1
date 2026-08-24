@@ -51,7 +51,7 @@ try {
 			$gradleWrapper = Join-Path $worktreePath "gradlew"
 		}
 
-		& $gradleWrapper :fabric:build :neoforge:build --no-daemon
+		& $gradleWrapper -p $worktreePath :fabric:build :neoforge:build --no-daemon
 		if ($LASTEXITCODE -ne 0) {
 			throw "Gradle build failed for $($branch.Name)"
 		}
