@@ -121,11 +121,11 @@ public class PlayList {
     }
 
     public void addToList(long musicId) {
-        CloudMusicApi.playlistTracks("add", this.id, String.valueOf(musicId));
+        CloudMusicApi.playlistTracks("add", this.id, String.valueOf(musicId)).requireSuccessful("Add track to playlist");
     }
 
     public void removeFromList(long musicId) {
-        CloudMusicApi.playlistTracks("del", this.id, String.valueOf(musicId));
+        CloudMusicApi.playlistTracks("del", this.id, String.valueOf(musicId)).requireSuccessful("Remove track from playlist");
     }
 
     @Override
