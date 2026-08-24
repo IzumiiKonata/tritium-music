@@ -2,6 +2,7 @@
 
 .gradle/
 build/
+artifacts/
 out/
 classes/
 
