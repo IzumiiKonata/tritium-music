@@ -27,7 +27,7 @@ public final class DeviceIdGenerator {
             sha256.update(SALT.getBytes(StandardCharsets.UTF_8));
             sha256.update(fingerprint.getBytes(StandardCharsets.UTF_8));
 
-            return toHex(sha256.digest()).substring(0, 51);
+            return toHex(sha256.digest()).substring(0, 52);
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate device id", e);
         }

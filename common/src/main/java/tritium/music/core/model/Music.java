@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 import tritium.music.core.CloudMusic;
+import tritium.music.core.ncm.RequestUtil;
 import tritium.music.core.ncm.api.CloudMusicApi;
 import tritium.music.core.util.Pair;
 import tritium.music.platform.TextureHandle;
@@ -168,7 +169,8 @@ public class Music {
     }
 
     public void setLike(boolean like) {
-        CloudMusicApi.like(this.id, like);
+        RequestUtil.RequestAnswer answer = CloudMusicApi.like(this.id, like);
+        answer.requireSuccessful(like ? "Like track" : "Unlike track");
     }
 
     public boolean isInstrumental() {

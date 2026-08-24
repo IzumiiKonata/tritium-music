@@ -188,6 +188,18 @@ public class CryptoUtil {
         return JsonUtils.parse(decryptedData, Object.class);
     }
 
+    public static Object eapiResDecrypt(byte[] encryptedParams) {
+        try {
+            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            SecretKeySpec keySpec = new SecretKeySpec(EAPI_KEY.getBytes(StandardCharsets.UTF_8), "AES");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            byte[] decrypted = cipher.doFinal(encryptedParams);
+            return JsonUtils.parse(new String(decrypted, StandardCharsets.UTF_8), Object.class);
+        } catch (Exception e) {
+            throw new RuntimeException("EAPI响应解密失败", e);
+        }
+    }
+
     /**
      * eapi请求解密
      */
