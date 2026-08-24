@@ -6,14 +6,13 @@ import lombok.Data;
 import lombok.SneakyThrows;
 import tritium.music.core.util.JsonUtils;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,6 +23,13 @@ import java.util.stream.Collectors;
 public class RequestUtil {
 
     private static final SecureRandom random = new SecureRandom();
+
+    private static final String PC_APP_VERSION = "3.1.37.205354";
+    private static final String PC_OS_VERSION = "Microsoft-Windows-11-Professional-build-26200-64bit";
+    private static final String PC_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/" + PC_APP_VERSION;
+    private static final String ANTI_CHEAT_URL = "https://ac.dun.163.com/v2/config/js?pn=YD00000558929251";
+
+    private static volatile String antiCheatToken;
 
     private static final Map<String, OsConfig> OS_MAP = new HashMap<>();
 
@@ -41,7 +47,7 @@ public class RequestUtil {
         USER_AGENT_MAP.put("linuxapi", linuxapiUA);
 
         Map<String, String> apiUA = new HashMap<>();
-        apiUA.put("pc", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/3.0.18.203152");
+        apiUA.put("pc", PC_USER_AGENT);
         apiUA.put("android", "NeteaseMusic/9.1.65.240927161425(9001065);Dalvik/2.1.0 (Linux; U; Android 14; 23013RK75C Build/UKQ1.230804.001)");
         apiUA.put("iphone", "NeteaseMusic 9.0.90/5038 (iPhone; iOS 16.2; zh_CN)");
         USER_AGENT_MAP.put("api", apiUA);
@@ -60,14 +66,14 @@ public class RequestUtil {
             .domain("https://music.163.com")
             .apiDomain("https://interfacepc.music.163.com")
             .encrypt(true)
-            .encryptResponse(false)
+            .encryptResponse(true)
             .build();
 
     static {
         OS_MAP.put("pc", OsConfig.builder()
                 .os("pc")
-                .appver("3.1.12.204072")
-                .osver("Microsoft-Windows-11-Professional-build-26100-64bit")
+                .appver(PC_APP_VERSION)
+                .osver(PC_OS_VERSION)
                 .channel("netease")
                 .build());
 
@@ -136,6 +142,33 @@ public class RequestUtil {
         public JsonObject toJsonObject() {
             return JsonUtils.parse(toString(), JsonObject.class);
         }
+
+        public int getCode() {
+            try {
+                JsonObject object = toJsonObject();
+                return object.has("code") ? object.get("code").getAsInt() : status;
+            } catch (Exception ignored) {
+                return status;
+            }
+        }
+
+        public boolean isSuccessful() {
+            int code = getCode();
+            return status >= 200 && status < 300 && code >= 200 && code < 300;
+        }
+
+        public void requireSuccessful(String operation) {
+            if (isSuccessful()) return;
+            String message = "";
+            try {
+                JsonObject object = toJsonObject();
+                if (object.has("message")) message = object.get("message").getAsString();
+                if (message.isEmpty() && object.has("msg")) message = object.get("msg").getAsString();
+            } catch (Exception ignored) {
+            }
+            String suffix = message.isEmpty() ? "" : ": " + message;
+            throw new IllegalStateException(operation + " failed (HTTP " + status + ", code " + getCode() + ")" + suffix);
+        }
     }
 
     /**
@@ -187,6 +220,36 @@ public class RequestUtil {
             return cryptoMap.getOrDefault(uaType, "");
         }
         return "";
+    }
+
+    public static String antiCheatToken() {
+        String cached = antiCheatToken;
+        if (StringUtils.isNotBlank(cached)) return cached;
+        synchronized (RequestUtil.class) {
+            if (StringUtils.isNotBlank(antiCheatToken)) return antiCheatToken;
+            try {
+                HttpURLConnection connection = (HttpURLConnection) new URL(ANTI_CHEAT_URL).openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+                connection.setRequestProperty("User-Agent", PC_USER_AGENT);
+                byte[] bytes;
+                try (InputStream input = connection.getInputStream()) {
+                    bytes = input.readAllBytes();
+                } finally {
+                    connection.disconnect();
+                }
+                JsonObject response = JsonUtils.parse(new String(bytes, StandardCharsets.UTF_8), JsonObject.class);
+                if (response.has("code") && response.get("code").getAsInt() == 200) {
+                    JsonObject result = response.getAsJsonObject("result");
+                    if (result != null && result.has("conf")) {
+                        antiCheatToken = result.get("conf").getAsString().trim();
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            return antiCheatToken == null ? "" : antiCheatToken;
+        }
     }
 
     /**
@@ -262,7 +325,6 @@ public class RequestUtil {
             }
 
             String nuid = generateRandomString(32);
-            OsConfig osConfig = OS_MAP.getOrDefault(cookie.get("os"), OS_MAP.get("pc"));
 
             cookie.putIfAbsent("__remember_me", "true");
             cookie.putIfAbsent("ntes_kaola_ad", "1");
@@ -270,17 +332,18 @@ public class RequestUtil {
             cookie.putIfAbsent("_ntes_nnid", nuid + "," + System.currentTimeMillis());
             cookie.putIfAbsent("WNMCID", generateWNMCID());
             cookie.putIfAbsent("WEVNSM", "1.0.0");
-            cookie.putIfAbsent("osver", osConfig.getOsver());
-            cookie.putIfAbsent("deviceId", generateRandomString(26).toUpperCase() + "\\r");
-            cookie.putIfAbsent("os", osConfig.getOs());
-            cookie.putIfAbsent("channel", osConfig.getChannel());
-            cookie.putIfAbsent("appver", osConfig.getAppver());
+            cookie.putIfAbsent("deviceId", DeviceIdGenerator.generate());
+            cookie.put("osver", OS_MAP.get("pc").getOsver());
+            cookie.put("os", OS_MAP.get("pc").getOs());
+            cookie.put("channel", OS_MAP.get("pc").getChannel());
+            cookie.put("appver", OS_MAP.get("pc").getAppver());
 
-            if (!uri.contains("login")) {
-                cookie.put("NMTID", generateRandomString(16));
-            }
+            if (!uri.contains("login")) cookie.putIfAbsent("NMTID", generateRandomString(16));
+
+            OptionsUtil.mergeCookies(cookie);
 
             headers.put("Cookie", cookieMapToString(cookie));
+            headers.put("Accept", "*/*");
 
             String crypto = StringUtils.isNotBlank(options.getCrypto()) ?
                     options.getCrypto() : (APP_CONF.isEncrypt() ? "eapi" : "api");
@@ -329,30 +392,28 @@ public class RequestUtil {
 
                 case "eapi":
                 case "api":
-                    Map<String, String> header = new HashMap<>();
-                    header.put("osver", cookie.get("osver"));
-                    header.put("deviceId", cookie.get("deviceId"));
+                    Map<String, String> header = new LinkedHashMap<>();
                     header.put("os", cookie.get("os"));
                     header.put("appver", cookie.get("appver"));
-                    header.put("versioncode", cookie.getOrDefault("versioncode", "140"));
-                    header.put("mobilename", cookie.getOrDefault("mobilename", ""));
-                    header.put("buildver", cookie.getOrDefault("buildver",
-                            String.valueOf(System.currentTimeMillis()).substring(0, 10)));
-                    header.put("resolution", cookie.getOrDefault("resolution", "1920x1080"));
-                    header.put("__csrf", csrfToken);
-                    header.put("channel", cookie.get("channel"));
+                    header.put("deviceId", cookie.get("deviceId"));
                     header.put("requestId", System.currentTimeMillis() + "_" +
                             String.format("%04d", random.nextInt(1000)));
-
-                    if (cookie.containsKey("MUSIC_U")) {
-                        header.put("MUSIC_U", cookie.get("MUSIC_U"));
+                    header.put("osver", cookie.get("osver"));
+                    if (cookie.containsKey("clientSign")) {
+                        LinkedHashMap<String, String> signedHeader = new LinkedHashMap<>();
+                        signedHeader.put("clientSign", cookie.get("clientSign"));
+                        signedHeader.putAll(header);
+                        header = signedHeader;
                     }
-                    if (cookie.containsKey("MUSIC_A")) {
-                        header.put("MUSIC_A", cookie.get("MUSIC_A"));
+                    String requestAntiCheatToken = headers.get("X-antiCheatToken");
+                    if (StringUtils.isBlank(requestAntiCheatToken)) {
+                        requestAntiCheatToken = headers.get("x-anticheattoken");
+                    }
+                    if (StringUtils.isNotBlank(requestAntiCheatToken)) {
+                        header.put("X-antiCheatToken", requestAntiCheatToken);
                     }
 
-                    String value = cookieMapToString(header);
-                    headers.put("Cookie", value);
+                    headers.put("Cookie", cookieMapToString(cookie));
                     headers.put("User-Agent", StringUtils.isNotBlank(options.getUa()) ?
                             options.getUa() : chooseUserAgent("api", "pc"));
 
@@ -361,7 +422,7 @@ public class RequestUtil {
                         if (data instanceof Map) {
                             eapiData.putAll((Map<String, Object>) data);
                         }
-                        eapiData.put("header", header);
+                        eapiData.put("header", JsonUtils.toJsonString(header));
 
                         boolean eR = options.getEncryptedResponse() != null ? options.getEncryptedResponse() : APP_CONF.isEncryptResponse();
                         eapiData.put("e_r", eR);
@@ -420,7 +481,7 @@ public class RequestUtil {
 
             int responseCode = connection.getResponseCode();
 
-            String responseBody = "";
+            byte[] responseBytes = new byte[0];
             InputStream inputStream = null;
             try {
                 if (responseCode >= 200 && responseCode < 300) {
@@ -430,15 +491,7 @@ public class RequestUtil {
                 }
 
                 if (inputStream != null) {
-                    try (BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-                        StringBuilder response = new StringBuilder();
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            response.append(line);
-                        }
-                        responseBody = response.toString();
-                    }
+                    responseBytes = inputStream.readAllBytes();
                 }
             } finally {
                 if (inputStream != null) {
@@ -450,14 +503,18 @@ public class RequestUtil {
                     .status(responseCode)
                     .build();
 
-            if (!responseBody.isEmpty()) {
-                if (Boolean.TRUE.equals(options.getEncryptedResponse()) && "eapi".equals(crypto)) {
+            if (responseBytes.length > 0) {
+                boolean encryptedResponse = options.getEncryptedResponse() != null
+                        ? options.getEncryptedResponse()
+                        : "eapi".equals(crypto) && APP_CONF.isEncryptResponse();
+                if (encryptedResponse && "eapi".equals(crypto)) {
                     try {
-                        answer.setBody(CryptoUtil.eapiResDecrypt(responseBody));
+                        answer.setBody(CryptoUtil.eapiResDecrypt(responseBytes));
                     } catch (Exception e) {
-                        answer.setBody(JsonUtils.parse(responseBody, Object.class));
+                        answer.setBody(JsonUtils.parse(new String(responseBytes, StandardCharsets.UTF_8), Object.class));
                     }
                 } else {
+                    String responseBody = new String(responseBytes, StandardCharsets.UTF_8);
                     try {
                         answer.setBody(JsonUtils.parse(responseBody, Object.class));
                     } catch (Exception e) {
@@ -467,9 +524,14 @@ public class RequestUtil {
             }
 
             Map<String, List<String>> headerFields = connection.getHeaderFields();
-            List<String> setCookieHeaders = headerFields.get("Set-Cookie");
+            List<String> setCookieHeaders = headerFields.entrySet().stream()
+                    .filter(entry -> entry.getKey() != null && entry.getKey().equalsIgnoreCase("Set-Cookie"))
+                    .map(Map.Entry::getValue)
+                    .findFirst()
+                    .orElse(null);
             if (setCookieHeaders != null && !setCookieHeaders.isEmpty()) {
                 answer.setCookies(setCookieHeaders.toArray(new String[0]));
+                OptionsUtil.mergeSetCookieHeaders(answer.getCookies());
             }
 
             connection.disconnect();

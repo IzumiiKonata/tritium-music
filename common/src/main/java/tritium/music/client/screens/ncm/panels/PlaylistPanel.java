@@ -405,6 +405,8 @@ public class PlaylistPanel extends NCMPanel {
         Platform.runAsync(() -> {
             try {
                 operation.run();
+            } catch (Exception e) {
+                Platform.log("[NCM] Library operation failed: " + e.getMessage());
             } finally {
                 CloudMusic.refreshLibrary();
                 Platform.runOnRenderThread(() -> NCMScreen.getInstance().refreshLibraryView());

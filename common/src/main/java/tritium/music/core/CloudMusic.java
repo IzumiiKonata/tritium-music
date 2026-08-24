@@ -1070,18 +1070,7 @@ public class CloudMusic {
             }
 
             if (code == 803) {
-
-                String cookie = json.get("cookie").getAsString();
-
-                String[] split = cookie.split(";");
-                StringBuilder sb = new StringBuilder();
-                for (String s : split) {
-                    if (s.contains("MUSIC_U") || s.contains("__csrf")) {
-                        sb.append(s).append("; ");
-                    }
-                }
-
-                return sb.substring(0, sb.length() - 2);
+                return OptionsUtil.getCookie();
             }
 
             try {
@@ -1095,14 +1084,12 @@ public class CloudMusic {
     public static User getUserProfile() {
         JsonObject jsonObject = CloudMusicApi.loginStatus().toJsonObject();
 
-        JsonObject d = jsonObject.getAsJsonObject("data");
-
-        if ((!d.has("account") || d.get("account") instanceof JsonNull) || (!d.has("profile") || d.get("profile") instanceof JsonNull)) {
-            OptionsUtil.setCookie("");
+        if ((!jsonObject.has("account") || jsonObject.get("account") instanceof JsonNull) || (!jsonObject.has("profile") || jsonObject.get("profile") instanceof JsonNull)) {
+            OptionsUtil.clearAuthentication();
             return null;
         }
 
-        JsonObject profile = d.getAsJsonObject("profile");
+        JsonObject profile = jsonObject.getAsJsonObject("profile");
 
         return JsonUtils.parse(profile, User.class);
     }
@@ -1146,6 +1133,6 @@ public class CloudMusic {
 
     public static String qrKey() {
         JsonObject json = CloudMusicApi.loginQrKey().toJsonObject();
-        return json.getAsJsonObject("data").get("unikey").getAsString();
+        return json.get("unikey").getAsString();
     }
 }

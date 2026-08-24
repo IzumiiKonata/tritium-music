@@ -10,6 +10,7 @@ import lombok.experimental.UtilityClass;
 import tritium.music.core.ncm.DeviceIdGenerator;
 import tritium.music.core.ncm.OptionsUtil;
 import tritium.music.core.ncm.RequestUtil;
+import tritium.music.core.ncm.StringUtils;
 import tritium.music.core.util.JsonUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -43,25 +44,7 @@ public class CloudMusicApi {
     }
 
     public RequestUtil.RequestAnswer loginStatus() {
-
-        RequestUtil.RequestAnswer request = RequestUtil.createRequest("/api/w/nuser/account/get", new HashMap<>(), OptionsUtil.createOptions("weapi"));
-
-        JsonObject result = request.toJsonObject();
-
-        if (request.getStatus() == 200) {
-
-            JsonObject objResult = new JsonObject();
-
-            objResult.addProperty("status", 200);
-            objResult.add("data", request.toJsonObject());
-            if (request.getCookies() != null) {
-                objResult.addProperty("cookie", String.join(";", request.getCookies()));
-            }
-
-            result = objResult;
-        }
-
-        return RequestUtil.RequestAnswer.of(result, 200, request.getCookies());
+        return RequestUtil.createRequest("/api/w/nuser/account/get", new HashMap<>(), OptionsUtil.createOptions("weapi"));
     }
 
     @SneakyThrows
@@ -122,33 +105,16 @@ public class CloudMusicApi {
         Map<String, Object> data = new HashMap<>();
         data.put("type", 3);
 
-        RequestUtil.RequestAnswer request = RequestUtil.createRequest("/api/login/qrcode/unikey", data, OptionsUtil.createOptions());
-
-        JsonObject obj = new JsonObject();
-        obj.addProperty("status", 200);
-        obj.add("data", request.toJsonObject());
-        if (request.getCookies() != null) {
-            obj.addProperty("cookie", String.join(";", request.getCookies()));
-        }
-
-        return RequestUtil.RequestAnswer.of(obj, 200, request.getCookies());
+        return RequestUtil.createRequest("/api/login/qrcode/unikey", data, OptionsUtil.createOptions());
     }
 
-    @SuppressWarnings("unchecked")
     public RequestUtil.RequestAnswer loginQrCheck(String key) {
 
         Map<String, Object> data = new HashMap<>();
         data.put("key", key);
         data.put("type", 3);
 
-        RequestUtil.RequestAnswer request = RequestUtil.createRequest("/api/login/qrcode/client/login", data, OptionsUtil.createOptions());
-
-        if (request.getCookies() != null) {
-            ((Map<String, Object>) request.getBody()).put("cookie", String.join(";", request.getCookies()));
-
-        }
-
-        return request;
+        return RequestUtil.createRequest("/api/login/qrcode/client/login", data, OptionsUtil.createOptions());
     }
 
     public RequestUtil.RequestAnswer songUrlV1(long id, String level) {
@@ -218,16 +184,25 @@ public class CloudMusicApi {
      * @param musics    用英文逗号分割的音乐 Id
      */
     public RequestUtil.RequestAnswer playlistTracks(String operation, long trackId, String musics) {
-        String[] split = musics.split(",");
+        if (!operation.equals("add") && !operation.equals("del")) {
+            throw new IllegalArgumentException("Unsupported playlist operation: " + operation);
+        }
+        String[] split = Arrays.stream(musics.split(","))
+                .map(String::trim)
+                .filter(id -> !id.isEmpty())
+                .toArray(String[]::new);
+        if (split.length == 0) {
+            throw new IllegalArgumentException("At least one music id is required");
+        }
         Map<String, Object> data = new HashMap<>();
         data.put("op", operation);
         data.put("pid", trackId);
         data.put("trackIds", JsonUtils.toJsonString(split));
-        data.put("imme", "true");
+        Map<String, String> headers = playlistMutationHeaders(data);
 
-        RequestUtil.RequestAnswer request = RequestUtil.createRequest("/api/playlist/manipulate/tracks", data, OptionsUtil.createOptions());
+        RequestUtil.RequestAnswer request = RequestUtil.createRequest("/api/v1/playlist/manipulate/tracks", data, OptionsUtil.createOptions("", headers));
 
-        if (request.getStatus() == 512) {
+        if (request.getCode() == 512) {
             Map<String, Object> data2 = new HashMap<>();
             data2.put("op", operation);
             data2.put("pid", trackId);
@@ -235,15 +210,20 @@ public class CloudMusicApi {
             list.addAll(Arrays.asList(split));
             list.addAll(Arrays.asList(split));
             data2.put("trackIds", JsonUtils.toJsonString(list.toArray(new String[0])));
-            data2.put("imme", "true");
-            return RequestUtil.createRequest("/api/playlist/manipulate/tracks", data2, OptionsUtil.createOptions());
-        } else {
-            JsonObject obj = new JsonObject();
-            obj.addProperty("status", 200);
-            obj.add("body", request.toJsonObject());
-
-            return RequestUtil.RequestAnswer.of(obj, 200, request.getCookies());
+            return RequestUtil.createRequest("/api/v1/playlist/manipulate/tracks", data2, OptionsUtil.createOptions("", playlistMutationHeaders(data2)));
         }
+        return request;
+    }
+
+    private Map<String, String> playlistMutationHeaders(Map<String, Object> data) {
+        String token = RequestUtil.antiCheatToken();
+        if (StringUtils.isBlank(token)) return new HashMap<>();
+        data.put("checkToken", token);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("X-antiCheatToken", token);
+        headers.put("X-Client-Enc-State", "DEGRADE");
+        headers.put("X-Degrade-Reason", "EncryptFailed");
+        return headers;
     }
 
     public RequestUtil.RequestAnswer userPlaylist(long uid, int limit, int offset) {
