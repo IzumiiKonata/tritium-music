@@ -27,6 +27,10 @@ public class OptionsUtil {
                 .collect(Collectors.joining("; "));
     }
 
+    public synchronized boolean hasAuthentication() {
+        return COOKIES.containsKey("MUSIC_U") || COOKIES.containsKey("MUSIC_A");
+    }
+
     public synchronized void mergeCookies(Map<String, String> cookies) {
         cookies.forEach(OptionsUtil::putCookie);
     }
