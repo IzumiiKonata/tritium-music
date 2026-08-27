@@ -225,7 +225,7 @@ public class NCMScreen extends BaseScreen {
                 this.musicLyricsPanel = null;
         }
 
-        boolean loggedIn = !OptionsUtil.getCookie().isEmpty();
+        boolean loggedIn = OptionsUtil.hasAuthentication();
 
         if (showLogin && !loggedIn && this.loginRenderer == null) {
             this.loginRenderer = new LoginRenderer();
@@ -234,7 +234,7 @@ public class NCMScreen extends BaseScreen {
         if (this.loginRenderer != null) {
             this.loginRenderer.render(mouseX, mouseY, basePanel.getX(), basePanel.getY(), basePanel.getWidth(), basePanel.getHeight(), basePanel.getAlpha());
 
-            if (this.loginRenderer.canClose() && !OptionsUtil.getCookie().isEmpty()) {
+            if (this.loginRenderer.canClose() && OptionsUtil.hasAuthentication()) {
                 this.loginRenderer = null;
                 AsyncUtil.runAsync(() -> {
                     CloudMusic.loadNCM(OptionsUtil.getCookie());
