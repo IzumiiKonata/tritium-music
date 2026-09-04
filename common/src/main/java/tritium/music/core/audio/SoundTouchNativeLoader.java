@@ -1,5 +1,7 @@
 package tritium.music.core.audio;
 
+import com.tianscar.soundtouch.SoundTouch;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -61,7 +63,7 @@ final class SoundTouchNativeLoader {
 
     private static Path extract(String directory, String name, Path destination) throws IOException {
         String resource = "/" + directory + "/" + name;
-        try (InputStream input = SoundTouchNativeLoader.class.getResourceAsStream(resource)) {
+        try (InputStream input = SoundTouch.class.getResourceAsStream(resource)) {
             if (input == null) {
                 throw new IOException("Missing SoundTouch native " + resource);
             }

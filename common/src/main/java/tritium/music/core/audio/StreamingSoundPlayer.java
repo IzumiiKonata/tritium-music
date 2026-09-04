@@ -9,8 +9,10 @@ import tritium.music.repackage.org.kc7bfi.jflac.sound.spi.FlacFormatConversionPr
 import javax.sound.sampled.*;
 import java.io.*;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,6 +25,7 @@ final class StreamingSoundPlayer {
     private static final int PREFETCH_BUFFER_BYTES = 8 * 1024 * 1024;
     private static final AtomicBoolean BEAT_THIS_FAILURE_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean BASIC_PITCH_FAILURE_LOGGED = new AtomicBoolean();
+    private static final Semaphore AUTO_MIX_ANALYSIS_SLOT = new Semaphore(1);
     private final StreamFactory streamFactory;
     private final String type;
     private final long durationMillis;
@@ -107,7 +110,7 @@ final class StreamingSoundPlayer {
             }
         }
         int shift = 32 - bytes * 8;
-        return (long) value << shift >> shift;
+        return value << shift >> shift;
     }
 
     private static void writeSignedSample(byte[] data, int offset, int bytes, boolean bigEndian, long value) {
@@ -191,6 +194,22 @@ final class StreamingSoundPlayer {
     }
 
     AutoMixTrackAnalysis analyzeForAutoMix(long startMillis, long maxMillis) throws IOException {
+        boolean acquired = false;
+        try {
+            AUTO_MIX_ANALYSIS_SLOT.acquire();
+            acquired = true;
+            return analyzeForAutoMixLocked(startMillis, maxMillis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return AutoMixTrackAnalysis.fallback(durationMillis);
+        } finally {
+            if (acquired) {
+                AUTO_MIX_ANALYSIS_SLOT.release();
+            }
+        }
+    }
+
+    private AutoMixTrackAnalysis analyzeForAutoMixLocked(long startMillis, long maxMillis) throws IOException {
         AutoMixAnalyzer analyzer = new AutoMixAnalyzer(startMillis);
         BeatThisTempoAnalyzer tempoAnalyzer = new BeatThisTempoAnalyzer();
         try (InputStream opened = streamFactory.open();
@@ -222,20 +241,35 @@ final class StreamingSoundPlayer {
                 analyzed += length;
             }
         }
+        if (Thread.currentThread().isInterrupted()) {
+            return AutoMixTrackAnalysis.fallback(durationMillis);
+        }
         AutoMixTrackAnalysis analysis = analyzer.trackAnalysis(durationMillis);
+        if (Thread.currentThread().isInterrupted()) {
+            return analysis;
+        }
         try {
             BeatThisTempoAnalyzer.AudioAnalysis audioAnalysis = tempoAnalyzer.analyzeDetailed(startMillis);
+            if (Thread.currentThread().isInterrupted()) {
+                return analysis;
+            }
             BeatThisTempoAnalyzer.BeatGrid beatGrid = audioAnalysis == null ? null : audioAnalysis.beatGrid();
             if (beatGrid != null && beatGrid.confidence() >= 0.16) {
                 AutoMixTrackAnalysis enhanced = analysis.withProfile(analysis.profile().withBeatGrid(
                         beatGrid.intervalMillis(), beatGrid.phaseMillis(), beatGrid.confidence(),
                         beatGrid.downbeats() >= 2, beatGrid.downbeatIntervalMillis(),
                         beatGrid.downbeatPhaseMillis()));
+                if (Thread.currentThread().isInterrupted()) {
+                    return enhanced;
+                }
                 try {
                     MusicalTimeline timeline = new BasicPitchAnalyzer().analyze(
                             audioAnalysis.audio(), startMillis, beatGrid);
                     return enhanced.withTimeline(timeline);
                 } catch (Throwable throwable) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        return enhanced;
+                    }
                     if (BASIC_PITCH_FAILURE_LOGGED.compareAndSet(false, true)) {
                         Platform.log("[NCM] Basic Pitch unavailable, using rhythm-only AutoMix: "
                                 + throwable.getMessage());
@@ -244,6 +278,9 @@ final class StreamingSoundPlayer {
                 return enhanced;
             }
         } catch (Throwable throwable) {
+            if (Thread.currentThread().isInterrupted()) {
+                return analysis;
+            }
             if (BEAT_THIS_FAILURE_LOGGED.compareAndSet(false, true)) {
                 Platform.log("[NCM] Beat This! unavailable, using AutoMix fallback: " + throwable.getMessage());
             }
@@ -363,6 +400,7 @@ final class StreamingSoundPlayer {
                         currentLine = openLine(pcm.format());
                     }
                     try (SoundTouchAudioProcessor soundTouch = SoundTouchAudioProcessor.create(pcm.format())) {
+                        StreamingResampler streamingResampler = new StreamingResampler(pcm.format());
                         line = currentLine;
                         if (!paused) {
                             currentLine.start();
@@ -404,14 +442,15 @@ final class StreamingSoundPlayer {
                                 int length = Math.min(chunkSize, end - offset);
                                 pcmListener.accept(buffer, offset, length, pcm.format());
                                 PcmChunk output;
-                                if (soundTouch.isAvailable()) {
+                                float outputGain = volume;
+                                if (soundTouch.shouldProcess(playbackRate, pitchShiftSemitones)) {
                                     byte[] processed = soundTouch.process(buffer, offset, length,
-                                            playbackRate, pitchShiftSemitones);
+                                            playbackRate, pitchShiftSemitones, outputGain);
                                     output = new PcmChunk(processed, 0, processed.length);
                                 } else {
-                                    output = resample(buffer, offset, length, pcm.format(), playbackRate);
+                                    output = streamingResampler.process(buffer, offset, length, playbackRate);
+                                    applySoftwareVolume(output.data(), output.offset(), output.length(), pcm.format(), outputGain);
                                 }
-                                applySoftwareVolume(output.data(), output.offset(), output.length(), pcm.format());
                                 if (!writeFully(currentLine, output)) {
                                     continue;
                                 }
@@ -423,9 +462,12 @@ final class StreamingSoundPlayer {
                             streamFailures = 0;
                         }
                         if (!closed && requestedPositionMillis.get() < 0) {
-                            byte[] tail = soundTouch.flush();
-                            applySoftwareVolume(tail, 0, tail.length, pcm.format());
+                            byte[] tail = soundTouch.flush(volume);
                             writeFully(currentLine, new PcmChunk(tail, 0, tail.length));
+                            PcmChunk resamplerTail = streamingResampler.flush();
+                            applySoftwareVolume(resamplerTail.data(), resamplerTail.offset(),
+                                    resamplerTail.length(), pcm.format(), volume);
+                            writeFully(currentLine, resamplerTail);
                             preparedLatch.countDown();
                             currentLine.drain();
                             finished = true;
@@ -482,8 +524,7 @@ final class StreamingSoundPlayer {
         return result;
     }
 
-    private void applySoftwareVolume(byte[] data, int offset, int length, AudioFormat format) {
-        float gain = volume;
+    private void applySoftwareVolume(byte[] data, int offset, int length, AudioFormat format, float gain) {
         if (gain >= 0.9999f || !AudioFormat.Encoding.PCM_SIGNED.equals(format.getEncoding())) {
             return;
         }
@@ -538,7 +579,73 @@ final class StreamingSoundPlayer {
         int read(byte[] buffer) throws IOException;
     }
 
-    private record PcmChunk(byte[] data, int offset, int length) {
+    record PcmChunk(byte[] data, int offset, int length) {
+    }
+
+    static final class StreamingResampler {
+        private final AudioFormat format;
+        private byte[] previousFrame;
+        private double sourcePosition;
+        private boolean active;
+
+        StreamingResampler(AudioFormat format) {
+            this.format = format;
+        }
+
+        PcmChunk process(byte[] data, int offset, int length, double rate) {
+            int frameSize = format.getFrameSize();
+            int currentFrames = length / frameSize;
+            if (!active && Math.abs(rate - 1) < 0.0005) {
+                return new PcmChunk(data, offset, currentFrames * frameSize);
+            }
+            active = true;
+            int prefixFrames = previousFrame == null ? 0 : 1;
+            int sourceFrames = prefixFrames + currentFrames;
+            if (sourceFrames < 2) {
+                previousFrame = Arrays.copyOfRange(data, offset, offset + currentFrames * frameSize);
+                return new PcmChunk(new byte[0], 0, 0);
+            }
+            byte[] source = new byte[sourceFrames * frameSize];
+            if (previousFrame != null) {
+                System.arraycopy(previousFrame, 0, source, 0, frameSize);
+            }
+            System.arraycopy(data, offset, source, prefixFrames * frameSize, currentFrames * frameSize);
+            int outputCapacity = Math.max(1, (int) Math.ceil((sourceFrames - 1 - sourcePosition) / rate));
+            byte[] output = new byte[outputCapacity * frameSize];
+            int outputFrames = 0;
+            int bytesPerSample = frameSize / format.getChannels();
+            long limit = (1L << (bytesPerSample * 8 - 1)) - 1;
+            while (sourcePosition < sourceFrames - 1) {
+                int leftFrame = (int) sourcePosition;
+                int rightFrame = leftFrame + 1;
+                double fraction = sourcePosition - leftFrame;
+                for (int channel = 0; channel < format.getChannels(); channel++) {
+                    int sampleOffset = channel * bytesPerSample;
+                    long left = readSignedSample(source, leftFrame * frameSize + sampleOffset,
+                            bytesPerSample, format.isBigEndian());
+                    long right = readSignedSample(source, rightFrame * frameSize + sampleOffset,
+                            bytesPerSample, format.isBigEndian());
+                    long sample = Math.max(-limit - 1,
+                            Math.min(limit, Math.round(left + (right - left) * fraction)));
+                    writeSignedSample(output, outputFrames * frameSize + sampleOffset,
+                            bytesPerSample, format.isBigEndian(), sample);
+                }
+                outputFrames++;
+                sourcePosition += rate;
+            }
+            sourcePosition -= sourceFrames - 1;
+            previousFrame = Arrays.copyOfRange(source, source.length - frameSize, source.length);
+            return new PcmChunk(output, 0, outputFrames * frameSize);
+        }
+
+        PcmChunk flush() {
+            if (!active || previousFrame == null) {
+                return new PcmChunk(new byte[0], 0, 0);
+            }
+            byte[] output = previousFrame;
+            previousFrame = null;
+            return new PcmChunk(output, 0, output.length);
+        }
     }
 
     private record JavaSoundPcmStream(AudioInputStream stream, AudioFormat format) implements PcmStream {

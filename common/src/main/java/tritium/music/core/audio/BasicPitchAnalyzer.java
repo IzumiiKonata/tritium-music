@@ -154,7 +154,7 @@ final class BasicPitchAnalyzer {
                 OrtEnvironment environment = OrtEnvironment.getEnvironment("Tritium AutoMix");
                 OrtSession.SessionOptions options = new OrtSession.SessionOptions();
                 options.setInterOpNumThreads(1);
-                options.setIntraOpNumThreads(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() / 2)));
+                options.setIntraOpNumThreads(1);
                 OrtSession session = environment.createSession(readResource(MODEL_PATH), options);
                 options.close();
                 return new Models(environment, session);

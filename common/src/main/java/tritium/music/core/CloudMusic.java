@@ -715,6 +715,7 @@ public class CloudMusic {
             MusicState.get().setDownloading(false);
             currentlyPlaying = session.song();
             player = session.player();
+            player.activateSpectrum();
             loadMusicCover(session.song());
             loadLyric(session.song());
             for (MusicListener listener : listeners) {
@@ -729,12 +730,15 @@ public class CloudMusic {
             double tempoRate = 1;
             while (playing.get() && !session.ended().get() && isCurrentPlayback() && !doBreak && !isInterrupted()) {
                 updateCurrentLyric(session.player().getCurrentTimeMillis());
+                if (autoMixEnabled && preparation != null && preparation.result() != null) {
+                    session.tailAnalysis().start();
+                }
                 if (autoMixEnabled && preparation == null) {
                     preparation = prepareNextTrack(session.song());
                 }
-                if (!autoMixEnabled && preparation != null) {
+                if (!autoMixEnabled && preparation != null && preparation.autoMixAnalysis) {
                     preparation.close();
-                    preparation = null;
+                    preparation = prepareNextTrack(session.song());
                     session.player().setPlaybackRate(1);
                     session.player().setPitchShiftSemitones(0);
                     tempoRate = 1;
@@ -749,7 +753,8 @@ public class CloudMusic {
                     tempoRate = 1;
                     continue;
                 }
-                if (prepared != null && validPreparedTrack(prepared)) {
+                if (autoMixEnabled && preparation != null && preparation.autoMixAnalysis
+                        && prepared != null && validPreparedTrack(prepared)) {
                     if (plan == null) {
                         AutoMixTrackAnalysis tail = session.tailAnalysis().result();
                         if (tail != null) {
@@ -771,12 +776,16 @@ public class CloudMusic {
                 }
                 sleep(10);
             }
+            PreparedTrack prepared = preparation == null ? null : preparation.result();
+            if (!autoMixEnabled && prepared != null && validPreparedTrack(prepared)
+                    && isCurrentPlayback() && !doBreak && !isInterrupted()) {
+                return startPreparedTrack(prepared);
+            }
             return new PlaybackResult(null, false);
         }
 
         private Preparation prepareNextTrack(Music currentSong) {
-            if (!autoMixEnabled || currentSong.getDuration() < 25_000
-                    || playMode == PlayMode.LoopSingle || playMode != lastMode) {
+            if (playMode == PlayMode.LoopSingle || playMode != lastMode) {
                 return null;
             }
             int nextIndex = nextIndex();
@@ -784,21 +793,34 @@ public class CloudMusic {
                 return null;
             }
             Music nextSong = playList.get(nextIndex);
-            if (nextSong.getDuration() < 20_000) {
+            boolean analyze = autoMixEnabled && currentSong.getDuration() >= 25_000
+                    && nextSong.getDuration() >= 20_000;
+            if (autoMixEnabled && !analyze) {
                 return null;
             }
             loadMusicCover(nextSong);
             LyricsFetcher.getDefault().prefetch(lyricsQuery(nextSong));
-            return new Preparation(nextSong, nextIndex);
+            return new Preparation(nextSong, nextIndex, analyze);
         }
 
         private boolean validPreparedTrack(PreparedTrack prepared) {
-            return autoMixEnabled
-                    && playMode == lastMode
-                    && prepared.index() == nextIndex()
+            int expectedIndex = dontAdd ? curIdx : nextIndex();
+            return playMode == lastMode
+                    && prepared.index() == expectedIndex
                     && prepared.index() >= 0
                     && prepared.index() < playList.size()
                     && playList.get(prepared.index()).equals(prepared.song());
+        }
+
+        private PlaybackResult startPreparedTrack(PreparedTrack prepared) {
+            AudioPlayer incoming = prepared.player();
+            TrackSession next = new TrackSession(prepared.song(), incoming, new AtomicBoolean(),
+                    new TailAnalysis(prepared.song(), incoming));
+            configureCompletion(next);
+            updateCurIdx();
+            promote(next);
+            incoming.play();
+            return new PlaybackResult(next, true);
         }
 
         private TransitionPlan createTransitionPlan(
@@ -1236,15 +1258,18 @@ public class CloudMusic {
         private final class Preparation {
             private final Music song;
             private final int index;
+            private final boolean autoMixAnalysis;
             private final Thread thread;
             private volatile PreparedTrack result;
             private volatile boolean closed;
 
-            private Preparation(Music song, int index) {
+            private Preparation(Music song, int index, boolean autoMixAnalysis) {
                 this.song = song;
                 this.index = index;
+                this.autoMixAnalysis = autoMixAnalysis;
                 this.thread = new Thread(this::run, "AutoMix Preloader");
                 this.thread.setDaemon(true);
+                this.thread.setPriority(Thread.MIN_PRIORITY);
                 this.thread.start();
             }
 
@@ -1256,16 +1281,19 @@ public class CloudMusic {
                         return;
                     }
                     nextPlayer = createPlayer(playUrl, song);
-                    AutoMixTrackAnalysis analysis;
-                    try {
-                        analysis = nextPlayer.analyzeForAutoMix(0, INTRO_ANALYSIS_MILLIS);
-                    } catch (Exception e) {
-                        analysis = AutoMixTrackAnalysis.fallback(song.getDuration());
+                    AutoMixTrackAnalysis analysis = AutoMixTrackAnalysis.fallback(song.getDuration());
+                    if (autoMixAnalysis) {
+                        try {
+                            analysis = nextPlayer.analyzeForAutoMix(0, INTRO_ANALYSIS_MILLIS);
+                        } catch (Exception ignored) {
+                        }
                     }
                     if (closed || Thread.currentThread().isInterrupted()) {
                         return;
                     }
-                    nextPlayer.setPlaybackTime((float) introCue(analysis));
+                    if (autoMixAnalysis) {
+                        nextPlayer.setPlaybackTime((float) introCue(analysis));
+                    }
                     nextPlayer.setMixGain(0);
                     nextPlayer.prepare();
                     if (!nextPlayer.awaitPrepared(PREPARE_TIMEOUT_MILLIS) || closed) {
@@ -1319,15 +1347,22 @@ public class CloudMusic {
         private final class TailAnalysis {
             private final Music song;
             private final AudioPlayer player;
-            private final Thread thread;
+            private volatile Thread thread;
             private volatile AutoMixTrackAnalysis result;
 
             private TailAnalysis(Music song, AudioPlayer player) {
                 this.song = song;
                 this.player = player;
-                this.thread = new Thread(this::run, "AutoMix Tail Analyzer");
-                this.thread.setDaemon(true);
-                this.thread.start();
+            }
+
+            private synchronized void start() {
+                if (thread != null) {
+                    return;
+                }
+                thread = new Thread(this::run, "AutoMix Tail Analyzer");
+                thread.setDaemon(true);
+                thread.setPriority(Thread.MIN_PRIORITY);
+                thread.start();
             }
 
             private void run() {
@@ -1344,7 +1379,10 @@ public class CloudMusic {
             }
 
             private void close() {
-                thread.interrupt();
+                Thread current = thread;
+                if (current != null) {
+                    current.interrupt();
+                }
             }
         }
     }
