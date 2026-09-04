@@ -3,6 +3,7 @@ package tritium.music.client.config;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
+import tritium.music.core.audio.AutoMixTempoPolicy;
 import tritium.music.core.model.Quality;
 import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.Platform;
@@ -33,6 +34,7 @@ public class WidgetConfig {
     public double volume = 0.25;
     public Quality quality = Quality.STANDARD;
     public boolean autoMix = false;
+    public boolean autoMixTuneWheneverPossible = false;
     public PlaylistViewMode playlistViewMode = PlaylistViewMode.GRID;
 
     public enum PlaylistViewMode {
@@ -137,5 +139,6 @@ public class WidgetConfig {
         state.setVolume((float) volume);
         CloudMusic.quality = quality;
         CloudMusic.autoMixEnabled = autoMix;
+        AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE = autoMixTuneWheneverPossible ? 10.0 : 0.1;
     }
 }

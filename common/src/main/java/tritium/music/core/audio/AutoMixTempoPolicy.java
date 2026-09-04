@@ -1,7 +1,7 @@
 package tritium.music.core.audio;
 
 public final class AutoMixTempoPolicy {
-    public static final double MAX_TEMPO_MATCH_CHANGE = 0.08;
+    public static double MAX_TEMPO_MATCH_CHANGE = .1;
 
     private AutoMixTempoPolicy() {
     }

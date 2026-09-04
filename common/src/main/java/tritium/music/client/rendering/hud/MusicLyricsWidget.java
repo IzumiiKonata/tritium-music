@@ -119,7 +119,7 @@ public class MusicLyricsWidget extends HudWidget {
         this.fontH = getFontRenderer().getHeight();
         this.lyricH = getLyricHeight();
 
-        float songProgress = CloudMusic.player.getCurrentTimeMillis();
+        float songProgress = CloudMusic.player.getCurrentTimeMillisInterpolated();
 
         boolean shouldNotDisplayOtherLyrics = cfg().singleLine;
 

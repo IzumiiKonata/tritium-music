@@ -6,8 +6,6 @@ import tritium.music.repackage.com.jsyn.unitgen.UnitFilter;
 
 /**
  * A custom JSyn unit generator that takes care of adding and panning.
- *
- * @deprecated
  */
 class JSynProcessor extends UnitFilter {
 
