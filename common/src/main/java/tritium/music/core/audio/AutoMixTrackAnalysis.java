@@ -9,7 +9,7 @@ public record AutoMixTrackAnalysis(AutoMixProfile profile, long firstSoundMillis
     }
 
     public static AutoMixTrackAnalysis fallback(long durationMillis) {
-        return new AutoMixTrackAnalysis(AutoMixProfile.fallback(), 0, 0, Math.max(0, durationMillis - 8_000), Math.max(0, durationMillis - 2_000), durationMillis, EndingType.HARD, 0, MusicalTimeline.empty());
+        return new AutoMixTrackAnalysis(AutoMixProfile.fallback(), 0, 0, Math.max(0, durationMillis - 6_000), Math.max(0, durationMillis - 2_000), durationMillis, EndingType.HARD, 0, MusicalTimeline.empty());
     }
 
     public AutoMixTrackAnalysis withProfile(AutoMixProfile replacement) {

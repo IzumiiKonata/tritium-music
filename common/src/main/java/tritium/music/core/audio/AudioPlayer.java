@@ -11,19 +11,20 @@ import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class AudioPlayer {
 
     private static final int BAR_COUNT = 128;
-    private static final int FFT_HOP_SAMPLES = BAR_COUNT * 5;
+    private static final int FFT_HOP_MILLIS = 20;
+    private static final long DEFAULT_SPECTRUM_FRAME_NANOS = 20_000_000L;
     private static final float[] FFT_WINDOW = createFftWindow();
     private static final ExecutorService FFT_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "Music Spectrum Analyzer");
         thread.setDaemon(true);
-        thread.setPriority(Thread.MIN_PRIORITY);
+        thread.setPriority(Math.max(Thread.MIN_PRIORITY, Thread.NORM_PRIORITY - 1));
         return thread;
     });
-    private static volatile AudioPlayer spectrumSource;
     /**
      * Spectrum band magnitudes, updated by the FFT analysis. Empty until the first FFT frame.
      */
@@ -38,13 +39,16 @@ public class AudioPlayer {
      */
     public static volatile float spectrumTilt = 3.0f;
     public static volatile boolean absoluteVolume = true;
+    private static volatile AudioPlayer spectrumSource;
+    private static volatile SpectrumFrame spectrumFrame = new SpectrumFrame(new float[0], new float[0], System.nanoTime(), DEFAULT_SPECTRUM_FRAME_NANOS);
     private final SpectrumVisualizer visualizer = new SpectrumVisualizer(JSynFFT.FFT_SIZE, BAR_COUNT);
     private final float[] fftWindow = new float[JSynFFT.FFT_SIZE];
     private final AtomicBoolean spectrumTaskQueued = new AtomicBoolean();
-    private volatile float[] pendingSpectrumWindow;
+    private final AtomicLong seekRevision = new AtomicLong();
     public Runnable afterPlayed;
     @Getter
     public float volume = 0.25f;
+    private volatile float[] pendingSpectrumWindow;
     private StreamingSoundPlayer player;
     private volatile AutoMixAnalyzer autoMixAnalyzer = new AutoMixAnalyzer();
     private int fftWindowOffset;
@@ -114,6 +118,24 @@ public class AudioPlayer {
         }
     }
 
+    public static float[] sampleSpectrum() {
+        return interpolateSpectrum(spectrumFrame, System.nanoTime());
+    }
+
+    private static float[] interpolateSpectrum(SpectrumFrame frame, long now) {
+        float[] current = frame.current();
+        float[] previous = frame.previous();
+        if (current.length == 0 || previous.length != current.length) {
+            return Arrays.copyOf(current, current.length);
+        }
+        double progress = Math.max(0, Math.min(1, (now - frame.publishedNanos()) / (double) frame.intervalNanos()));
+        float[] result = new float[current.length];
+        for (int index = 0; index < result.length; index++) {
+            result[index] = (float) (previous[index] + (current[index] - previous[index]) * progress);
+        }
+        return result;
+    }
+
     public void setAudio(File file, long durationMillis) {
         this.close();
         this.player = new StreamingSoundPlayer(file, durationMillis, this::onPcm);
@@ -149,7 +171,14 @@ public class AudioPlayer {
         visualizer.setVolume(this.volume);
         visualizer.setSpectrumTilt(spectrumTilt);
         visualizer.setAbsoluteVolume(absoluteVolume);
-        bandValues = visualizer.processFFT(magnitudes);
+        float[] next = Arrays.copyOf(visualizer.processFFT(magnitudes), BAR_COUNT);
+        long now = System.nanoTime();
+        SpectrumFrame previous = spectrumFrame;
+        float[] from = interpolateSpectrum(previous, now);
+        long measuredInterval = previous.current().length == next.length ? now - previous.publishedNanos() : DEFAULT_SPECTRUM_FRAME_NANOS;
+        long interval = Math.max(12_000_000L, Math.min(80_000_000L, measuredInterval));
+        spectrumFrame = new SpectrumFrame(from, next, now, interval);
+        bandValues = next;
     }
 
     private void onPcm(byte[] data, int offset, int length, AudioFormat format) {
@@ -159,22 +188,21 @@ public class AudioPlayer {
         int frameSize = format.getFrameSize();
         int bytesPerSample = frameSize / channels;
         int frameCount = length / frameSize;
+        int fftHopSamples = Math.max(1, Math.round(format.getFrameRate() * FFT_HOP_MILLIS / 1000f));
         float playbackVolume = effectiveVolume();
         for (int frame = 0; frame < frameCount; frame++) {
             int base = offset + frame * frameSize;
             float left = readSample(data, base, bytesPerSample, format.isBigEndian()) * playbackVolume;
-            float right = channels > 1
-                    ? readSample(data, base + bytesPerSample, bytesPerSample, format.isBigEndian()) * playbackVolume
-                    : left;
+            float right = channels > 1 ? readSample(data, base + bytesPerSample, bytesPerSample, format.isBigEndian()) * playbackVolume : left;
             fftWindow[fftWindowOffset++] = (left + right) * 0.5f;
             if (fftWindowOffset == fftWindow.length) {
                 fftWindowOffset = 0;
             }
             if (spectrumEnabled && spectrumSource == this) {
                 fftSamplesSinceAnalysis++;
-                if (fftSamplesSinceAnalysis >= FFT_HOP_SAMPLES) {
+                if (fftSamplesSinceAnalysis >= fftHopSamples) {
                     publishSpectrum();
-                    fftSamplesSinceAnalysis -= FFT_HOP_SAMPLES;
+                    fftSamplesSinceAnalysis -= fftHopSamples;
                 }
             } else {
                 fftSamplesSinceAnalysis = 0;
@@ -247,13 +275,41 @@ public class AudioPlayer {
         return this.player.analyzeForAutoMix(startMillis, maxMillis);
     }
 
+    public AutoMixTrackAnalysis analyzeForAutoMix(long startMillis, long maxMillis, boolean enrich) throws java.io.IOException {
+        return this.player.analyzeForAutoMix(startMillis, maxMillis, enrich);
+    }
+
+    public AutoMixTrackAnalysis analyzeForAutoMix(long startMillis, long maxMillis, AutoMixProfile referenceProfile) throws java.io.IOException {
+        return this.player.analyzeForAutoMix(startMillis, maxMillis, referenceProfile);
+    }
+
     public AutoMixProfile getAutoMixProfile() {
         return autoMixAnalyzer.snapshot();
     }
 
     public void setPlaybackTime(float millis) {
         autoMixAnalyzer = new AutoMixAnalyzer((long) millis);
+        resetTransitionState();
+        seekRevision.incrementAndGet();
         this.player.seek((long) millis);
+        refreshOutputVolume();
+    }
+
+    public long getSeekRevision() {
+        return seekRevision.get();
+    }
+
+    public void resetTransitionState() {
+        mixGain = 1;
+        transitionLowGain = 1;
+        transitionMidGain = 1;
+        transitionHighGain = 1;
+        transitionLowPassHz = 0;
+        transitionLowState = new double[0];
+        transitionUpperState = new double[0];
+        transitionOutputState = new double[0];
+        player.setPlaybackRate(1);
+        player.setPitchShiftSemitones(0);
         refreshOutputVolume();
     }
 
@@ -363,9 +419,7 @@ public class AudioPlayer {
         float midGain = transitionMidGain;
         float highGain = transitionHighGain;
         float lowPassHz = transitionLowPassHz;
-        if ((Math.abs(lowGain - 1) < 0.0001f && Math.abs(midGain - 1) < 0.0001f
-                && Math.abs(highGain - 1) < 0.0001f && lowPassHz <= 0)
-                || !AudioFormat.Encoding.PCM_SIGNED.equals(format.getEncoding())) {
+        if ((Math.abs(lowGain - 1) < 0.0001f && Math.abs(midGain - 1) < 0.0001f && Math.abs(highGain - 1) < 0.0001f && lowPassHz <= 0) || !AudioFormat.Encoding.PCM_SIGNED.equals(format.getEncoding())) {
             return;
         }
         int channels = format.getChannels();
@@ -382,9 +436,7 @@ public class AudioPlayer {
         }
         double lowAlpha = 1 - Math.exp(-Math.PI * 2 * 220 / format.getSampleRate());
         double upperAlpha = 1 - Math.exp(-Math.PI * 2 * 4_200 / format.getSampleRate());
-        double outputAlpha = lowPassHz <= 0
-                ? 1
-                : 1 - Math.exp(-Math.PI * 2 * lowPassHz / format.getSampleRate());
+        double outputAlpha = lowPassHz <= 0 ? 1 : 1 - Math.exp(-Math.PI * 2 * lowPassHz / format.getSampleRate());
         int end = offset + length - frameSize + 1;
         for (int frameOffset = offset; frameOffset < end; frameOffset += frameSize) {
             for (int channel = 0; channel < channels; channel++) {
@@ -406,5 +458,8 @@ public class AudioPlayer {
                 writeSample(data, sampleOffset, bytesPerSample, format.isBigEndian(), output);
             }
         }
+    }
+
+    private record SpectrumFrame(float[] previous, float[] current, long publishedNanos, long intervalNanos) {
     }
 }

@@ -13,7 +13,6 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
     private final SoundTouch soundTouch;
     private final AudioFormat format;
     private final int channels;
-    private boolean active;
     private float tempo = -1;
     private float pitchSemitones = -100;
 
@@ -56,17 +55,10 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
     }
 
     boolean shouldProcess(double requestedTempo, double requestedPitchSemitones) {
-        if (soundTouch == null) {
-            return false;
-        }
-        if (Math.abs(requestedTempo - 1) >= 0.0005 || Math.abs(requestedPitchSemitones) >= 0.001) {
-            active = true;
-        }
-        return active;
+        return soundTouch != null;
     }
 
-    byte[] process(byte[] data, int offset, int length, double requestedTempo,
-                   double requestedPitchSemitones, float outputGain) {
+    byte[] process(byte[] data, int offset, int length, double requestedTempo, double requestedPitchSemitones, float outputGain) {
         if (soundTouch == null) {
             return new byte[0];
         }
@@ -93,7 +85,7 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
     private void updateParameters(double requestedTempo, double requestedPitchSemitones) {
         float nextTempo = (float) Math.max(0.86, Math.min(1.14, requestedTempo));
         float nextPitch = (float) Math.max(-4, Math.min(4, requestedPitchSemitones));
-        if (Math.abs(nextTempo - tempo) > 0.0001f || Math.abs(nextPitch - pitchSemitones) > 0.001f) {
+        if (Math.abs(nextTempo - tempo) >= 0.0025f || Math.abs(nextPitch - pitchSemitones) >= 0.04f) {
             float pitchRatio = (float) Math.pow(2, nextPitch / 12.0);
             soundTouch.setRate(pitchRatio);
             soundTouch.setTempo(nextTempo / pitchRatio);

@@ -49,6 +49,26 @@ class AutoMixAnalyzerTest {
     }
 
     @Test
+    void autoMixAlwaysHasAUsableFallbackWindow() {
+        AutoMixTransitionTiming.Window early = AutoMixTransitionTiming.fallback(180_000, 30_000);
+        AutoMixTransitionTiming.Window late = AutoMixTransitionTiming.fallback(180_000, 178_500);
+
+        assertEquals(174_000, early.startMillis());
+        assertEquals(6_000, early.durationMillis());
+        assertEquals(178_500, late.startMillis());
+        assertEquals(1_500, late.durationMillis());
+    }
+
+    @Test
+    void autoMixShrinksMissedWindowsInsteadOfStartingAStaleLongBlend() {
+        AutoMixTransitionTiming.Window fitted = AutoMixTransitionTiming.fit(
+                new AutoMixTransitionTiming.Window(168_000, 12_000), 176_000, 180_000);
+
+        assertEquals(176_000, fitted.startMillis());
+        assertEquals(4_000, fitted.durationMillis());
+    }
+
+    @Test
     void tracksTheLatestWindowAndDetectsAQuietEnding() {
         AutoMixAnalyzer analyzer = new AutoMixAnalyzer();
         AudioFormat format = new AudioFormat(SAMPLE_RATE, 16, 2, true, false);
@@ -94,6 +114,22 @@ class AutoMixAnalyzerTest {
         player.close();
 
         assertTrue(after < before * 0.25, "before=" + before + ", after=" + after);
+    }
+
+    @Test
+    void seekingInvalidatesTheActiveTransitionState() {
+        AudioPlayer player = new AudioPlayer(new File("unused.wav"), 30_000);
+        long revision = player.getSeekRevision();
+        player.setMixGain(0.25f);
+        player.setTransitionEq(0.1f, 0.4f, 0.7f, 1_200);
+        player.setPlaybackRate(1.06);
+        player.setPitchShiftSemitones(2);
+
+        player.setPlaybackTime(12_345);
+
+        assertEquals(revision + 1, player.getSeekRevision());
+        assertEquals(12_345, player.getCurrentTimeMillis(), 1);
+        player.close();
     }
 
     @Test
@@ -191,20 +227,20 @@ class AutoMixAnalyzerTest {
     }
 
     @Test
-    void acceptsWiderAndHalfTimeTempoMatches() {
+    void acceptsOnlySmallOrEquivalentTempoMatches() {
         AutoMixProfile bpm120 = profileAtBpm(120);
-        AutoMixProfile bpm108 = profileAtBpm(108);
+        AutoMixProfile bpm117 = profileAtBpm(117);
         AutoMixProfile bpm60 = profileAtBpm(60);
         AutoMixProfile bpm90 = profileAtBpm(90);
-        AutoMixProfile bpm85Point7 = profileAtBpm(85.7);
-        AutoMixProfile bpm96Point8 = profileAtBpm(96.8);
 
-        assertTrue(bpm120.isTempoCompatible(bpm108, 0.12));
-        assertEquals(0.9, bpm120.beatMatchRateTo(bpm108, 0.12), 0.001);
-        assertTrue(bpm120.isTempoCompatible(bpm60, 0.12));
-        assertEquals(1, bpm120.beatMatchRateTo(bpm60, 0.12), 0.001);
-        assertEquals(1, bpm120.beatMatchRateTo(bpm90, 0.12), 0.001);
-        assertEquals(96.8 / 85.7, bpm85Point7.beatMatchRateTo(bpm96Point8, 0.14), 0.001);
+        assertTrue(bpm120.isTempoCompatible(bpm117, AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE));
+        assertEquals(117.0 / 120, bpm120.beatMatchRateTo(bpm117,
+                AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE), 0.001);
+        assertTrue(bpm120.isTempoCompatible(bpm60, AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE));
+        assertEquals(1, bpm120.beatMatchRateTo(bpm60,
+                AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE), 0.001);
+        assertEquals(1, bpm120.beatMatchRateTo(bpm90,
+                AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE), 0.001);
     }
 
     @Test
@@ -218,16 +254,16 @@ class AutoMixAnalyzerTest {
     }
 
     @Test
-    void allowsHighConfidenceCruelSummerToShapeOfYouTempoSync() {
-        AutoMixProfile currentProfile = transitionProfile(85.7, 0.97, -13, 177_200);
-        AutoMixProfile nextProfile = transitionProfile(96.8, 0.96, -14, 31_000);
+    void allowsHighConfidenceSmallTempoSync() {
+        AutoMixProfile currentProfile = transitionProfile(120, 0.97, -13, 177_200);
+        AutoMixProfile nextProfile = transitionProfile(117, 0.96, -14, 177_000);
         AutoMixTrackAnalysis current = new AutoMixTrackAnalysis(currentProfile, 0, 300,
                 172_000, 177_000, 178_000, AutoMixTrackAnalysis.EndingType.TRAILING_SILENCE, 0.8);
         AutoMixTrackAnalysis next = new AutoMixTrackAnalysis(nextProfile, 0, 450,
                 170_000, 177_000, 180_000, AutoMixTrackAnalysis.EndingType.HARD, 0.8);
         double rate = currentProfile.beatMatchRateTo(nextProfile, AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE);
 
-        assertEquals(96.8 / 85.7, rate, 0.001);
+        assertEquals(117.0 / 120, rate, 0.001);
         assertTrue(AutoMixTempoPolicy.shouldSync(current, next, rate));
     }
 
@@ -267,133 +303,36 @@ class AutoMixAnalyzerTest {
     }
 
     @Test
-    void selectsCompatibleDownbeatsAndRejectsAMelodicCollision() {
-        AutoMixProfile profile = transitionProfile(120, 0.96, -12, 29_000);
-        List<Long> outgoingDownbeats = List.of(14_000L, 18_000L, 22_000L, 26_000L);
-        List<Long> incomingDownbeats = List.of(0L, 2_000L, 4_000L, 6_000L);
-        double[] harmony = {1, 0.4, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        MusicalTimeline compatibleOutgoing = timeline(12_000, 18_000, outgoingDownbeats,
-                harmony, 0.08, -0.2, 0.82);
-        MusicalTimeline compatibleIncoming = timeline(0, 8_000, incomingDownbeats,
-                harmony, 0.1, 0.35, 0.78);
-        AutoMixTrackAnalysis current = analysis(profile, 30_000, compatibleOutgoing);
-        AutoMixTrackAnalysis next = analysis(profile, 180_000, compatibleIncoming);
-
-        TransitionCandidateSearch.Candidate candidate = TransitionCandidateSearch.find(current, next);
-
-        assertNotNull(candidate);
-        assertTrue(outgoingDownbeats.contains(candidate.outgoingMillis()));
-        assertTrue(incomingDownbeats.contains(candidate.incomingMillis()));
-
-        double[] conflictingHarmony = {0, 0, 0, 0, 0, 0, 1, 0.5, 0, 0, 0, 0};
-        MusicalTimeline conflictingIncoming = timeline(0, 8_000, incomingDownbeats,
-                conflictingHarmony, 1, -0.8, 0);
-        assertNull(TransitionCandidateSearch.find(current,
-                analysis(profile, 180_000, conflictingIncoming)));
-    }
-
-    @Test
-    void alignsAccentPatternsWhenTheReportedDownbeatIsOneBeatWrong() {
+    void appliesOnlyAConfidentSmallKeyChange() {
         AutoMixProfile profile = transitionProfile(120, 0.97, -12, 29_000);
-        List<Long> outgoingBeats = java.util.stream.LongStream.range(0, 32)
-                .map(index -> 14_000 + index * 500).boxed().toList();
-        List<Long> incomingBeats = java.util.stream.LongStream.range(0, 20)
-                .map(index -> index * 500).boxed().toList();
-        double[] chroma = {1, 0, 0.4, 0, 0.7, 0, 0, 0.5, 0, 0, 0, 0};
-        MusicalTimeline outgoing = accentedTimeline(12_000, 18_000, outgoingBeats,
-                List.of(14_000L, 16_000L, 18_000L, 20_000L, 22_000L, 24_000L, 26_000L, 28_000L),
-                chroma, 0);
-        MusicalTimeline incoming = accentedTimeline(0, 10_000, incomingBeats,
-                List.of(500L, 2_500L, 4_500L, 6_500L, 8_500L), chroma, 0);
-
-        TransitionCandidateSearch.Candidate candidate = TransitionCandidateSearch.find(
-                analysis(profile, 30_000, outgoing), analysis(profile, 180_000, incoming));
-
-        assertNotNull(candidate);
-        assertTrue(outgoing.beatAccentAt(candidate.outgoingMillis()) > 0.9);
-        assertTrue(incoming.beatAccentAt(candidate.incomingMillis()) > 0.9);
-        assertTrue(candidate.meterScore() > 0.6, candidate.toString());
-    }
-
-    @Test
-    void plansTheSmallestConfidentKeyChange() {
-        AutoMixProfile profile = transitionProfile(120, 0.97, -12, 29_000);
-        List<Long> outgoingBeats = java.util.stream.LongStream.range(0, 32)
-                .map(index -> 14_000 + index * 500).boxed().toList();
-        List<Long> incomingBeats = java.util.stream.LongStream.range(0, 20)
-                .map(index -> index * 500).boxed().toList();
         double[] sourceChroma = {1, 0, 0.55, 0, 0.8, 0, 0, 0.45, 0, 0, 0, 0};
         double[] targetChroma = rotateChroma(sourceChroma, 2);
-        MusicalTimeline outgoing = accentedTimeline(12_000, 18_000, outgoingBeats,
-                List.of(14_000L, 16_000L, 18_000L, 20_000L, 22_000L, 24_000L, 26_000L, 28_000L),
-                sourceChroma, 0);
-        MusicalTimeline incoming = accentedTimeline(0, 10_000, incomingBeats,
-                List.of(0L, 2_000L, 4_000L, 6_000L, 8_000L), targetChroma, 0);
+        MusicalTimeline outgoing = harmonicTimeline(12_000, 18_000, sourceChroma);
+        MusicalTimeline incoming = harmonicTimeline(0, 10_000, targetChroma);
 
-        TransitionCandidateSearch.Candidate candidate = TransitionCandidateSearch.find(
+        AutoMixHarmonicMatch match = AutoMixHarmonicMatch.between(
                 analysis(profile, 30_000, outgoing), analysis(profile, 180_000, incoming));
 
-        assertNotNull(candidate);
-        assertEquals(2, candidate.pitchShiftSemitones());
+        assertEquals(2, match.pitchShiftSemitones());
+        assertTrue(match.improvement() >= 0.1, match.toString());
     }
 
     @Test
-    void classifiesDenseMelodicMusicMoreConservativelyThanClubMusic() {
+    void derivesContentPreservingTransitionFromDetectedStructure() {
         AutoMixProfile profile = transitionProfile(120, 0.97, -12, 29_000);
-        MusicalTimeline club = styledTimeline(12_000, 18_000, 0.06, 0.76, 0.08, 0);
-        MusicalTimeline melodic = styledTimeline(12_000, 18_000, 0.72, 0.88, 0.24, 0.08);
+        double[] chroma = {1, 0, 0.55, 0, 0.8, 0, 0, 0.45, 0, 0, 0, 0};
+        MusicalTimeline outgoing = structuredTimeline(0, 30_000, 24_000, 30_000, chroma);
+        MusicalTimeline incoming = structuredTimeline(0, 30_000, 2_000, 16_000, chroma);
 
-        assertEquals(AutoMixStyleProfile.Style.CLUB,
-                AutoMixStyleProfile.classify(analysis(profile, 30_000, club)));
-        assertEquals(AutoMixStyleProfile.Style.VOCAL_MELODIC,
-                AutoMixStyleProfile.classify(analysis(profile, 30_000, melodic)));
-    }
+        AutoMixTransitionSearch.Selection selection = AutoMixTransitionSearch.find(
+                analysis(profile, 30_000, outgoing), analysis(profile, 30_000, incoming));
 
-    @Test
-    void protectsADevelopingMelodicOutroFromAnEarlyBlend() {
-        AutoMixProfile profile = transitionProfile(120, 0.97, -12, 29_000);
-        MusicalTimeline outgoing = styledTimeline(12_000, 18_000, 0.82, 0.92, 0.88, 0.78);
-        MusicalTimeline incoming = styledTimeline(0, 10_000, 0.08, 0.82, 0.10, 0);
-        AutoMixTrackAnalysis current = analysis(profile, 30_000, outgoing);
-        AutoMixTrackAnalysis next = analysis(profile, 180_000, incoming);
-        AutoMixStyleProfile guidance = AutoMixStyleProfile.forPair(current, next);
-
-        TransitionCandidateSearch.Candidate candidate = TransitionCandidateSearch.find(current, next, guidance);
-
-        assertEquals(AutoMixStyleProfile.Intent.CONTENT_HANDOFF, guidance.intent());
-        assertTrue(guidance.maxOverlapMillis() <= 3_200);
-        assertTrue(candidate == null || candidate.outgoingMillis() >= 26_800, String.valueOf(candidate));
-    }
-
-    @Test
-    void doesNotSkipAHighSalienceOpeningToFindAnEasierBeat() {
-        AutoMixProfile profile = transitionProfile(120, 0.97, -12, 29_000);
-        MusicalTimeline outgoing = styledTimeline(12_000, 18_000, 0.08, 0.82, 0.10, 0);
-        MusicalTimeline incoming = styledTimeline(0, 10_000, 0.86, 0.94, 0.92, 0.52);
-        AutoMixTrackAnalysis current = analysis(profile, 30_000, outgoing);
-        AutoMixTrackAnalysis next = analysis(profile, 180_000, incoming);
-        AutoMixStyleProfile guidance = AutoMixStyleProfile.forPair(current, next);
-
-        TransitionCandidateSearch.Candidate candidate = TransitionCandidateSearch.find(current, next, guidance);
-
-        assertTrue(guidance.maxIntroSkipMillis() <= 900);
-        assertTrue(candidate == null || candidate.incomingMillis() <= 900, String.valueOf(candidate));
-    }
-
-    @Test
-    void keepsLongBeatMixesAvailableForSparseRhythmicTracks() {
-        AutoMixProfile profile = transitionProfile(120, 0.98, -12, 29_000);
-        AutoMixTrackAnalysis current = analysis(profile, 30_000,
-                styledTimeline(12_000, 18_000, 0.05, 0.82, 0.08, -0.04));
-        AutoMixTrackAnalysis next = analysis(profile, 180_000,
-                styledTimeline(0, 14_000, 0.07, 0.84, 0.10, 0.05));
-
-        AutoMixStyleProfile guidance = AutoMixStyleProfile.forPair(current, next);
-
-        assertEquals(AutoMixStyleProfile.Intent.BEAT_MIX, guidance.intent());
-        assertEquals(18_000, guidance.maxOverlapMillis());
-        assertEquals(12_000, guidance.maxIntroSkipMillis());
-        assertTrue(guidance.allowTempoAndPitch());
+        assertNotNull(selection);
+        assertTrue(outgoing.downbeats().contains(selection.outgoingMillis()), selection.toString());
+        assertTrue(incoming.downbeats().contains(selection.incomingMillis()), selection.toString());
+        assertEquals(30_000 - selection.outgoingMillis(), selection.trackOverlapMillis());
+        assertTrue(selection.trackOverlapMillis() <= 11_000, selection.toString());
+        assertTrue(selection.incomingMillis() <= 3_500, selection.toString());
     }
 
     @Test
@@ -553,64 +492,38 @@ class AutoMixAnalyzerTest {
                 180_000, lastOnset, true, 240_000 / bpm, 0);
     }
 
-    private static MusicalTimeline timeline(
-            long start,
-            long duration,
-            List<Long> downbeats,
-            double[] chroma,
-            double density,
-            double trend,
-            double novelty) {
-        List<MusicalTimeline.Frame> frames = java.util.stream.LongStream
-                .iterate(start, time -> time < start + duration, time -> time + 500)
-                .mapToObj(time -> new MusicalTimeline.Frame(time, -12, trend, 48,
-                        density, 0.8, novelty, chroma))
-                .toList();
-        return new MusicalTimeline(start, duration, frames, downbeats, downbeats);
-    }
-
-    private static MusicalTimeline accentedTimeline(
-            long start,
-            long duration,
-            List<Long> beats,
-            List<Long> downbeats,
-            double[] chroma,
-            int accentOffset) {
-        List<MusicalTimeline.Frame> frames = java.util.stream.LongStream
-                .iterate(start, time -> time < start + duration, time -> time + 500)
-                .mapToObj(time -> new MusicalTimeline.Frame(time, -12, 0, 48,
-                        0.08, 0.9, 0.8, chroma))
-                .toList();
-        List<MusicalTimeline.BeatAccent> accents = java.util.stream.IntStream.range(0, beats.size())
-                .mapToObj(index -> new MusicalTimeline.BeatAccent(beats.get(index),
-                        Math.floorMod(index - accentOffset, 4) == 0 ? 1 : 0.18))
-                .toList();
-        return new MusicalTimeline(start, duration, frames, beats, downbeats, accents);
-    }
-
-    private static MusicalTimeline styledTimeline(
-            long start,
-            long duration,
-            double density,
-            double clarity,
-            double novelty,
-            double trend) {
+    private static MusicalTimeline harmonicTimeline(long start, long duration, double[] chroma) {
         List<Long> beats = java.util.stream.LongStream
                 .iterate(start, time -> time < start + duration, time -> time + 500)
                 .boxed().toList();
         List<Long> downbeats = java.util.stream.LongStream
                 .iterate(start, time -> time < start + duration, time -> time + 2_000)
                 .boxed().toList();
-        double[] chroma = {1, 0, 0.42, 0, 0.68, 0, 0, 0.48, 0, 0, 0, 0};
         List<MusicalTimeline.Frame> frames = beats.stream()
-                .map(time -> new MusicalTimeline.Frame(time, -12, trend, 52,
-                        density, clarity, novelty, chroma))
+                .map(time -> new MusicalTimeline.Frame(time, -12, 0, 52,
+                        0.1, 0.9, 0.1, chroma))
                 .toList();
-        List<MusicalTimeline.BeatAccent> accents = java.util.stream.IntStream.range(0, beats.size())
-                .mapToObj(index -> new MusicalTimeline.BeatAccent(beats.get(index),
-                        index % 4 == 0 ? 1 : 0.16))
-                .toList();
-        return new MusicalTimeline(start, duration, frames, beats, downbeats, accents);
+        return new MusicalTimeline(start, duration, frames, beats, downbeats);
+    }
+
+    private static MusicalTimeline structuredTimeline(long start, long duration,
+                                                       long firstBoundary, long secondBoundary,
+                                                       double[] chroma) {
+        List<Long> beats = java.util.stream.LongStream
+                .iterate(start, time -> time < start + duration, time -> time + 500)
+                .boxed().toList();
+        List<Long> downbeats = java.util.stream.LongStream
+                .iterate(start, time -> time < start + duration, time -> time + 2_000)
+                .boxed().toList();
+        List<MusicalTimeline.Frame> frames = beats.stream().map(time -> {
+            boolean boundary = time == firstBoundary || time == secondBoundary;
+            boolean beforeBoundary = time == firstBoundary - 500 || time == secondBoundary - 500;
+            return new MusicalTimeline.Frame(time, -12,
+                    boundary ? -0.7 : beforeBoundary ? 0.5 : 0,
+                    52, boundary ? 0 : 0.72, 0.9,
+                    boundary ? 1 : 0.04, chroma);
+        }).toList();
+        return new MusicalTimeline(start, duration, frames, beats, downbeats);
     }
 
     private static double[] rotateChroma(double[] source, int semitones) {
