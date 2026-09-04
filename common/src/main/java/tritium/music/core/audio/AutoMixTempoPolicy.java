@@ -1,8 +1,7 @@
 package tritium.music.core.audio;
 
 public final class AutoMixTempoPolicy {
-    public static final double MAX_TEMPO_MATCH_CHANGE = 0.14;
-    private static final double HIGH_STRETCH_THRESHOLD = 0.10;
+    public static final double MAX_TEMPO_MATCH_CHANGE = 0.08;
 
     private AutoMixTempoPolicy() {
     }
@@ -11,7 +10,7 @@ public final class AutoMixTempoPolicy {
         AutoMixProfile current = currentAnalysis.profile();
         AutoMixProfile next = nextAnalysis.profile();
         double change = Math.abs(rate - 1);
-        if (!current.downbeatAware() || !next.downbeatAware() || current.beatConfidence() < 0.78 || next.beatConfidence() < 0.78 || change < 0.025 || change > MAX_TEMPO_MATCH_CHANGE || change > HIGH_STRETCH_THRESHOLD && (current.beatConfidence() < 0.92 || next.beatConfidence() < 0.92) || currentAnalysis.endingType() == AutoMixTrackAnalysis.EndingType.NATURAL_FADE || Math.abs(current.loudnessDb() - next.loudnessDb()) > 10 || nextAnalysis.firstSoundMillis() > 2_500 || nextAnalysis.firstStrongMillis() - nextAnalysis.firstSoundMillis() > 3_500) {
+        if (!current.downbeatAware() || !next.downbeatAware() || current.beatConfidence() < 0.86 || next.beatConfidence() < 0.86 || change < 0.008 || change > MAX_TEMPO_MATCH_CHANGE || change > 0.06 && (current.beatConfidence() < 0.94 || next.beatConfidence() < 0.94) || currentAnalysis.endingType() == AutoMixTrackAnalysis.EndingType.NATURAL_FADE || Math.abs(current.loudnessDb() - next.loudnessDb()) > 10 || nextAnalysis.firstSoundMillis() > 4_000 || nextAnalysis.firstStrongMillis() - nextAnalysis.firstSoundMillis() > 5_000) {
             return false;
         }
         long rhythmicGap = currentAnalysis.lastSoundMillis() - current.lastOnsetMillis();

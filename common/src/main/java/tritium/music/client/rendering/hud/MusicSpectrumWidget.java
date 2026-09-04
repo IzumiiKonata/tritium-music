@@ -73,18 +73,15 @@ public class MusicSpectrumWidget extends HudWidget {
         }
         double phase = System.currentTimeMillis() * 0.003;
         for (int index = 0; index < count; index++) {
-            float energy = (float) (0.18
-                    + Math.abs(Math.sin(index * 0.31 + phase)) * 0.48
-                    + Math.abs(Math.sin(index * 0.11 - phase * 0.7)) * 0.22);
+            float energy = (float) (0.18 + Math.abs(Math.sin(index * 0.31 + phase)) * 0.48 + Math.abs(Math.sin(index * 0.11 - phase * 0.7)) * 0.22);
             renderSpectrum[index] = Interpolations.interpolate(renderSpectrum[index], Math.min(1, energy), 0.24f);
-            renderSpectrumIndicator[index] = Math.max(
-                    Interpolations.interpolateLinear(renderSpectrumIndicator[index], 0, 0.08f),
-                    renderSpectrum[index]);
+            renderSpectrumIndicator[index] = Math.max(Interpolations.interpolateLinear(renderSpectrumIndicator[index], 0, 0.08f), renderSpectrum[index]);
         }
     }
 
     private void updateSpectrum() {
-        int n = AudioPlayer.bandValues.length;
+        float[] spectrum = AudioPlayer.sampleSpectrum();
+        int n = spectrum.length;
 
         if (renderSpectrum.length != n) {
             renderSpectrum = new float[n];
@@ -101,7 +98,7 @@ public class MusicSpectrumWidget extends HudWidget {
         boolean indicator = cfg().indicator;
 
         for (int i = 0; i < n; i++) {
-            float target = AudioPlayer.bandValues[i];
+            float target = spectrum[i];
 
             if (!Float.isFinite(target) || !playing) {
                 target = 0.0f;

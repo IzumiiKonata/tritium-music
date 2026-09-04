@@ -21,19 +21,6 @@ public final class AmllLyricsProvider implements LyricsProvider {
             Optional<LyricsResult> byId = fetch(BASE_URL + "ncm-lyrics/" + query.songId() + ".ttml", query);
             if (byId.isPresent()) return byId;
         }
-        LinkedHashSet<String> names = new LinkedHashSet<>();
-        if (!query.artists().isBlank() && !query.title().isBlank()) {
-            names.add(query.artists() + " - " + query.title() + ".ttml");
-        }
-        if (!query.title().isBlank()) {
-            names.add(query.title() + ".ttml");
-            names.add(query.title().replace(' ', '_') + ".ttml");
-        }
-        List<String> candidates = new ArrayList<>(names);
-        for (String candidate : candidates) {
-            Optional<LyricsResult> result = fetch(BASE_URL + ProviderHttp.encodePath(candidate), query);
-            if (result.isPresent()) return result;
-        }
         return Optional.empty();
     }
 

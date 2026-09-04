@@ -129,6 +129,14 @@ final class BeatThisTempoAnalyzer {
         return beatGrid == null ? null : new AudioAnalysis(beatGrid, resampled);
     }
 
+    float[] resampledAudio() {
+        if (sampleRate <= 0 || sampleCount == 0) {
+            return new float[0];
+        }
+        float[] mono = Arrays.copyOf(samples, sampleCount);
+        return Math.abs(sampleRate - TARGET_RATE) < 0.5 ? mono : resample(mono, sampleRate, TARGET_RATE);
+    }
+
     private void ensureCapacity(int capacity) {
         if (capacity <= samples.length) {
             return;

@@ -21,6 +21,7 @@ final class StreamingSoundPlayer {
     private static final int MAX_STREAM_RETRIES = 3;
     private static final int MAX_CONSECUTIVE_INVALID_MP3_FRAMES = 32;
     private static final int PCM_UPDATE_MILLIS = 10;
+    private static final int TRANSFORM_UPDATE_MILLIS = 20;
     private static final int OUTPUT_BUFFER_MILLIS = 100;
     private static final int PREFETCH_BUFFER_BYTES = 8 * 1024 * 1024;
     private static final AtomicBoolean BEAT_THIS_FAILURE_LOGGED = new AtomicBoolean();
@@ -31,6 +32,7 @@ final class StreamingSoundPlayer {
     private final long durationMillis;
     private final PcmListener pcmListener;
     private final Object pauseLock = new Object();
+    private final Object playbackClockLock = new Object();
     private final AtomicLong requestedPositionMillis = new AtomicLong(-1);
     private final AtomicLong seekingPositionMillis = new AtomicLong(-1);
     private final CountDownLatch preparedLatch = new CountDownLatch(1);
@@ -41,6 +43,9 @@ final class StreamingSoundPlayer {
     private volatile boolean paused = true;
     private volatile boolean finished;
     private volatile long positionMillis;
+    private long playbackClockPositionMillis;
+    private long playbackClockNanos = System.nanoTime();
+    private double playbackClockRate = 1;
     private volatile float volume = 0.25f;
     private volatile double playbackRate = 1;
     private volatile double pitchShiftSemitones;
@@ -81,13 +86,10 @@ final class StreamingSoundPlayer {
             double fraction = sourcePosition - leftFrame;
             for (int channel = 0; channel < format.getChannels(); channel++) {
                 int sampleOffset = channel * bytesPerSample;
-                long left = readSignedSample(data, offset + leftFrame * frameSize + sampleOffset,
-                        bytesPerSample, format.isBigEndian());
-                long right = readSignedSample(data, offset + rightFrame * frameSize + sampleOffset,
-                        bytesPerSample, format.isBigEndian());
+                long left = readSignedSample(data, offset + leftFrame * frameSize + sampleOffset, bytesPerSample, format.isBigEndian());
+                long right = readSignedSample(data, offset + rightFrame * frameSize + sampleOffset, bytesPerSample, format.isBigEndian());
                 long sample = Math.max(-limit - 1, Math.min(limit, Math.round(left + (right - left) * fraction)));
-                writeSignedSample(output, frame * frameSize + sampleOffset, bytesPerSample,
-                        format.isBigEndian(), sample);
+                writeSignedSample(output, frame * frameSize + sampleOffset, bytesPerSample, format.isBigEndian(), sample);
             }
         }
         return new PcmChunk(output, 0, output.length);
@@ -110,7 +112,7 @@ final class StreamingSoundPlayer {
             }
         }
         int shift = 32 - bytes * 8;
-        return value << shift >> shift;
+        return (long) value << shift >> shift;
     }
 
     private static void writeSignedSample(byte[] data, int offset, int bytes, boolean bigEndian, long value) {
@@ -153,12 +155,8 @@ final class StreamingSoundPlayer {
     private static PcmStream javaSound(AudioInputStream source, boolean flac) {
         AudioFormat sourceFormat = source.getFormat();
         int sampleSize = flac ? sourceFormat.getSampleSizeInBits() : 16;
-        AudioFormat target = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, sourceFormat.getSampleRate(),
-                sampleSize, sourceFormat.getChannels(), sourceFormat.getChannels() * ((sampleSize + 7) / 8),
-                sourceFormat.getSampleRate(), false);
-        AudioInputStream pcm = flac
-                ? new FlacFormatConversionProvider().getAudioInputStream(target, source)
-                : AudioSystem.getAudioInputStream(target, source);
+        AudioFormat target = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, sourceFormat.getSampleRate(), sampleSize, sourceFormat.getChannels(), sourceFormat.getChannels() * ((sampleSize + 7) / 8), sourceFormat.getSampleRate(), false);
+        AudioInputStream pcm = flac ? new FlacFormatConversionProvider().getAudioInputStream(target, source) : AudioSystem.getAudioInputStream(target, source);
         return new JavaSoundPcmStream(pcm, target);
     }
 
@@ -173,8 +171,35 @@ final class StreamingSoundPlayer {
         return dot < 0 ? "" : name.substring(dot + 1);
     }
 
+    private static BeatThisTempoAnalyzer.BeatGrid referenceBeatGrid(AutoMixProfile profile, long startMillis, long durationMillis) {
+        long endMillis = startMillis + Math.max(0, durationMillis);
+        java.util.List<Long> beats = gridTimes(startMillis, endMillis, profile.beatPhaseMillis(), profile.beatIntervalMillis());
+        java.util.List<Long> downbeats = profile.downbeatAware() ? gridTimes(startMillis, endMillis, profile.downbeatPhaseMillis(), profile.downbeatIntervalMillis()) : java.util.List.of();
+        return new BeatThisTempoAnalyzer.BeatGrid(profile.beatIntervalMillis(), profile.beatPhaseMillis(), profile.beatConfidence(), beats.size(), downbeats.size(), profile.downbeatIntervalMillis(), profile.downbeatPhaseMillis(), beats, downbeats);
+    }
+
+    private static java.util.List<Long> gridTimes(long startMillis, long endMillis, double phaseMillis, double intervalMillis) {
+        if (intervalMillis <= 0) {
+            return java.util.List.of();
+        }
+        java.util.List<Long> result = new java.util.ArrayList<>();
+        double index = Math.ceil((startMillis - phaseMillis) / intervalMillis);
+        for (long time = Math.round(phaseMillis + index * intervalMillis); time <= endMillis; time = Math.round(time + intervalMillis)) {
+            if (time >= startMillis) {
+                result.add(time);
+            }
+        }
+        return result;
+    }
+
     void play() {
-        paused = false;
+        synchronized (playbackClockLock) {
+            if (paused) {
+                playbackClockNanos = System.nanoTime();
+                playbackClockRate = playbackRate;
+            }
+            paused = false;
+        }
         SourceDataLine currentLine = line;
         if (currentLine != null) {
             currentLine.start();
@@ -194,11 +219,18 @@ final class StreamingSoundPlayer {
     }
 
     AutoMixTrackAnalysis analyzeForAutoMix(long startMillis, long maxMillis) throws IOException {
+        return analyzeForAutoMix(startMillis, maxMillis, true);
+    }
+
+    AutoMixTrackAnalysis analyzeForAutoMix(long startMillis, long maxMillis, boolean enrich) throws IOException {
+        if (!enrich) {
+            return analyzeForAutoMixLocked(startMillis, maxMillis, false, null);
+        }
         boolean acquired = false;
         try {
             AUTO_MIX_ANALYSIS_SLOT.acquire();
             acquired = true;
-            return analyzeForAutoMixLocked(startMillis, maxMillis);
+            return analyzeForAutoMixLocked(startMillis, maxMillis, true, null);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return AutoMixTrackAnalysis.fallback(durationMillis);
@@ -209,12 +241,14 @@ final class StreamingSoundPlayer {
         }
     }
 
-    private AutoMixTrackAnalysis analyzeForAutoMixLocked(long startMillis, long maxMillis) throws IOException {
+    AutoMixTrackAnalysis analyzeForAutoMix(long startMillis, long maxMillis, AutoMixProfile referenceProfile) throws IOException {
+        return analyzeForAutoMixLocked(startMillis, maxMillis, false, referenceProfile);
+    }
+
+    private AutoMixTrackAnalysis analyzeForAutoMixLocked(long startMillis, long maxMillis, boolean enrich, AutoMixProfile referenceProfile) throws IOException {
         AutoMixAnalyzer analyzer = new AutoMixAnalyzer(startMillis);
         BeatThisTempoAnalyzer tempoAnalyzer = new BeatThisTempoAnalyzer();
-        try (InputStream opened = streamFactory.open();
-             InputStream buffered = new BufferedInputStream(opened);
-             PcmStream decoded = openPcmStream(buffered, type)) {
+        try (InputStream opened = streamFactory.open(); InputStream buffered = new BufferedInputStream(opened); PcmStream decoded = openPcmStream(buffered, type)) {
             PcmStream pcm = decoded;
             if (!Pcm16Stream.supports(decoded.format()) && decoded.format().getSampleSizeInBits() > 32) {
                 return AutoMixTrackAnalysis.fallback(durationMillis);
@@ -248,6 +282,15 @@ final class StreamingSoundPlayer {
         if (Thread.currentThread().isInterrupted()) {
             return analysis;
         }
+        if (!enrich && referenceProfile != null && referenceProfile.hasReliableBeat()) {
+            BeatThisTempoAnalyzer.BeatGrid beatGrid = referenceBeatGrid(referenceProfile, startMillis, Math.min(maxMillis, analysis.profile().analyzedMillis() - startMillis));
+            AutoMixTrackAnalysis enhanced = analysis.withProfile(analysis.profile().withBeatGrid(beatGrid.intervalMillis(), beatGrid.phaseMillis(), beatGrid.confidence(), beatGrid.downbeats() >= 2, beatGrid.downbeatIntervalMillis(), beatGrid.downbeatPhaseMillis()));
+            float[] audio = tempoAnalyzer.resampledAudio();
+            return audio.length == 0 ? enhanced : enhanced.withTimeline(new BasicPitchAnalyzer().analyze(audio, startMillis, beatGrid));
+        }
+        if (!enrich) {
+            return analysis;
+        }
         try {
             BeatThisTempoAnalyzer.AudioAnalysis audioAnalysis = tempoAnalyzer.analyzeDetailed(startMillis);
             if (Thread.currentThread().isInterrupted()) {
@@ -255,27 +298,15 @@ final class StreamingSoundPlayer {
             }
             BeatThisTempoAnalyzer.BeatGrid beatGrid = audioAnalysis == null ? null : audioAnalysis.beatGrid();
             if (beatGrid != null && beatGrid.confidence() >= 0.16) {
-                AutoMixTrackAnalysis enhanced = analysis.withProfile(analysis.profile().withBeatGrid(
-                        beatGrid.intervalMillis(), beatGrid.phaseMillis(), beatGrid.confidence(),
-                        beatGrid.downbeats() >= 2, beatGrid.downbeatIntervalMillis(),
-                        beatGrid.downbeatPhaseMillis()));
-                if (Thread.currentThread().isInterrupted()) {
+                AutoMixTrackAnalysis enhanced = analysis.withProfile(analysis.profile().withBeatGrid(beatGrid.intervalMillis(), beatGrid.phaseMillis(), beatGrid.confidence(), beatGrid.downbeats() >= 2, beatGrid.downbeatIntervalMillis(), beatGrid.downbeatPhaseMillis()));
+                try {
+                    return enhanced.withTimeline(new BasicPitchAnalyzer().analyze(audioAnalysis.audio(), startMillis, beatGrid));
+                } catch (Throwable throwable) {
+                    if (BASIC_PITCH_FAILURE_LOGGED.compareAndSet(false, true)) {
+                        Platform.log("[NCM] Harmonic analysis unavailable, using rhythm-only AutoMix: " + throwable.getMessage());
+                    }
                     return enhanced;
                 }
-                try {
-                    MusicalTimeline timeline = new BasicPitchAnalyzer().analyze(
-                            audioAnalysis.audio(), startMillis, beatGrid);
-                    return enhanced.withTimeline(timeline);
-                } catch (Throwable throwable) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        return enhanced;
-                    }
-                    if (BASIC_PITCH_FAILURE_LOGGED.compareAndSet(false, true)) {
-                        Platform.log("[NCM] Basic Pitch unavailable, using rhythm-only AutoMix: "
-                                + throwable.getMessage());
-                    }
-                }
-                return enhanced;
             }
         } catch (Throwable throwable) {
             if (Thread.currentThread().isInterrupted()) {
@@ -300,7 +331,7 @@ final class StreamingSoundPlayer {
     }
 
     void pause() {
-        paused = true;
+        freezePlaybackClock();
         SourceDataLine currentLine = line;
         if (currentLine != null) {
             currentLine.stop();
@@ -312,6 +343,11 @@ final class StreamingSoundPlayer {
         seekingPositionMillis.set(target);
         requestedPositionMillis.set(target);
         positionMillis = target;
+        synchronized (playbackClockLock) {
+            playbackClockPositionMillis = target;
+            playbackClockNanos = System.nanoTime();
+            playbackClockRate = playbackRate;
+        }
         closeInput();
         synchronized (pauseLock) {
             pauseLock.notifyAll();
@@ -319,8 +355,13 @@ final class StreamingSoundPlayer {
     }
 
     void close() {
-        closed = true;
-        paused = false;
+        synchronized (playbackClockLock) {
+            long now = System.nanoTime();
+            playbackClockPositionMillis = positionMillisAt(now);
+            playbackClockNanos = now;
+            closed = true;
+            paused = false;
+        }
         seekingPositionMillis.set(-1);
         closeInput();
         SourceDataLine currentLine = line;
@@ -339,7 +380,14 @@ final class StreamingSoundPlayer {
     }
 
     void setPlaybackRate(double playbackRate) {
-        this.playbackRate = Math.max(0.86, Math.min(playbackRate, 1.14));
+        double nextRate = Math.max(0.86, Math.min(playbackRate, 1.14));
+        synchronized (playbackClockLock) {
+            long now = System.nanoTime();
+            playbackClockPositionMillis = positionMillisAt(now);
+            playbackClockNanos = now;
+            playbackClockRate = nextRate;
+            this.playbackRate = nextRate;
+        }
     }
 
     void setPitchShiftSemitones(double pitchShiftSemitones) {
@@ -367,7 +415,28 @@ final class StreamingSoundPlayer {
         if (seekTarget >= 0) {
             return seekTarget;
         }
-        return Math.min(durationMillis, positionMillis);
+        synchronized (playbackClockLock) {
+            return positionMillisAt(System.nanoTime());
+        }
+    }
+
+    private long positionMillisAt(long now) {
+        long decodedPosition = Math.min(durationMillis, positionMillis);
+        if (paused || finished || closed) {
+            return Math.min(decodedPosition, playbackClockPositionMillis);
+        }
+        long elapsedNanos = Math.max(0, now - playbackClockNanos);
+        long interpolatedPosition = playbackClockPositionMillis + Math.round(elapsedNanos / 1_000_000.0 * playbackClockRate);
+        return Math.min(decodedPosition, Math.min(durationMillis, interpolatedPosition));
+    }
+
+    private void freezePlaybackClock() {
+        synchronized (playbackClockLock) {
+            long now = System.nanoTime();
+            playbackClockPositionMillis = positionMillisAt(now);
+            playbackClockNanos = now;
+            paused = true;
+        }
     }
 
     long durationMillis() {
@@ -384,8 +453,7 @@ final class StreamingSoundPlayer {
                 positionMillis = requested;
             }
 
-            try (InputStream opened = streamFactory.open();
-                 InputStream prefetched = new PrefetchInputStream(opened, PREFETCH_BUFFER_BYTES)) {
+            try (InputStream opened = streamFactory.open(); InputStream prefetched = new PrefetchInputStream(opened, PREFETCH_BUFFER_BYTES)) {
                 input = prefetched;
                 try (PcmStream decoded = openPcmStream(new BufferedInputStream(prefetched), type)) {
                     PcmStream pcm = decoded;
@@ -430,8 +498,6 @@ final class StreamingSoundPlayer {
                                 break;
                             }
                             int playable = read - offset;
-                            int chunkSize = (int) Math.max(pcm.format().getFrameSize(),
-                                    millisToBytes(PCM_UPDATE_MILLIS, pcm.format()));
                             int end = offset + playable;
                             while (offset < end && !closed && requestedPositionMillis.get() < 0) {
                                 preparedLatch.countDown();
@@ -439,13 +505,15 @@ final class StreamingSoundPlayer {
                                 if (closed || requestedPositionMillis.get() >= 0) {
                                     break;
                                 }
+                                boolean transform = soundTouch.shouldProcess(playbackRate, pitchShiftSemitones);
+                                long updateMillis = transform ? TRANSFORM_UPDATE_MILLIS : PCM_UPDATE_MILLIS;
+                                int chunkSize = (int) Math.max(pcm.format().getFrameSize(), millisToBytes(updateMillis, pcm.format()));
                                 int length = Math.min(chunkSize, end - offset);
                                 pcmListener.accept(buffer, offset, length, pcm.format());
                                 PcmChunk output;
                                 float outputGain = volume;
-                                if (soundTouch.shouldProcess(playbackRate, pitchShiftSemitones)) {
-                                    byte[] processed = soundTouch.process(buffer, offset, length,
-                                            playbackRate, pitchShiftSemitones, outputGain);
+                                if (transform) {
+                                    byte[] processed = soundTouch.process(buffer, offset, length, playbackRate, pitchShiftSemitones, outputGain);
                                     output = new PcmChunk(processed, 0, processed.length);
                                 } else {
                                     output = streamingResampler.process(buffer, offset, length, playbackRate);
@@ -456,8 +524,7 @@ final class StreamingSoundPlayer {
                                 }
                                 offset += length;
                                 seekingPositionMillis.compareAndSet(startMillis, -1);
-                                positionMillis = Math.min(durationMillis, positionMillis
-                                        + Math.round(length * 1000.0 / pcm.format().getFrameSize() / pcm.format().getFrameRate()));
+                                positionMillis = Math.min(durationMillis, positionMillis + Math.round(length * 1000.0 / pcm.format().getFrameSize() / pcm.format().getFrameRate()));
                             }
                             streamFailures = 0;
                         }
@@ -465,13 +532,12 @@ final class StreamingSoundPlayer {
                             byte[] tail = soundTouch.flush(volume);
                             writeFully(currentLine, new PcmChunk(tail, 0, tail.length));
                             PcmChunk resamplerTail = streamingResampler.flush();
-                            applySoftwareVolume(resamplerTail.data(), resamplerTail.offset(),
-                                    resamplerTail.length(), pcm.format(), volume);
+                            applySoftwareVolume(resamplerTail.data(), resamplerTail.offset(), resamplerTail.length(), pcm.format(), volume);
                             writeFully(currentLine, resamplerTail);
                             preparedLatch.countDown();
                             currentLine.drain();
+                            freezePlaybackClock();
                             finished = true;
-                            paused = true;
                             onFinished.run();
                             return;
                         }
@@ -486,8 +552,8 @@ final class StreamingSoundPlayer {
                     streamFailures++;
                     if (streamFailures > MAX_STREAM_RETRIES) {
                         preparedLatch.countDown();
+                        freezePlaybackClock();
                         finished = true;
-                        paused = true;
                         onFailed.run();
                         return;
                     }
@@ -621,14 +687,10 @@ final class StreamingSoundPlayer {
                 double fraction = sourcePosition - leftFrame;
                 for (int channel = 0; channel < format.getChannels(); channel++) {
                     int sampleOffset = channel * bytesPerSample;
-                    long left = readSignedSample(source, leftFrame * frameSize + sampleOffset,
-                            bytesPerSample, format.isBigEndian());
-                    long right = readSignedSample(source, rightFrame * frameSize + sampleOffset,
-                            bytesPerSample, format.isBigEndian());
-                    long sample = Math.max(-limit - 1,
-                            Math.min(limit, Math.round(left + (right - left) * fraction)));
-                    writeSignedSample(output, outputFrames * frameSize + sampleOffset,
-                            bytesPerSample, format.isBigEndian(), sample);
+                    long left = readSignedSample(source, leftFrame * frameSize + sampleOffset, bytesPerSample, format.isBigEndian());
+                    long right = readSignedSample(source, rightFrame * frameSize + sampleOffset, bytesPerSample, format.isBigEndian());
+                    long sample = Math.max(-limit - 1, Math.min(limit, Math.round(left + (right - left) * fraction)));
+                    writeSignedSample(output, outputFrames * frameSize + sampleOffset, bytesPerSample, format.isBigEndian(), sample);
                 }
                 outputFrames++;
                 sourcePosition += rate;
@@ -670,19 +732,13 @@ final class StreamingSoundPlayer {
             this.source = source;
             sourceFormat = source.format();
             int channels = sourceFormat.getChannels();
-            format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, sourceFormat.getSampleRate(), 16,
-                    channels, channels * 2, sourceFormat.getFrameRate(), false);
+            format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, sourceFormat.getSampleRate(), 16, channels, channels * 2, sourceFormat.getFrameRate(), false);
         }
 
         private static boolean supports(AudioFormat format) {
             int sampleSize = format.getSampleSizeInBits();
             int channels = format.getChannels();
-            return format.getEncoding().equals(AudioFormat.Encoding.PCM_SIGNED)
-                    && sampleSize > 16
-                    && sampleSize <= 32
-                    && sampleSize % 8 == 0
-                    && channels > 0
-                    && format.getFrameSize() == channels * sampleSize / 8;
+            return format.getEncoding().equals(AudioFormat.Encoding.PCM_SIGNED) && sampleSize > 16 && sampleSize <= 32 && sampleSize % 8 == 0 && channels > 0 && format.getFrameSize() == channels * sampleSize / 8;
         }
 
         private static int readSample(byte[] data, int offset, int bytes, boolean bigEndian) {
@@ -728,8 +784,7 @@ final class StreamingSoundPlayer {
                 int sourceFrameOffset = frame * sourceFrameSize;
                 for (int channel = 0; channel < sourceFormat.getChannels(); channel++) {
                     int sourceOffset = sourceFrameOffset + channel * sourceBytesPerSample;
-                    int sample = readSample(sourceBuffer, sourceOffset, sourceBytesPerSample,
-                            sourceFormat.isBigEndian());
+                    int sample = readSample(sourceBuffer, sourceOffset, sourceBytesPerSample, sourceFormat.isBigEndian());
                     sample >>= sourceFormat.getSampleSizeInBits() - 16;
                     buffer[outputOffset++] = (byte) sample;
                     buffer[outputOffset++] = (byte) (sample >>> 8);
@@ -798,8 +853,7 @@ final class StreamingSoundPlayer {
                     decodedOffset = 0;
                     return true;
                 } catch (BitstreamException e) {
-                    if (e.getErrorCode() != BitstreamErrors.INVALIDFRAME
-                            || ++invalidFrames > MAX_CONSECUTIVE_INVALID_MP3_FRAMES) {
+                    if (e.getErrorCode() != BitstreamErrors.INVALIDFRAME || ++invalidFrames > MAX_CONSECUTIVE_INVALID_MP3_FRAMES) {
                         throw new IOException("Failed to decode MP3 frame", e);
                     }
                     bitstream.closeFrame();

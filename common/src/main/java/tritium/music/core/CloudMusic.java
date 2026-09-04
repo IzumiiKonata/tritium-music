@@ -76,6 +76,13 @@ public class CloudMusic {
     public static volatile long currentLyricsSongId = -1;
 
     private static final List<MusicListener> listeners = new CopyOnWriteArrayList<>();
+    private static final Map<Long, AutoMixTrackAnalysis> AUTO_MIX_ANALYSIS_CACHE =
+            Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Long, AutoMixTrackAnalysis> eldest) {
+                    return size() > 64;
+                }
+            });
 
     public static File cookieFile() {
         return new File(Platform.configDir(), "NCMCookie.txt");
@@ -617,8 +624,8 @@ public class CloudMusic {
     static AtomicBoolean playing = new AtomicBoolean(true);
 
     private static class PlayThread extends Thread {
-        private static final long INTRO_ANALYSIS_MILLIS = 36_000;
-        private static final long TAIL_ANALYSIS_MILLIS = 60_000;
+        private static final long INTRO_ANALYSIS_MILLIS = 24_000;
+        private static final long TAIL_ANALYSIS_MILLIS = 28_000;
         private static final long PREPARE_TIMEOUT_MILLIS = 20_000;
         private final List<Music> songs;
         private final int startIdx;
@@ -699,7 +706,7 @@ public class CloudMusic {
             try {
                 AudioPlayer nextPlayer = createPlayer(playUrl, song);
                 TrackSession session = new TrackSession(song, nextPlayer, new AtomicBoolean(),
-                        new TailAnalysis(song, nextPlayer));
+                        new TailAnalysis(song, nextPlayer, null));
                 configureCompletion(session);
                 promote(session);
                 nextPlayer.play();
@@ -728,9 +735,18 @@ public class CloudMusic {
         private PlaybackResult waitForPlayback(TrackSession session) {
             TransitionPlan plan = null;
             double tempoRate = 1;
+            long seekRevision = session.player().getSeekRevision();
             while (playing.get() && !session.ended().get() && isCurrentPlayback() && !doBreak && !isInterrupted()) {
                 updateCurrentLyric(session.player().getCurrentTimeMillis());
-                if (autoMixEnabled && preparation != null && preparation.result() != null) {
+                long currentSeekRevision = session.player().getSeekRevision();
+                if (currentSeekRevision != seekRevision) {
+                    seekRevision = currentSeekRevision;
+                    plan = null;
+                    tempoRate = 1;
+                }
+                if (autoMixEnabled && preparation != null
+                        && (session.tailAnalysis().referenceProfile != null
+                        || preparation.result() != null)) {
                     session.tailAnalysis().start();
                 }
                 if (autoMixEnabled && preparation == null) {
@@ -755,29 +771,39 @@ public class CloudMusic {
                 }
                 if (autoMixEnabled && preparation != null && preparation.autoMixAnalysis
                         && prepared != null && validPreparedTrack(prepared)) {
+                    long position = (long) session.player().getCurrentTimeMillis();
                     if (plan == null) {
                         AutoMixTrackAnalysis tail = session.tailAnalysis().result();
+                        plan = tail == null
+                                ? /*createFallbackTransitionPlan(session, prepared, position)*/null
+                                : createTransitionPlan(session, tail, prepared);
+                    } else if (!plan.analyzed()) {
+                        AutoMixTrackAnalysis tail = session.tailAnalysis().result();
                         if (tail != null) {
-                            plan = createTransitionPlan(session, tail, prepared);
+                            TransitionPlan enhanced = createTransitionPlan(session, tail, prepared);
+                            if (position + 500 < plan.startMillis() && position + 500 < enhanced.startMillis()) {
+                                plan = enhanced;
+                            }
                         }
-                    }
-                    long position = (long) session.player().getCurrentTimeMillis();
-                    if (plan == null && position >= session.song().getDuration() - 2_500) {
-                        plan = new TransitionPlan(position, Math.max(900,
-                                session.song().getDuration() - position), TransitionStyle.HARD_CUT, 1,
-                                0, position, position, 0.5);
                     }
                     if (plan != null && !session.player().isPausing()) {
                         tempoRate = applyTempoSync(session.player(), plan, position, tempoRate);
                     }
                     if (plan != null && !session.player().isPausing() && position >= plan.startMillis()) {
-                        return performTransition(session, prepared, plan);
+                        PlaybackResult transition = performTransition(
+                                session, prepared, fitTransitionPlan(plan, position));
+                        if (transition != null) {
+                            return transition;
+                        }
+                        seekRevision = session.player().getSeekRevision();
+                        plan = null;
+                        tempoRate = 1;
                     }
                 }
                 sleep(10);
             }
             PreparedTrack prepared = preparation == null ? null : preparation.result();
-            if (!autoMixEnabled && prepared != null && validPreparedTrack(prepared)
+            if (prepared != null && validPreparedTrack(prepared)
                     && isCurrentPlayback() && !doBreak && !isInterrupted()) {
                 return startPreparedTrack(prepared);
             }
@@ -814,8 +840,13 @@ public class CloudMusic {
 
         private PlaybackResult startPreparedTrack(PreparedTrack prepared) {
             AudioPlayer incoming = prepared.player();
+            incoming.setMixGain(1);
+            incoming.setTransitionEq(1, 1, 1, 0);
+            incoming.setPlaybackRate(1);
+            incoming.setPitchShiftSemitones(0);
+            incoming.setNormalizationGain(normalizationGain(prepared.analysis().profile()));
             TrackSession next = new TrackSession(prepared.song(), incoming, new AtomicBoolean(),
-                    new TailAnalysis(prepared.song(), incoming));
+                    new TailAnalysis(prepared.song(), incoming, prepared.analysis().profile()));
             configureCompletion(next);
             updateCurIdx();
             promote(next);
@@ -830,82 +861,64 @@ public class CloudMusic {
             AutoMixProfile currentProfile = tail.profile();
             AutoMixProfile nextProfile = next.analysis().profile();
             long lastSound = Math.min(current.song().getDuration(), tail.lastSoundMillis());
-            long duration;
+            double rate = beatMatchRate(currentProfile, nextProfile);
+            AutoMixTransitionSearch.Selection selection = tail.endingType()
+                    == AutoMixTrackAnalysis.EndingType.NATURAL_FADE
+                    ? null : AutoMixTransitionSearch.find(tail, next.analysis());
+            boolean beatBlend = selection != null;
+            long incomingCue = selection == null ? next.cueMillis() : selection.incomingMillis();
+            long preferredDuration;
             long start;
             TransitionStyle style;
-            double rate = beatMatchRate(currentProfile, nextProfile);
-            int pitchShift = 0;
-            AutoMixStyleProfile guidance = AutoMixStyleProfile.forPair(tail, next.analysis());
-            boolean longBlendAllowed = guidance.intent() == AutoMixStyleProfile.Intent.BEAT_MIX
-                    || guidance.intent() == AutoMixStyleProfile.Intent.PHRASE_BLEND;
-            boolean musicalBlend = longBlendAllowed && isMusicalBlend(currentProfile, nextProfile, rate);
-            TransitionCandidateSearch.Candidate candidate = tail.endingType()
-                    == AutoMixTrackAnalysis.EndingType.NATURAL_FADE
-                    ? null : TransitionCandidateSearch.find(tail, next.analysis(), guidance);
-            if (candidate != null) {
-                start = candidate.outgoingMillis();
-                duration = Math.max(1_400, lastSound - start);
-                style = candidate.intent() == AutoMixStyleProfile.Intent.CONTENT_HANDOFF
-                        ? TransitionStyle.CONTENT_HANDOFF
-                        : candidate.intent() == AutoMixStyleProfile.Intent.FADE_HANDOFF
-                          ? TransitionStyle.NATURAL_FADE : TransitionStyle.MUSICAL_BLEND;
-                rate = candidate.playbackRate();
-                pitchShift = candidate.pitchShiftSemitones();
-                if (Math.abs(next.player().getCurrentTimeMillis() - candidate.incomingMillis()) > 250) {
-                    next.player().setPlaybackTime((float) candidate.incomingMillis());
-                }
-            } else if (tail.endingType() == AutoMixTrackAnalysis.EndingType.NATURAL_FADE) {
-                start = tail.fadeOutStartMillis();
-                duration = lastSound - start;
-                duration = Math.max(3_000, Math.min(14_000, duration));
-                start = Math.max(tail.fadeOutStartMillis(), lastSound - duration);
-                start = currentProfile.nextBeatAfter(start);
-                duration = Math.max(1_400, lastSound - start);
-                style = TransitionStyle.NATURAL_FADE;
-            } else if (tail.endingType() == AutoMixTrackAnalysis.EndingType.TRAILING_SILENCE) {
-                duration = musicalBlend
-                        ? beatDuration(currentProfile, nextProfile, 16, 5_000, 11_000)
-                        : beatDuration(currentProfile, nextProfile, 8, 2_400, 6_500);
-                start = musicalBlend
-                        ? Math.max(0, lastSound - duration)
-                        : Math.max(tail.lastStrongMillis(), lastSound - duration);
-                start = musicalBlend
-                        ? currentProfile.downbeatAtOrBefore(start)
-                        : currentProfile.nextBeatAfter(start);
-                duration = Math.max(1_400, lastSound - start);
-                style = musicalBlend ? TransitionStyle.MUSICAL_BLEND : TransitionStyle.SILENCE_SKIP;
-            } else if (musicalBlend) {
-                duration = Math.min(guidance.maxOverlapMillis(),
-                        beatDuration(currentProfile, nextProfile, 16, 5_000, 11_000));
-                start = currentProfile.downbeatAtOrBefore(Math.max(0, lastSound - duration));
-                duration = Math.max(2_800, lastSound - start);
+            double eqStrength;
+            if (selection != null) {
+                start = selection.outgoingMillis();
+                preferredDuration = selection.trackOverlapMillis();
                 style = TransitionStyle.MUSICAL_BLEND;
-            } else if (guidance.intent() == AutoMixStyleProfile.Intent.CONTENT_HANDOFF
-                    || guidance.intent() == AutoMixStyleProfile.Intent.FADE_HANDOFF) {
-                duration = Math.min(guidance.maxOverlapMillis(),
-                        beatDuration(currentProfile, nextProfile, 4, 1_200, 3_500));
-                start = Math.max(tail.lastStrongMillis(), lastSound - duration);
-                start = currentProfile.nextBeatAfter(start);
-                duration = Math.max(800, lastSound - start);
-                style = TransitionStyle.CONTENT_HANDOFF;
+                eqStrength = Math.min(0.95, 0.7 + selection.vocalCollision() * 0.25);
+            } else if (tail.endingType() == AutoMixTrackAnalysis.EndingType.NATURAL_FADE) {
+                preferredDuration = Math.max(3_500, Math.min(9_000,
+                        lastSound - tail.fadeOutStartMillis()));
+                start = Math.max(tail.fadeOutStartMillis(), lastSound - preferredDuration);
+                style = TransitionStyle.NATURAL_FADE;
+                eqStrength = 0.35;
+            } else if (tail.endingType() == AutoMixTrackAnalysis.EndingType.TRAILING_SILENCE) {
+                preferredDuration = 4_500;
+                start = Math.max(tail.lastStrongMillis(), lastSound - preferredDuration);
+                style = TransitionStyle.SILENCE_SKIP;
+                eqStrength = 0.48;
             } else {
-                duration = beatDuration(currentProfile, nextProfile, 4, 1_200, 4_500);
-                start = Math.max(0, lastSound - duration);
+                preferredDuration = 4_000;
+                start = Math.max(0, lastSound - preferredDuration);
+                style = TransitionStyle.CROSSFADE;
+                eqStrength = 0.55;
+            }
+            if (!beatBlend && style != TransitionStyle.NATURAL_FADE && currentProfile.hasReliableBeat()) {
                 start = currentProfile.alignToBeat(start);
-                duration = Math.max(900, lastSound - start);
-                style = TransitionStyle.HARD_CUT;
             }
-            start = Math.min(start, Math.max(0, lastSound - 700));
-            if (style != TransitionStyle.MUSICAL_BLEND || !guidance.allowTempoAndPitch()
-                    || !AutoMixTempoPolicy.shouldSync(tail, next.analysis(), rate)) {
+            start = Math.min(start, Math.max(0, lastSound - 900));
+            long trackOverlap = Math.max(900, lastSound - start);
+            if (!beatBlend || !AutoMixTempoPolicy.shouldSync(tail, next.analysis(), rate)) {
                 rate = 1;
-                pitchShift = 0;
             }
+            AutoMixHarmonicMatch harmonicMatch = beatBlend
+                    ? AutoMixHarmonicMatch.between(tail, next.analysis(), start,
+                    incomingCue, trackOverlap)
+                    : new AutoMixHarmonicMatch(0, 0, 0);
+            if (Math.abs(next.player().getCurrentTimeMillis() - incomingCue) > 250) {
+                next.player().setPlaybackTime((float) incomingCue);
+            }
+            int pitchShift = harmonicMatch.pitchShiftSemitones();
+            long duration = Math.max(900, Math.round(trackOverlap / Math.max(0.01, rate)));
             boolean transformsAudio = rate != 1 || pitchShift != 0;
             long settleDuration = !transformsAudio ? 0
-                    : beatDuration(currentProfile, nextProfile, 2, 800, 2_200);
+                    : beatDuration(currentProfile, nextProfile, 1, 300, 650);
+            double transformMagnitude = Math.max(
+                    Math.abs(rate - 1) / AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE,
+                    Math.abs(pitchShift) / 3.0);
+            int rampBeats = transformMagnitude >= 0.65 ? 5 : transformMagnitude >= 0.3 ? 4 : 3;
             long rampDuration = !transformsAudio ? 0
-                    : beatDuration(currentProfile, nextProfile, 12, 6_000, 12_000);
+                    : beatDuration(currentProfile, nextProfile, rampBeats, 1_400, 3_200);
             long tempoRampEnd = Math.max(0, start - settleDuration);
             long tempoRampStart = Math.max(0, tempoRampEnd - rampDuration);
             if (transformsAudio) {
@@ -919,28 +932,40 @@ public class CloudMusic {
                 }
             }
             Platform.log(String.format(Locale.ROOT,
-                    "[NCM] AutoMix: %.1f -> %.1f BPM, rate %.3fx, pitch %+.1f st, %s/%s/%s, transform ramp %d-%d ms, confidence %.2f/%.2f, protection %.2f/%.2f, downbeat %s/%s%s",
-                    bpm(currentProfile), bpm(nextProfile), rate, (double) pitchShift, style,
-                    guidance.style(), guidance.intent(),
+                    "[NCM] AutoMix: %.1f -> %.1f BPM, rate %.3fx, pitch %+.1f st, %s, %d ms, cue %d -> %d, transform ramp %d-%d ms, confidence %.2f/%.2f, harmony %.2f (+%.2f), structure %s",
+                    bpm(currentProfile), bpm(nextProfile), rate, (double) pitchShift, style, duration,
+                    start, incomingCue,
                     tempoRampStart, tempoRampEnd,
                     currentProfile.beatConfidence(), nextProfile.beatConfidence(),
-                    guidance.outgoingProtection(), guidance.incomingProtection(),
-                    currentProfile.downbeatAware(), nextProfile.downbeatAware(), candidateSummary(candidate)));
+                    harmonicMatch.similarity(), harmonicMatch.improvement(),
+                    transitionSummary(selection)));
             return new TransitionPlan(start, Math.max(900, duration), style, rate, pitchShift,
-                    tempoRampStart, tempoRampEnd, candidate == null ? guidance.eqStrength() : candidate.eqStrength());
+                    tempoRampStart, tempoRampEnd, eqStrength, incomingCue,
+                    true, lastSound);
         }
 
-        private String candidateSummary(TransitionCandidateSearch.Candidate candidate) {
-            if (candidate == null) {
-                return ", pair score fallback";
+        private TransitionPlan createFallbackTransitionPlan(TrackSession current, PreparedTrack next,
+                                                            long positionMillis) {
+            AutoMixTransitionTiming.Window window = AutoMixTransitionTiming.fallback(
+                    current.song().getDuration(), positionMillis);
+            Platform.log(String.format(Locale.ROOT,
+                    "[NCM] AutoMix: guaranteed crossfade at %d ms for %d ms while analysis completes",
+                    window.startMillis(), window.durationMillis()));
+            return new TransitionPlan(window.startMillis(), window.durationMillis(), TransitionStyle.CROSSFADE,
+                    1, 0, window.startMillis(), window.startMillis(), 0, next.cueMillis(), false,
+                    current.song().getDuration());
+        }
+
+        private TransitionPlan fitTransitionPlan(TransitionPlan plan, long positionMillis) {
+            AutoMixTransitionTiming.Window fitted = AutoMixTransitionTiming.fit(
+                    new AutoMixTransitionTiming.Window(plan.startMillis(), plan.durationMillis()),
+                    positionMillis, plan.endMillis());
+            if (fitted.startMillis() == plan.startMillis() && fitted.durationMillis() == plan.durationMillis()) {
+                return plan;
             }
-            return String.format(Locale.ROOT,
-                    ", pair %d -> %d ms, score %.2f [rhythm %.2f, meter %.2f, harmony %.2f, energy %.2f, melody %.2f, boundary %.2f, keep %.2f/%.2f, pitch %+d st]",
-                    candidate.outgoingMillis(), candidate.incomingMillis(), candidate.score(),
-                    candidate.rhythmScore(), candidate.meterScore(), candidate.harmonyScore(),
-                    candidate.energyScore(), candidate.melodyScore(), candidate.boundaryScore(),
-                    candidate.outgoingPreservation(), candidate.incomingPreservation(),
-                    candidate.pitchShiftSemitones());
+            return new TransitionPlan(fitted.startMillis(), fitted.durationMillis(), plan.style(),
+                    plan.playbackRate(), plan.pitchShiftSemitones(), fitted.startMillis(), fitted.startMillis(),
+                    plan.eqStrength(), plan.incomingCueMillis(), plan.analyzed(), plan.endMillis());
         }
 
         private double bpm(AutoMixProfile profile) {
@@ -962,11 +987,15 @@ public class CloudMusic {
             return current.beatMatchRateTo(next, AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE);
         }
 
-        private boolean isMusicalBlend(AutoMixProfile current, AutoMixProfile next, double rate) {
-            return current.isTempoCompatible(next, AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE)
-                    && Math.abs(current.loudnessDb() - next.loudnessDb()) <= 15
-                    && rate >= 1 - AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE
-                    && rate <= 1 + AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE;
+        private String transitionSummary(AutoMixTransitionSearch.Selection selection) {
+            if (selection == null) {
+                return "fallback";
+            }
+            return String.format(Locale.ROOT,
+                    "%.2f [structure %.2f, boundary %.2f, vocals %.2f, harmony %.2f, energy %.2f, %d beats]",
+                    selection.score(), selection.structureScore(), selection.boundaryScore(),
+                    selection.vocalCollision(), selection.harmonicScore(), selection.energyScore(),
+                    selection.beats());
         }
 
         private double applyTempoSync(
@@ -988,7 +1017,7 @@ public class CloudMusic {
                       / (double) (plan.tempoRampEndMillis() - plan.tempoRampStartMillis());
             double desired = 1 + (plan.playbackRate() - 1) * smootherStep(progress);
             double desiredPitch = plan.pitchShiftSemitones() * smootherStep(progress);
-            double maximumStep = 0.00025;
+            double maximumStep = 0.0006;
             double applied = currentRate + Math.max(-maximumStep, Math.min(maximumStep, desired - currentRate));
             outgoing.setPlaybackRate(applied);
             outgoing.setPitchShiftSemitones(desiredPitch);
@@ -1005,22 +1034,24 @@ public class CloudMusic {
                 loudnessTarget = currentProfile.loudnessDb();
             }
             incoming.setNormalizationGain(normalizationGain(prepared.analysis().profile()));
+            if (Math.abs(incoming.getCurrentTimeMillis() - plan.incomingCueMillis()) > 250) {
+                incoming.setPlaybackTime((float) plan.incomingCueMillis());
+            }
             incoming.setMixGain(0);
             float incomingLow = (float) (1 - 0.82 * plan.eqStrength());
             float incomingMid = (float) (1 - 0.32 * plan.eqStrength());
             float incomingHigh = (float) (1 - 0.18 * plan.eqStrength());
             incoming.setTransitionEq(incomingLow, incomingMid, incomingHigh, 0);
-            outgoing.setPlaybackRate(plan.playbackRate());
-            outgoing.setPitchShiftSemitones(plan.pitchShiftSemitones());
             TrackSession next = new TrackSession(prepared.song(), incoming, new AtomicBoolean(),
-                    new TailAnalysis(prepared.song(), incoming));
+                    new TailAnalysis(prepared.song(), incoming, prepared.analysis().profile()));
             configureCompletion(next);
-            updateCurIdx();
-            promote(next);
             incoming.play();
 
             long elapsedNanos = 0;
             long previousNanos = System.nanoTime();
+            boolean promoted = false;
+            long outgoingSeekRevision = outgoing.getSeekRevision();
+            long incomingSeekRevision = incoming.getSeekRevision();
             while (elapsedNanos < plan.durationMillis() * 1_000_000L) {
                 if (!playing.get() || doBreak || isInterrupted() || !isCurrentPlayback()) {
                     incoming.close();
@@ -1029,6 +1060,21 @@ public class CloudMusic {
                         updateCurIdx();
                     }
                     return new PlaybackResult(null, true);
+                }
+                if (outgoing.getSeekRevision() != outgoingSeekRevision && !promoted) {
+                    incoming.pause();
+                    incoming.setPlaybackTime((float) prepared.cueMillis());
+                    incoming.setMixGain(0);
+                    outgoing.resetTransitionState();
+                    if (outgoing.isPausing()) {
+                        outgoing.unpause();
+                    }
+                    return null;
+                }
+                if (incoming.getSeekRevision() != incomingSeekRevision && promoted) {
+                    outgoing.close();
+                    incoming.resetTransitionState();
+                    return new PlaybackResult(next, true);
                 }
                 long now = System.nanoTime();
                 if (incoming.isPausing() && !next.ended().get()) {
@@ -1052,9 +1098,16 @@ public class CloudMusic {
                 double progress = Math.min(1, elapsedNanos / (plan.durationMillis() * 1_000_000.0));
                 applyTransitionGain(outgoing, incoming, progress, plan.style());
                 applyTransitionEq(outgoing, incoming, progress, plan.style(), plan.eqStrength());
-                updateCurrentLyric(incoming.getCurrentTimeMillis());
+                if (!promoted && (progress >= 0.5 || current.ended().get())) {
+                    updateCurIdx();
+                    promote(next);
+                    promoted = true;
+                }
+                updateCurrentLyric(promoted
+                        ? incoming.getCurrentTimeMillis()
+                        : outgoing.getCurrentTimeMillis());
                 if (current.ended().get()) {
-                    elapsedNanos = Math.max(elapsedNanos, Math.round(plan.durationMillis() * 720_000.0));
+                    elapsedNanos = plan.durationMillis() * 1_000_000L;
                 }
                 if (next.ended().get()) {
                     outgoing.close();
@@ -1067,6 +1120,11 @@ public class CloudMusic {
             incoming.setPlaybackRate(1);
             outgoing.setPlaybackRate(1);
             outgoing.setPitchShiftSemitones(0);
+            outgoing.close();
+            if (!promoted) {
+                updateCurIdx();
+                promote(next);
+            }
             return new PlaybackResult(next, true);
         }
 
@@ -1077,17 +1135,11 @@ public class CloudMusic {
                 TransitionStyle style) {
             double outgoingProgress = style == TransitionStyle.NATURAL_FADE
                     ? smoothStep(0.55, 1, progress)
-                    : style == TransitionStyle.CONTENT_HANDOFF
-                      ? smoothStep(0.68, 1, progress)
-                      : style == TransitionStyle.MUSICAL_BLEND
-                        ? smoothStep(0.24, 1, progress)
-                        : progress;
-            double incomingProgress = style == TransitionStyle.HARD_CUT
-                    ? smoothStep(0.18, 0.82, progress)
-                    : style == TransitionStyle.CONTENT_HANDOFF
-                      ? smoothStep(0.18, 0.92, progress)
-                      : style == TransitionStyle.MUSICAL_BLEND
-                        ? smoothStep(0, 0.72, progress)
+                    : style == TransitionStyle.MUSICAL_BLEND
+                      ? smoothStep(0.42, 1, progress)
+                      : progress;
+            double incomingProgress = style == TransitionStyle.MUSICAL_BLEND
+                        ? smoothStep(0, 0.58, progress)
                         : smoothStep(0, 0.82, progress);
             outgoing.setMixGain((float) Math.cos(outgoingProgress * Math.PI * 0.5));
             incoming.setMixGain((float) Math.sin(incomingProgress * Math.PI * 0.5));
@@ -1103,20 +1155,22 @@ public class CloudMusic {
             double bassCut = smoothStep(0, 0.48, progress) * strength;
             double bodyCut = smoothStep(0.12, 0.82, progress) * strength;
             double airCut = smoothStep(0.30, 0.92, progress) * strength;
-            float lowPass = (float) (18_000 * Math.pow(780.0 / 18_000,
-                    smoothStep(0.12, 0.92, progress) * strength));
+            float lowPass = style == TransitionStyle.MUSICAL_BLEND
+                    ? (float) (18_000 * Math.pow(1_800.0 / 18_000,
+                    smoothStep(0.34, 1, progress) * strength))
+                    : 0;
             outgoing.setTransitionEq(
-                    (float) (1 - bassCut * 0.94),
-                    (float) (1 - bodyCut * 0.58),
-                    (float) (1 - airCut * 0.42),
+                    (float) (1 - bassCut * 0.9),
+                    (float) (1 - bodyCut * 0.28),
+                    (float) (1 - airCut * 0.14),
                     lowPass);
 
             double incomingBass = smoothStep(0.28, 0.76, progress);
             double incomingBody = smoothStep(0, 0.52, progress);
             incoming.setTransitionEq(
-                    (float) (1 - (1 - incomingBass) * 0.82 * strength),
-                    (float) (1 - (1 - incomingBody) * 0.32 * strength),
-                    (float) (1 - (1 - incomingBody) * 0.18 * strength),
+                    (float) (1 - (1 - incomingBass) * 0.86 * strength),
+                    (float) (1 - (1 - incomingBody) * 0.24 * strength),
+                    (float) (1 - (1 - incomingBody) * 0.12 * strength),
                     0);
         }
 
@@ -1230,18 +1284,18 @@ public class CloudMusic {
         private record TrackSession(Music song, AudioPlayer player, AtomicBoolean ended, TailAnalysis tailAnalysis) {
         }
 
-        private record PreparedTrack(Music song, int index, AudioPlayer player, AutoMixTrackAnalysis analysis) {
+        private record PreparedTrack(Music song, int index, AudioPlayer player,
+                                     AutoMixTrackAnalysis analysis, long cueMillis) {
         }
 
         private record PlaybackResult(TrackSession next, boolean indexAdvanced) {
         }
 
         private enum TransitionStyle {
+            CROSSFADE,
             NATURAL_FADE,
             SILENCE_SKIP,
-            MUSICAL_BLEND,
-            CONTENT_HANDOFF,
-            HARD_CUT
+            MUSICAL_BLEND
         }
 
         private record TransitionPlan(
@@ -1252,7 +1306,10 @@ public class CloudMusic {
                 double pitchShiftSemitones,
                 long tempoRampStartMillis,
                 long tempoRampEndMillis,
-                double eqStrength) {
+                double eqStrength,
+                long incomingCueMillis,
+                boolean analyzed,
+                long endMillis) {
         }
 
         private final class Preparation {
@@ -1283,23 +1340,29 @@ public class CloudMusic {
                     nextPlayer = createPlayer(playUrl, song);
                     AutoMixTrackAnalysis analysis = AutoMixTrackAnalysis.fallback(song.getDuration());
                     if (autoMixAnalysis) {
-                        try {
-                            analysis = nextPlayer.analyzeForAutoMix(0, INTRO_ANALYSIS_MILLIS);
-                        } catch (Exception ignored) {
+                        AutoMixTrackAnalysis cached = AUTO_MIX_ANALYSIS_CACHE.get(song.getId());
+                        if (cached != null) {
+                            analysis = cached;
+                        } else {
+                            try {
+                                analysis = nextPlayer.analyzeForAutoMix(0, INTRO_ANALYSIS_MILLIS);
+                                AUTO_MIX_ANALYSIS_CACHE.put(song.getId(), analysis);
+                            } catch (Exception ignored) {
+                            }
                         }
                     }
                     if (closed || Thread.currentThread().isInterrupted()) {
                         return;
                     }
-                    if (autoMixAnalysis) {
-                        nextPlayer.setPlaybackTime((float) introCue(analysis));
-                    }
+                    long cueMillis = autoMixAnalysis
+                            ? AutoMixTransitionSearch.incomingCue(analysis) : 0;
+                    nextPlayer.setPlaybackTime((float) cueMillis);
                     nextPlayer.setMixGain(0);
                     nextPlayer.prepare();
                     if (!nextPlayer.awaitPrepared(PREPARE_TIMEOUT_MILLIS) || closed) {
                         return;
                     }
-                    result = new PreparedTrack(song, index, nextPlayer, analysis);
+                    result = new PreparedTrack(song, index, nextPlayer, analysis, cueMillis);
                     nextPlayer = null;
                 } catch (Exception e) {
                     Platform.log("[NCM] AutoMix preloading fell back to normal playback: " + e.getMessage());
@@ -1327,32 +1390,19 @@ public class CloudMusic {
                 }
             }
 
-            private long introCue(AutoMixTrackAnalysis analysis) {
-                AutoMixProfile profile = analysis.profile();
-                long firstSound = analysis.firstSoundMillis();
-                MusicalTimeline timeline = analysis.timeline();
-                long openingEnd = Math.min(timeline.startMillis() + timeline.durationMillis(), firstSound + 2_500);
-                if (timeline.contentSalience(firstSound, openingEnd) >= 0.48) {
-                    return firstSound;
-                }
-                if (!profile.hasReliableBeat()) {
-                    return firstSound;
-                }
-                long beat = profile.nextBeatAfter(firstSound);
-                long latest = Math.max(firstSound, analysis.firstStrongMillis());
-                return beat <= latest + 500 && beat - firstSound <= 1_500 ? beat : firstSound;
-            }
         }
 
         private final class TailAnalysis {
             private final Music song;
             private final AudioPlayer player;
+            private final AutoMixProfile referenceProfile;
             private volatile Thread thread;
             private volatile AutoMixTrackAnalysis result;
 
-            private TailAnalysis(Music song, AudioPlayer player) {
+            private TailAnalysis(Music song, AudioPlayer player, AutoMixProfile referenceProfile) {
                 this.song = song;
                 this.player = player;
+                this.referenceProfile = referenceProfile;
             }
 
             private synchronized void start() {
@@ -1368,7 +1418,10 @@ public class CloudMusic {
             private void run() {
                 long start = Math.max(0, song.getDuration() - TAIL_ANALYSIS_MILLIS);
                 try {
-                    result = player.analyzeForAutoMix(start, song.getDuration() - start);
+                    result = referenceProfile == null
+                            ? player.analyzeForAutoMix(start, song.getDuration() - start)
+                            : player.analyzeForAutoMix(start, song.getDuration() - start,
+                            referenceProfile);
                 } catch (Exception e) {
                     result = AutoMixTrackAnalysis.fallback(song.getDuration());
                 }
