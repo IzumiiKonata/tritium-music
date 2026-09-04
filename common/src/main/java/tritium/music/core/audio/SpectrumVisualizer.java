@@ -20,16 +20,12 @@ public class SpectrumVisualizer {
     @Getter
     private final int numBars;
     private final int usableBins;
-
+    private final float[] output;
+    private final float[] smoothed;
     private int sampleRate = -1;
-
     private float[] edgeBinLow;
     private float[] edgeBinHigh;
     private float[] centerFreq;
-
-    private final float[] output;
-    private final float[] smoothed;
-
     @Setter
     private float spectrumTilt = 3.0f;
     @Setter

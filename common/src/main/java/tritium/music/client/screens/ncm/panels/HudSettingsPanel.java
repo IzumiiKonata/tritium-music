@@ -125,6 +125,10 @@ public class HudSettingsPanel extends NCMPanel {
         WidgetConfig config = WidgetConfig.get();
         content.addChild(new SectionRow(text("section.playback")));
         content.addChild(row(
+                text("automix.title"),
+                text("automix.description"),
+                toggle(() -> config.autoMix, value -> config.autoMix = value)));
+        content.addChild(row(
                 text("quality.title"),
                 text("quality.description"),
                 dropdown(
@@ -277,6 +281,7 @@ public class HudSettingsPanel extends NCMPanel {
             case GENERAL -> {
                 config.volume = 0.25;
                 config.quality = Quality.STANDARD;
+                config.autoMix = false;
                 config.musicInfo = new WidgetConfig.WidgetSettings(8f / 1920f, 8f / 1080f, 1, true);
             }
             case LYRICS -> {
