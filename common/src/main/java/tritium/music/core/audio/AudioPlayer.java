@@ -8,12 +8,22 @@ import tritium.music.repackage.processing.sound.JSynFFT;
 import javax.sound.sampled.AudioFormat;
 import java.io.File;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AudioPlayer {
 
     private static final int BAR_COUNT = 128;
     private static final int FFT_HOP_SAMPLES = BAR_COUNT * 5;
     private static final float[] FFT_WINDOW = createFftWindow();
+    private static final ExecutorService FFT_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "Music Spectrum Analyzer");
+        thread.setDaemon(true);
+        thread.setPriority(Thread.MIN_PRIORITY);
+        return thread;
+    });
+    private static volatile AudioPlayer spectrumSource;
     /**
      * Spectrum band magnitudes, updated by the FFT analysis. Empty until the first FFT frame.
      */
@@ -30,6 +40,8 @@ public class AudioPlayer {
     public static volatile boolean absoluteVolume = true;
     private final SpectrumVisualizer visualizer = new SpectrumVisualizer(JSynFFT.FFT_SIZE, BAR_COUNT);
     private final float[] fftWindow = new float[JSynFFT.FFT_SIZE];
+    private final AtomicBoolean spectrumTaskQueued = new AtomicBoolean();
+    private volatile float[] pendingSpectrumWindow;
     public Runnable afterPlayed;
     @Getter
     public float volume = 0.25f;
@@ -147,7 +159,7 @@ public class AudioPlayer {
         int frameSize = format.getFrameSize();
         int bytesPerSample = frameSize / channels;
         int frameCount = length / frameSize;
-        float playbackVolume = volume;
+        float playbackVolume = effectiveVolume();
         for (int frame = 0; frame < frameCount; frame++) {
             int base = offset + frame * frameSize;
             float left = readSample(data, base, bytesPerSample, format.isBigEndian()) * playbackVolume;
@@ -158,7 +170,7 @@ public class AudioPlayer {
             if (fftWindowOffset == fftWindow.length) {
                 fftWindowOffset = 0;
             }
-            if (spectrumEnabled) {
+            if (spectrumEnabled && spectrumSource == this) {
                 fftSamplesSinceAnalysis++;
                 if (fftSamplesSinceAnalysis >= FFT_HOP_SAMPLES) {
                     publishSpectrum();
@@ -178,11 +190,39 @@ public class AudioPlayer {
         for (int i = 0; i < ordered.length; i++) {
             ordered[i] *= FFT_WINDOW[i];
         }
-        float[] magnitudes = FFT.analyzeSample(ordered, fftWindow.length);
-        for (int i = 0; i < magnitudes.length; i++) {
-            magnitudes[i] *= 2.0f;
+        pendingSpectrumWindow = ordered;
+        queueSpectrumTask();
+    }
+
+    private void queueSpectrumTask() {
+        if (!spectrumTaskQueued.compareAndSet(false, true)) {
+            return;
         }
-        onFFT(magnitudes);
+        FFT_EXECUTOR.execute(() -> {
+            try {
+                float[] samples;
+                while ((samples = pendingSpectrumWindow) != null) {
+                    pendingSpectrumWindow = null;
+                    float[] magnitudes = FFT.analyzeSample(samples, samples.length);
+                    for (int i = 0; i < magnitudes.length; i++) {
+                        magnitudes[i] *= 2.0f;
+                    }
+                    if (spectrumSource == this) {
+                        onFFT(magnitudes);
+                    }
+                }
+            } finally {
+                spectrumTaskQueued.set(false);
+                if (pendingSpectrumWindow != null) {
+                    queueSpectrumTask();
+                }
+            }
+        });
+    }
+
+    public void activateSpectrum() {
+        spectrumSource = this;
+        fftSamplesSinceAnalysis = 0;
     }
 
     public void play() {
@@ -298,7 +338,11 @@ public class AudioPlayer {
     }
 
     private void refreshOutputVolume() {
-        this.player.setVolume(Math.max(0, Math.min(1, volume * mixGain * normalizationGain)));
+        this.player.setVolume(effectiveVolume());
+    }
+
+    private float effectiveVolume() {
+        return Math.max(0, Math.min(1, volume * mixGain * normalizationGain));
     }
 
     private void resetAutoMixState() {

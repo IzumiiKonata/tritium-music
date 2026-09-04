@@ -13,6 +13,7 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
     private final SoundTouch soundTouch;
     private final AudioFormat format;
     private final int channels;
+    private boolean active;
     private float tempo = -1;
     private float pitchSemitones = -100;
 
@@ -54,7 +55,18 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
         return soundTouch != null;
     }
 
-    byte[] process(byte[] data, int offset, int length, double requestedTempo, double requestedPitchSemitones) {
+    boolean shouldProcess(double requestedTempo, double requestedPitchSemitones) {
+        if (soundTouch == null) {
+            return false;
+        }
+        if (Math.abs(requestedTempo - 1) >= 0.0005 || Math.abs(requestedPitchSemitones) >= 0.001) {
+            active = true;
+        }
+        return active;
+    }
+
+    byte[] process(byte[] data, int offset, int length, double requestedTempo,
+                   double requestedPitchSemitones, float outputGain) {
         if (soundTouch == null) {
             return new byte[0];
         }
@@ -67,15 +79,15 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
             input[sample] = value / 32768f;
         }
         soundTouch.putSamples(input, 0, frames);
-        return receive();
+        return receive(outputGain);
     }
 
-    byte[] flush() {
+    byte[] flush(float outputGain) {
         if (soundTouch == null) {
             return new byte[0];
         }
         soundTouch.flush();
-        return receive();
+        return receive(outputGain);
     }
 
     private void updateParameters(double requestedTempo, double requestedPitchSemitones) {
@@ -90,7 +102,7 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
         }
     }
 
-    private byte[] receive() {
+    private byte[] receive(float outputGain) {
         int availableFrames = Math.toIntExact(Math.min(Integer.MAX_VALUE, soundTouch.numSamples()));
         if (availableFrames == 0) {
             return new byte[0];
@@ -99,7 +111,8 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
         int receivedFrames = soundTouch.receiveSamples(output, 0, availableFrames);
         byte[] bytes = new byte[receivedFrames * channels * 2];
         for (int sample = 0; sample < receivedFrames * channels; sample++) {
-            short value = (short) Math.round(Math.max(-1, Math.min(0.999969, output[sample])) * 32768);
+            double scaled = output[sample] * Math.max(0, Math.min(1, outputGain));
+            short value = (short) Math.round(Math.max(-1, Math.min(0.999969, scaled)) * 32768);
             int offset = sample * 2;
             if (format.isBigEndian()) {
                 bytes[offset] = (byte) (value >>> 8);

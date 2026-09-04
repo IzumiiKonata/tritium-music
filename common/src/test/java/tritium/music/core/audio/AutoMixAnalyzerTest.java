@@ -42,6 +42,13 @@ class AutoMixAnalyzerTest {
     }
 
     @Test
+    void beatThisRejectsEmptyAudioBeforeInitializingTheModel() throws Exception {
+        BeatThisTempoAnalyzer analyzer = new BeatThisTempoAnalyzer();
+
+        assertNull(analyzer.analyzeDetailed(0));
+    }
+
+    @Test
     void tracksTheLatestWindowAndDetectsAQuietEnding() {
         AutoMixAnalyzer analyzer = new AutoMixAnalyzer();
         AudioFormat format = new AudioFormat(SAMPLE_RATE, 16, 2, true, false);
@@ -145,6 +152,42 @@ class AutoMixAnalyzerTest {
         assertTrue(slower.length > audio.length * 1.04, "length=" + slower.length);
         assertTrue(rms(faster, 0) > 0.3);
         assertTrue(rms(slower, 0) > 0.3);
+    }
+
+    @Test
+    void streamingFallbackResamplerKeepsChunkBoundariesContinuous() {
+        AudioFormat format = new AudioFormat(SAMPLE_RATE, 16, 2, true, false);
+        byte[] input = sineTrack(2, 440);
+        StreamingSoundPlayer.StreamingResampler resampler = new StreamingSoundPlayer.StreamingResampler(format);
+        ByteArrayOutputStream transformed = new ByteArrayOutputStream();
+        int chunk = SAMPLE_RATE / 100 * format.getFrameSize();
+        for (int offset = 0; offset < input.length; offset += chunk) {
+            StreamingSoundPlayer.PcmChunk output = resampler.process(input, offset,
+                    Math.min(chunk, input.length - offset), 1.07);
+            transformed.write(output.data(), output.offset(), output.length());
+        }
+        StreamingSoundPlayer.PcmChunk tail = resampler.flush();
+        transformed.write(tail.data(), tail.offset(), tail.length());
+        byte[] output = transformed.toByteArray();
+        int maximumStep = 0;
+        int maximumOffset = 0;
+        int maximumPrevious = 0;
+        int maximumSample = 0;
+        int previous = (short) (output[0] & 0xff | output[1] << 8);
+        for (int offset = format.getFrameSize(); offset + 1 < output.length; offset += format.getFrameSize()) {
+            int sample = (short) (output[offset] & 0xff | output[offset + 1] << 8);
+            int step = Math.abs(sample - previous);
+            if (step > maximumStep) {
+                maximumStep = step;
+                maximumOffset = offset;
+                maximumPrevious = previous;
+                maximumSample = sample;
+            }
+            previous = sample;
+        }
+        assertTrue(maximumStep < 2_000, "maximumStep=" + maximumStep + ", offset=" + maximumOffset
+                + ", previous=" + maximumPrevious + ", sample=" + maximumSample
+                + ", outputLength=" + output.length);
     }
 
     @Test
@@ -362,10 +405,10 @@ class AutoMixAnalyzerTest {
             assertTrue(processor.isAvailable(), SoundTouchAudioProcessor.failureMessage());
             int chunk = SAMPLE_RATE / 10 * format.getFrameSize();
             for (int offset = 0; offset < input.length; offset += chunk) {
-                byte[] output = processor.process(input, offset, Math.min(chunk, input.length - offset), 1, 2);
+                byte[] output = processor.process(input, offset, Math.min(chunk, input.length - offset), 1, 2, 1);
                 transformed.writeBytes(output);
             }
-            transformed.writeBytes(processor.flush());
+            transformed.writeBytes(processor.flush(1));
         }
         byte[] output = transformed.toByteArray();
 
@@ -379,6 +422,30 @@ class AutoMixAnalyzerTest {
                 + spectralMagnitude(output, format, 329.63);
         assertTrue(shiftedEnergy > originalEnergy * 1.8,
                 "shifted=" + shiftedEnergy + ", original=" + originalEnergy);
+    }
+
+    @Test
+    void soundTouchAppliesGainBeforePcmConversion() {
+        AudioFormat format = new AudioFormat(SAMPLE_RATE, 16, 2, true, false);
+        byte[] input = chordTrack(1, 220, 277.18, 329.63);
+        ByteArrayOutputStream transformed = new ByteArrayOutputStream();
+        try (SoundTouchAudioProcessor processor = SoundTouchAudioProcessor.create(format)) {
+            assertTrue(processor.isAvailable(), SoundTouchAudioProcessor.failureMessage());
+            int chunk = SAMPLE_RATE / 10 * format.getFrameSize();
+            for (int offset = 0; offset < input.length; offset += chunk) {
+                transformed.writeBytes(processor.process(input, offset,
+                        Math.min(chunk, input.length - offset), 1, 2, 0.2f));
+            }
+            transformed.writeBytes(processor.flush(0.2f));
+        }
+        byte[] output = transformed.toByteArray();
+        int peak = 0;
+        for (int offset = 0; offset + 1 < output.length; offset += 2) {
+            int sample = (short) (output[offset] & 0xff | output[offset + 1] << 8);
+            peak = Math.max(peak, Math.abs(sample));
+        }
+        assertTrue(peak > 0);
+        assertTrue(peak <= 6_554, "peak=" + peak);
     }
 
     @Test

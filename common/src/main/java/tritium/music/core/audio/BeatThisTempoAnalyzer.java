@@ -120,7 +120,7 @@ final class BeatThisTempoAnalyzer {
     }
 
     AudioAnalysis analyzeDetailed(long timelineOffsetMillis) throws OrtException, IOException {
-        if (sampleCount < sampleRate * 4) {
+        if (sampleRate <= 0 || sampleCount < sampleRate * 4) {
             return null;
         }
         float[] mono = Arrays.copyOf(samples, sampleCount);
@@ -158,7 +158,7 @@ final class BeatThisTempoAnalyzer {
                 OrtEnvironment environment = OrtEnvironment.getEnvironment("Tritium AutoMix");
                 OrtSession.SessionOptions options = new OrtSession.SessionOptions();
                 options.setInterOpNumThreads(1);
-                options.setIntraOpNumThreads(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() / 2)));
+                options.setIntraOpNumThreads(1);
                 OrtSession mel = environment.createSession(readResource(MEL_MODEL_PATH), options);
                 OrtSession beat = environment.createSession(readResource(MODEL_PATH), options);
                 options.close();
