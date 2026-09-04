@@ -346,6 +346,30 @@ public class AudioPlayer {
         return this.player.positionMillis();
     }
 
+    private long lastInterpolationStamp = -1L;
+    private float lastTrackedPlaybackTime = 0f;
+
+    public float getCurrentTimeMillisInterpolated() {
+
+        float currentTimeMillis = this.getCurrentTimeMillis();
+
+        if (this.isPausing() || this.isFinished() || this.isFailed()) {
+            this.lastInterpolationStamp = -1L;
+            return currentTimeMillis;
+        }
+
+        if (this.lastTrackedPlaybackTime != currentTimeMillis) {
+            this.lastTrackedPlaybackTime = currentTimeMillis;
+            this.lastInterpolationStamp = -1L;
+        }
+
+        long nano = System.nanoTime();
+        if (this.lastInterpolationStamp == -1L)
+            this.lastInterpolationStamp = nano;
+
+        return currentTimeMillis + (nano - this.lastInterpolationStamp) / 1000000.0f;
+    }
+
     public boolean isPausing() {
         return !this.player.isPlaying();
     }

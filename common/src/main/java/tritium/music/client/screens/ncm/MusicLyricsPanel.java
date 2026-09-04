@@ -289,7 +289,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         boolean playerNotReady = CloudMusic.player == null;
         float totalTimeMillis = playerNotReady ? 0 : CloudMusic.player.getTotalTimeMillis();
         double overridePlaybackProgress = progressBarProgressOverride * totalTimeMillis;
-        double songProgress = playerNotReady ? 0 : (progressBarDragging ? overridePlaybackProgress : CloudMusic.player.getCurrentTimeMillis());
+        double songProgress = playerNotReady ? 0 : (progressBarDragging ? overridePlaybackProgress : CloudMusic.player.getCurrentTimeMillisInterpolated());
 
         double lyricsWidth = width * getLyricWidthFactor();
         LyricLine layoutLyric = progressBarDragging
@@ -649,7 +649,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
         roundedRect(elementsXOffset, progressBarYOffset - progressBarHeight * .5, progressBarWidth, progressBarHeight, (this.progressBarHeight / 8.0f) * 2.5, hexColor(1, 1, 1, alpha * .22f));
 
-        float currentTimeMillis = player == null ? 0 : player.getCurrentTimeMillis();
+        float currentTimeMillis = player == null ? 0 : player.getCurrentTimeMillisInterpolated();
         float totalTimeMillis = player == null ? 0.01f : player.getTotalTimeMillis();
         double perc = player == null ? 0 : (progressBarDragging ? progressBarProgressOverride : currentTimeMillis / totalTimeMillis);
 

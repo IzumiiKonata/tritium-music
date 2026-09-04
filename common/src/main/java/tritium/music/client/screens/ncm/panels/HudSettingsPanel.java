@@ -15,6 +15,7 @@ import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.screens.widget.ColorPickerWidget;
+import tritium.music.core.audio.AutoMixTempoPolicy;
 import tritium.music.core.model.Quality;
 
 import java.util.function.*;
@@ -128,6 +129,10 @@ public class HudSettingsPanel extends NCMPanel {
                 text("automix.title"),
                 text("automix.description"),
                 toggle(() -> config.autoMix, value -> config.autoMix = value)));
+        content.addChild(row(
+                text("automix.tune_whenever_possible.title"),
+                text("automix.tune_whenever_possible.description"),
+                toggle(() -> config.autoMixTuneWheneverPossible, value -> config.autoMixTuneWheneverPossible = value)));
         content.addChild(row(
                 text("quality.title"),
                 text("quality.description"),
