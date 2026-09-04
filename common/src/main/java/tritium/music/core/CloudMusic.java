@@ -8,7 +8,7 @@ import lombok.Cleanup;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import tritium.music.client.screens.ncm.NCMScreen;
-import tritium.music.core.audio.AudioPlayer;
+import tritium.music.core.audio.*;
 import tritium.music.core.lyric.LyricLine;
 import tritium.music.core.lyric.LyricParser;
 import tritium.music.core.lyric.provider.LyricProviderPreferences;
@@ -64,6 +64,7 @@ public class CloudMusic {
     public static PlayMode playMode = PlayMode.Sequential;
 
     public static Quality quality = Quality.STANDARD;
+    public static volatile boolean autoMixEnabled = false;
 
     public static final List<LyricLine> lyrics = new CopyOnWriteArrayList<>();
     public static LyricLine currentLyric = null;
@@ -616,8 +617,14 @@ public class CloudMusic {
     static AtomicBoolean playing = new AtomicBoolean(true);
 
     private static class PlayThread extends Thread {
+        private static final long INTRO_ANALYSIS_MILLIS = 36_000;
+        private static final long TAIL_ANALYSIS_MILLIS = 60_000;
+        private static final long PREPARE_TIMEOUT_MILLIS = 20_000;
         private final List<Music> songs;
         private final int startIdx;
+        private PlayMode lastMode = playMode;
+        private Preparation preparation;
+        private double loudnessTarget = Double.NaN;
 
         public PlayThread(List<Music> songs, int startIdx) {
             this.songs = songs;
@@ -629,113 +636,525 @@ public class CloudMusic {
         @Override
         public void run() {
             curIdx = startIdx;
-
-            while (shouldContinuePlayback()) {
-                if (playListChanged()) {
-                    break;
+            TrackSession session = null;
+            try {
+                while (shouldContinuePlayback()) {
+                    if (playList != songs) {
+                        break;
+                    }
+                    if (session == null) {
+                        session = startTrack(playList.get(curIdx));
+                        if (session == null) {
+                            break;
+                        }
+                    }
+                    preparation = prepareNextTrack(session.song());
+                    PlaybackResult result = waitForPlayback(session);
+                    closePreparationExcept(result.next());
+                    if (!isCurrentPlayback() || doBreak || isInterrupted()) {
+                        session.tailAnalysis().close();
+                        session.player().close();
+                        break;
+                    }
+                    if (!dontAdd && playedFrom != null) {
+                        session.song().updPlayCount(playedFrom, session.player().getCurrentTimeSeconds());
+                    }
+                    if (!result.indexAdvanced() && session.player().isFailed()) {
+                        session.tailAnalysis().close();
+                        session.player().close();
+                        Platform.log("[NCM] Playback stopped after the audio stream could not recover.");
+                        break;
+                    }
+                    session.tailAnalysis().close();
+                    session.player().close();
+                    if (!result.indexAdvanced()) {
+                        updateCurIdx();
+                    }
+                    session = result.next();
                 }
-
-                Music currentSong = playList.get(curIdx);
-                prepareForPlayback();
-
-                if (!playSong(currentSong)) {
-                    break;
+            } finally {
+                if (preparation != null) {
+                    preparation.close();
                 }
-
-                preloadNextCover();
-                preloadNextLyric();
-                waitForPlaybackCompletion();
-                if (!isCurrentPlayback()) {
-                    return;
+                if (isCurrentPlayback()) {
+                    playing.set(false);
                 }
-                handlePlaybackCompletion();
-                if (player.isFailed()) {
-                    Platform.log("[NCM] Playback stopped after the audio stream could not recover.");
-                    break;
-                }
-                updateCurrentIndex();
             }
         }
 
+        private TrackSession startTrack(Music song) {
+            AudioPlayer previous = player;
+            if (previous != null && !previous.isFinished()) {
+                previous.close();
+            }
+            loadMusicCover(song);
+            Pair<String, String> playUrl = song.getPlayUrl();
+            if (!isCurrentPlayback()) {
+                return null;
+            }
+            if (playUrl == null) {
+                handleUnplayableSong(song);
+                return null;
+            }
+            try {
+                AudioPlayer nextPlayer = createPlayer(playUrl, song);
+                TrackSession session = new TrackSession(song, nextPlayer, new AtomicBoolean(),
+                        new TailAnalysis(song, nextPlayer));
+                configureCompletion(session);
+                promote(session);
+                nextPlayer.play();
+                return session;
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.log("§c[NCM] Failed to initiate audio player! Error: " + e.getMessage());
+                return null;
+            }
+        }
+
+        private void promote(TrackSession session) {
+            MusicState.get().setDownloading(false);
+            currentlyPlaying = session.song();
+            player = session.player();
+            loadMusicCover(session.song());
+            loadLyric(session.song());
+            for (MusicListener listener : listeners) {
+                listener.onSongStart(session.song());
+            }
+            Platform.log("[NCM] Now playing: " + session.song().getName() + ", id " + session.song().getId());
+            playing.set(true);
+        }
+
+        private PlaybackResult waitForPlayback(TrackSession session) {
+            TransitionPlan plan = null;
+            double tempoRate = 1;
+            while (playing.get() && !session.ended().get() && isCurrentPlayback() && !doBreak && !isInterrupted()) {
+                updateCurrentLyric(session.player().getCurrentTimeMillis());
+                if (autoMixEnabled && preparation == null) {
+                    preparation = prepareNextTrack(session.song());
+                }
+                if (!autoMixEnabled && preparation != null) {
+                    preparation.close();
+                    preparation = null;
+                    session.player().setPlaybackRate(1);
+                    session.player().setPitchShiftSemitones(0);
+                    tempoRate = 1;
+                }
+                PreparedTrack prepared = preparation == null ? null : preparation.result();
+                if (prepared != null && !validPreparedTrack(prepared)) {
+                    preparation.close();
+                    preparation = null;
+                    plan = null;
+                    session.player().setPlaybackRate(1);
+                    session.player().setPitchShiftSemitones(0);
+                    tempoRate = 1;
+                    continue;
+                }
+                if (prepared != null && validPreparedTrack(prepared)) {
+                    if (plan == null) {
+                        AutoMixTrackAnalysis tail = session.tailAnalysis().result();
+                        if (tail != null) {
+                            plan = createTransitionPlan(session, tail, prepared);
+                        }
+                    }
+                    long position = (long) session.player().getCurrentTimeMillis();
+                    if (plan == null && position >= session.song().getDuration() - 2_500) {
+                        plan = new TransitionPlan(position, Math.max(900,
+                                session.song().getDuration() - position), TransitionStyle.HARD_CUT, 1,
+                                0, position, position, 0.5);
+                    }
+                    if (plan != null && !session.player().isPausing()) {
+                        tempoRate = applyTempoSync(session.player(), plan, position, tempoRate);
+                    }
+                    if (plan != null && !session.player().isPausing() && position >= plan.startMillis()) {
+                        return performTransition(session, prepared, plan);
+                    }
+                }
+                sleep(10);
+            }
+            return new PlaybackResult(null, false);
+        }
+
+        private Preparation prepareNextTrack(Music currentSong) {
+            if (!autoMixEnabled || currentSong.getDuration() < 25_000
+                    || playMode == PlayMode.LoopSingle || playMode != lastMode) {
+                return null;
+            }
+            int nextIndex = nextIndex();
+            if (nextIndex < 0 || nextIndex >= playList.size()) {
+                return null;
+            }
+            Music nextSong = playList.get(nextIndex);
+            if (nextSong.getDuration() < 20_000) {
+                return null;
+            }
+            loadMusicCover(nextSong);
+            LyricsFetcher.getDefault().prefetch(lyricsQuery(nextSong));
+            return new Preparation(nextSong, nextIndex);
+        }
+
+        private boolean validPreparedTrack(PreparedTrack prepared) {
+            return autoMixEnabled
+                    && playMode == lastMode
+                    && prepared.index() == nextIndex()
+                    && prepared.index() >= 0
+                    && prepared.index() < playList.size()
+                    && playList.get(prepared.index()).equals(prepared.song());
+        }
+
+        private TransitionPlan createTransitionPlan(
+                TrackSession current,
+                AutoMixTrackAnalysis tail,
+                PreparedTrack next) {
+            AutoMixProfile currentProfile = tail.profile();
+            AutoMixProfile nextProfile = next.analysis().profile();
+            long lastSound = Math.min(current.song().getDuration(), tail.lastSoundMillis());
+            long duration;
+            long start;
+            TransitionStyle style;
+            double rate = beatMatchRate(currentProfile, nextProfile);
+            int pitchShift = 0;
+            AutoMixStyleProfile guidance = AutoMixStyleProfile.forPair(tail, next.analysis());
+            boolean longBlendAllowed = guidance.intent() == AutoMixStyleProfile.Intent.BEAT_MIX
+                    || guidance.intent() == AutoMixStyleProfile.Intent.PHRASE_BLEND;
+            boolean musicalBlend = longBlendAllowed && isMusicalBlend(currentProfile, nextProfile, rate);
+            TransitionCandidateSearch.Candidate candidate = tail.endingType()
+                    == AutoMixTrackAnalysis.EndingType.NATURAL_FADE
+                    ? null : TransitionCandidateSearch.find(tail, next.analysis(), guidance);
+            if (candidate != null) {
+                start = candidate.outgoingMillis();
+                duration = Math.max(1_400, lastSound - start);
+                style = candidate.intent() == AutoMixStyleProfile.Intent.CONTENT_HANDOFF
+                        ? TransitionStyle.CONTENT_HANDOFF
+                        : candidate.intent() == AutoMixStyleProfile.Intent.FADE_HANDOFF
+                          ? TransitionStyle.NATURAL_FADE : TransitionStyle.MUSICAL_BLEND;
+                rate = candidate.playbackRate();
+                pitchShift = candidate.pitchShiftSemitones();
+                if (Math.abs(next.player().getCurrentTimeMillis() - candidate.incomingMillis()) > 250) {
+                    next.player().setPlaybackTime((float) candidate.incomingMillis());
+                }
+            } else if (tail.endingType() == AutoMixTrackAnalysis.EndingType.NATURAL_FADE) {
+                start = tail.fadeOutStartMillis();
+                duration = lastSound - start;
+                duration = Math.max(3_000, Math.min(14_000, duration));
+                start = Math.max(tail.fadeOutStartMillis(), lastSound - duration);
+                start = currentProfile.nextBeatAfter(start);
+                duration = Math.max(1_400, lastSound - start);
+                style = TransitionStyle.NATURAL_FADE;
+            } else if (tail.endingType() == AutoMixTrackAnalysis.EndingType.TRAILING_SILENCE) {
+                duration = musicalBlend
+                        ? beatDuration(currentProfile, nextProfile, 16, 5_000, 11_000)
+                        : beatDuration(currentProfile, nextProfile, 8, 2_400, 6_500);
+                start = musicalBlend
+                        ? Math.max(0, lastSound - duration)
+                        : Math.max(tail.lastStrongMillis(), lastSound - duration);
+                start = musicalBlend
+                        ? currentProfile.downbeatAtOrBefore(start)
+                        : currentProfile.nextBeatAfter(start);
+                duration = Math.max(1_400, lastSound - start);
+                style = musicalBlend ? TransitionStyle.MUSICAL_BLEND : TransitionStyle.SILENCE_SKIP;
+            } else if (musicalBlend) {
+                duration = Math.min(guidance.maxOverlapMillis(),
+                        beatDuration(currentProfile, nextProfile, 16, 5_000, 11_000));
+                start = currentProfile.downbeatAtOrBefore(Math.max(0, lastSound - duration));
+                duration = Math.max(2_800, lastSound - start);
+                style = TransitionStyle.MUSICAL_BLEND;
+            } else if (guidance.intent() == AutoMixStyleProfile.Intent.CONTENT_HANDOFF
+                    || guidance.intent() == AutoMixStyleProfile.Intent.FADE_HANDOFF) {
+                duration = Math.min(guidance.maxOverlapMillis(),
+                        beatDuration(currentProfile, nextProfile, 4, 1_200, 3_500));
+                start = Math.max(tail.lastStrongMillis(), lastSound - duration);
+                start = currentProfile.nextBeatAfter(start);
+                duration = Math.max(800, lastSound - start);
+                style = TransitionStyle.CONTENT_HANDOFF;
+            } else {
+                duration = beatDuration(currentProfile, nextProfile, 4, 1_200, 4_500);
+                start = Math.max(0, lastSound - duration);
+                start = currentProfile.alignToBeat(start);
+                duration = Math.max(900, lastSound - start);
+                style = TransitionStyle.HARD_CUT;
+            }
+            start = Math.min(start, Math.max(0, lastSound - 700));
+            if (style != TransitionStyle.MUSICAL_BLEND || !guidance.allowTempoAndPitch()
+                    || !AutoMixTempoPolicy.shouldSync(tail, next.analysis(), rate)) {
+                rate = 1;
+                pitchShift = 0;
+            }
+            boolean transformsAudio = rate != 1 || pitchShift != 0;
+            long settleDuration = !transformsAudio ? 0
+                    : beatDuration(currentProfile, nextProfile, 2, 800, 2_200);
+            long rampDuration = !transformsAudio ? 0
+                    : beatDuration(currentProfile, nextProfile, 12, 6_000, 12_000);
+            long tempoRampEnd = Math.max(0, start - settleDuration);
+            long tempoRampStart = Math.max(0, tempoRampEnd - rampDuration);
+            if (transformsAudio) {
+                tempoRampStart = Math.min(tempoRampEnd, currentProfile.downbeatAtOrBefore(tempoRampStart));
+                long planningPosition = (long) current.player().getCurrentTimeMillis();
+                if (planningPosition > tempoRampStart + currentProfile.beatIntervalMillis()) {
+                    rate = 1;
+                    pitchShift = 0;
+                    tempoRampStart = start;
+                    tempoRampEnd = start;
+                }
+            }
+            Platform.log(String.format(Locale.ROOT,
+                    "[NCM] AutoMix: %.1f -> %.1f BPM, rate %.3fx, pitch %+.1f st, %s/%s/%s, transform ramp %d-%d ms, confidence %.2f/%.2f, protection %.2f/%.2f, downbeat %s/%s%s",
+                    bpm(currentProfile), bpm(nextProfile), rate, (double) pitchShift, style,
+                    guidance.style(), guidance.intent(),
+                    tempoRampStart, tempoRampEnd,
+                    currentProfile.beatConfidence(), nextProfile.beatConfidence(),
+                    guidance.outgoingProtection(), guidance.incomingProtection(),
+                    currentProfile.downbeatAware(), nextProfile.downbeatAware(), candidateSummary(candidate)));
+            return new TransitionPlan(start, Math.max(900, duration), style, rate, pitchShift,
+                    tempoRampStart, tempoRampEnd, candidate == null ? guidance.eqStrength() : candidate.eqStrength());
+        }
+
+        private String candidateSummary(TransitionCandidateSearch.Candidate candidate) {
+            if (candidate == null) {
+                return ", pair score fallback";
+            }
+            return String.format(Locale.ROOT,
+                    ", pair %d -> %d ms, score %.2f [rhythm %.2f, meter %.2f, harmony %.2f, energy %.2f, melody %.2f, boundary %.2f, keep %.2f/%.2f, pitch %+d st]",
+                    candidate.outgoingMillis(), candidate.incomingMillis(), candidate.score(),
+                    candidate.rhythmScore(), candidate.meterScore(), candidate.harmonyScore(),
+                    candidate.energyScore(), candidate.melodyScore(), candidate.boundaryScore(),
+                    candidate.outgoingPreservation(), candidate.incomingPreservation(),
+                    candidate.pitchShiftSemitones());
+        }
+
+        private double bpm(AutoMixProfile profile) {
+            return profile.hasReliableBeat() ? 60_000 / profile.beatIntervalMillis() : 0;
+        }
+
+        private long beatDuration(
+                AutoMixProfile current,
+                AutoMixProfile next,
+                int beats,
+                long minimum,
+                long maximum) {
+            double interval = current.hasReliableBeat() ? current.beatIntervalMillis()
+                    : next.hasReliableBeat() ? next.beatIntervalMillis() : minimum / (double) beats;
+            return Math.max(minimum, Math.min(maximum, Math.round(interval * beats)));
+        }
+
+        private double beatMatchRate(AutoMixProfile current, AutoMixProfile next) {
+            return current.beatMatchRateTo(next, AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE);
+        }
+
+        private boolean isMusicalBlend(AutoMixProfile current, AutoMixProfile next, double rate) {
+            return current.isTempoCompatible(next, AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE)
+                    && Math.abs(current.loudnessDb() - next.loudnessDb()) <= 15
+                    && rate >= 1 - AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE
+                    && rate <= 1 + AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE;
+        }
+
+        private double applyTempoSync(
+                AudioPlayer outgoing,
+                TransitionPlan plan,
+                long positionMillis,
+                double currentRate) {
+            if (plan.playbackRate() == 1 && plan.pitchShiftSemitones() == 0
+                    || positionMillis < plan.tempoRampStartMillis()) {
+                if (currentRate != 1) {
+                    outgoing.setPlaybackRate(1);
+                }
+                outgoing.setPitchShiftSemitones(0);
+                return 1;
+            }
+            double progress = plan.tempoRampEndMillis() <= plan.tempoRampStartMillis()
+                    ? 1
+                    : (positionMillis - plan.tempoRampStartMillis())
+                      / (double) (plan.tempoRampEndMillis() - plan.tempoRampStartMillis());
+            double desired = 1 + (plan.playbackRate() - 1) * smootherStep(progress);
+            double desiredPitch = plan.pitchShiftSemitones() * smootherStep(progress);
+            double maximumStep = 0.00025;
+            double applied = currentRate + Math.max(-maximumStep, Math.min(maximumStep, desired - currentRate));
+            outgoing.setPlaybackRate(applied);
+            outgoing.setPitchShiftSemitones(desiredPitch);
+            return applied;
+        }
+
+        private PlaybackResult performTransition(TrackSession current, PreparedTrack prepared, TransitionPlan plan) {
+            AudioPlayer outgoing = current.player();
+            AudioPlayer incoming = prepared.player();
+            AutoMixProfile currentProfile = current.tailAnalysis().result() == null
+                    ? outgoing.getAutoMixProfile()
+                    : current.tailAnalysis().result().profile();
+            if (Double.isNaN(loudnessTarget) && currentProfile.loudnessDb() > -35) {
+                loudnessTarget = currentProfile.loudnessDb();
+            }
+            incoming.setNormalizationGain(normalizationGain(prepared.analysis().profile()));
+            incoming.setMixGain(0);
+            float incomingLow = (float) (1 - 0.82 * plan.eqStrength());
+            float incomingMid = (float) (1 - 0.32 * plan.eqStrength());
+            float incomingHigh = (float) (1 - 0.18 * plan.eqStrength());
+            incoming.setTransitionEq(incomingLow, incomingMid, incomingHigh, 0);
+            outgoing.setPlaybackRate(plan.playbackRate());
+            outgoing.setPitchShiftSemitones(plan.pitchShiftSemitones());
+            TrackSession next = new TrackSession(prepared.song(), incoming, new AtomicBoolean(),
+                    new TailAnalysis(prepared.song(), incoming));
+            configureCompletion(next);
+            updateCurIdx();
+            promote(next);
+            incoming.play();
+
+            long elapsedNanos = 0;
+            long previousNanos = System.nanoTime();
+            while (elapsedNanos < plan.durationMillis() * 1_000_000L) {
+                if (!playing.get() || doBreak || isInterrupted() || !isCurrentPlayback()) {
+                    incoming.close();
+                    outgoing.close();
+                    if (dontAdd) {
+                        updateCurIdx();
+                    }
+                    return new PlaybackResult(null, true);
+                }
+                long now = System.nanoTime();
+                if (incoming.isPausing() && !next.ended().get()) {
+                    outgoing.pause();
+                    previousNanos = now;
+                    sleep(10);
+                    continue;
+                }
+                if (outgoing.isPausing() && !current.ended().get()) {
+                    outgoing.unpause();
+                }
+                float masterVolume = MusicState.get().getVolume();
+                if (Math.abs(incoming.getVolume() - masterVolume) > 0.0001f) {
+                    incoming.setVolume(masterVolume);
+                }
+                if (Math.abs(outgoing.getVolume() - masterVolume) > 0.0001f) {
+                    outgoing.setVolume(masterVolume);
+                }
+                elapsedNanos += Math.max(0, now - previousNanos);
+                previousNanos = now;
+                double progress = Math.min(1, elapsedNanos / (plan.durationMillis() * 1_000_000.0));
+                applyTransitionGain(outgoing, incoming, progress, plan.style());
+                applyTransitionEq(outgoing, incoming, progress, plan.style(), plan.eqStrength());
+                updateCurrentLyric(incoming.getCurrentTimeMillis());
+                if (current.ended().get()) {
+                    elapsedNanos = Math.max(elapsedNanos, Math.round(plan.durationMillis() * 720_000.0));
+                }
+                if (next.ended().get()) {
+                    outgoing.close();
+                    return new PlaybackResult(null, true);
+                }
+                sleep(10);
+            }
+            incoming.setMixGain(1);
+            incoming.setTransitionEq(1, 1, 1, 0);
+            incoming.setPlaybackRate(1);
+            outgoing.setPlaybackRate(1);
+            outgoing.setPitchShiftSemitones(0);
+            return new PlaybackResult(next, true);
+        }
+
+        private void applyTransitionGain(
+                AudioPlayer outgoing,
+                AudioPlayer incoming,
+                double progress,
+                TransitionStyle style) {
+            double outgoingProgress = style == TransitionStyle.NATURAL_FADE
+                    ? smoothStep(0.55, 1, progress)
+                    : style == TransitionStyle.CONTENT_HANDOFF
+                      ? smoothStep(0.68, 1, progress)
+                      : style == TransitionStyle.MUSICAL_BLEND
+                        ? smoothStep(0.24, 1, progress)
+                        : progress;
+            double incomingProgress = style == TransitionStyle.HARD_CUT
+                    ? smoothStep(0.18, 0.82, progress)
+                    : style == TransitionStyle.CONTENT_HANDOFF
+                      ? smoothStep(0.18, 0.92, progress)
+                      : style == TransitionStyle.MUSICAL_BLEND
+                        ? smoothStep(0, 0.72, progress)
+                        : smoothStep(0, 0.82, progress);
+            outgoing.setMixGain((float) Math.cos(outgoingProgress * Math.PI * 0.5));
+            incoming.setMixGain((float) Math.sin(incomingProgress * Math.PI * 0.5));
+        }
+
+        private void applyTransitionEq(
+                AudioPlayer outgoing,
+                AudioPlayer incoming,
+                double progress,
+                TransitionStyle style,
+                double plannedStrength) {
+            double strength = plannedStrength * (style == TransitionStyle.NATURAL_FADE ? 0.72 : 1);
+            double bassCut = smoothStep(0, 0.48, progress) * strength;
+            double bodyCut = smoothStep(0.12, 0.82, progress) * strength;
+            double airCut = smoothStep(0.30, 0.92, progress) * strength;
+            float lowPass = (float) (18_000 * Math.pow(780.0 / 18_000,
+                    smoothStep(0.12, 0.92, progress) * strength));
+            outgoing.setTransitionEq(
+                    (float) (1 - bassCut * 0.94),
+                    (float) (1 - bodyCut * 0.58),
+                    (float) (1 - airCut * 0.42),
+                    lowPass);
+
+            double incomingBass = smoothStep(0.28, 0.76, progress);
+            double incomingBody = smoothStep(0, 0.52, progress);
+            incoming.setTransitionEq(
+                    (float) (1 - (1 - incomingBass) * 0.82 * strength),
+                    (float) (1 - (1 - incomingBody) * 0.32 * strength),
+                    (float) (1 - (1 - incomingBody) * 0.18 * strength),
+                    0);
+        }
+
+        private double smoothStep(double start, double end, double value) {
+            double normalized = Math.max(0, Math.min(1, (value - start) / (end - start)));
+            return normalized * normalized * (3 - 2 * normalized);
+        }
+
+        private double smootherStep(double value) {
+            double normalized = Math.max(0, Math.min(1, value));
+            return normalized * normalized * normalized * (normalized * (normalized * 6 - 15) + 10);
+        }
+
+        private float normalizationGain(AutoMixProfile profile) {
+            if (Double.isNaN(loudnessTarget) || profile.loudnessDb() <= -35) {
+                return 1;
+            }
+            double gain = Math.pow(10, (loudnessTarget - profile.loudnessDb()) / 20);
+            return (float) Math.max(0.72, Math.min(1.38, gain));
+        }
+
+        private void configureCompletion(TrackSession session) {
+            session.player().setAfterPlayed(() -> session.ended().set(true));
+        }
+
+        private AudioPlayer createPlayer(Pair<String, String> playUrl, Music song) {
+            String type = playUrl.b().toLowerCase();
+            if (!type.equals("flac") && !type.equals("wav") && !type.equals("mp3")) {
+                throw new IllegalArgumentException("Unsupported music format, url: " + playUrl.a() + ", type: " + type);
+            }
+            AudioPlayer result = new AudioPlayer(playUrl.a(), type, song.getDuration());
+            result.setVolume(MusicState.get().getVolume());
+            return result;
+        }
+
+        private int nextIndex() {
+            if (playMode == PlayMode.LoopSingle) {
+                return -1;
+            }
+            int next = curIdx + 1;
+            if (next < playList.size()) {
+                return next;
+            }
+            return playMode == PlayMode.LoopInList || playMode == PlayMode.Random ? 0 : -1;
+        }
+
+        private void closePreparationExcept(TrackSession retained) {
+            if (preparation == null) {
+                return;
+            }
+            preparation.closeExcept(retained == null ? null : retained.player());
+            preparation = null;
+        }
+
         private boolean shouldContinuePlayback() {
-            return isCurrentPlayback() && curIdx < playList.size() && !doBreak && !this.isInterrupted();
+            return isCurrentPlayback() && curIdx >= 0 && curIdx < playList.size() && !doBreak && !isInterrupted();
         }
 
         private boolean isCurrentPlayback() {
             return playThread == this;
-        }
-
-        private boolean playListChanged() {
-            return playList != songs;
-        }
-
-        private void prepareForPlayback() {
-            stopPreviousPlayer();
-            loadMusicCover(playList.get(curIdx));
-        }
-
-        private boolean playSong(Music song) {
-            currentlyPlaying = song;
-            loadLyric(song);
-
-            Pair<String, String> playUrl = song.getPlayUrl();
-
-            if (!isCurrentPlayback()) {
-                return false;
-            }
-
-            if (playUrl == null) {
-                handleUnplayableSong(song);
-                return false;
-            }
-
-            return initializeAndPlaySong(song, playUrl);
-        }
-
-        private boolean initializeAndPlaySong(Music song, Pair<String, String> playUrl) {
-            MusicState.get().setDownloading(false);
-
-            try {
-                player = initializePlayer(playUrl, song);
-            } catch (Exception e) {
-                handlePlayerInitializationError(e);
-                return false;
-            }
-
-            notifySongStart(song);
-            startPlayback();
-            return true;
-        }
-
-        private void waitForPlaybackCompletion() {
-            while (playing.get() && isCurrentPlayback()) {
-                if (this.isInterrupted() || doBreak) {
-                    break;
-                }
-
-                CloudMusic.updateCurrentLyric(player.getCurrentTimeMillis());
-
-                try {
-                    Thread.sleep(10L);
-                } catch (Exception e) {
-                    // Ignore interruption exceptions during playback
-                }
-            }
-        }
-
-        private void handlePlaybackCompletion() {
-            if (!dontAdd && playedFrom != null) {
-                playList.get(curIdx).updPlayCount(playedFrom, player.getCurrentTimeSeconds());
-            }
-
-            player.close();
-        }
-
-        private void stopPreviousPlayer() {
-            if (player != null && !player.isFinished()) {
-                player.close();
-                sleep(250);
-            }
         }
 
         private void handleUnplayableSong(Music song) {
@@ -745,96 +1164,18 @@ public class CloudMusic {
                     "tritium-music.ui.playback.unplayable_copyright", song.getName(), song.getArtistsName()));
         }
 
-        private void handlePlayerInitializationError(Exception e) {
-            e.printStackTrace();
-            Platform.log("§c[NCM] Failed to initiate audio player! Error: " + e.getMessage());
-        }
-
-        private void notifySongStart(Music song) {
-            for (MusicListener listener : listeners) {
-                listener.onSongStart(song);
-            }
-            Platform.log("[NCM] Now playing: " + song.getName() + ", id " + song.getId());
-        }
-
-        private void startPlayback() {
-            playing.set(true);
-            player.setAfterPlayed(() -> {
-                if (isCurrentPlayback()) {
-                    this.notifyWaitLock();
-                    playing.set(false);
-                }
-            });
-            player.play();
-        }
-
-        private void preloadNextCover() {
-            if (curIdx + 1 < playList.size()) {
-                loadMusicCover(playList.get(curIdx + 1));
-            }
-        }
-
-        private void preloadNextLyric() {
-            Music nextSong = nextSong();
-            if (nextSong != null) LyricsFetcher.getDefault().prefetch(lyricsQuery(nextSong));
-        }
-
-        private Music nextSong() {
-            if (playList.isEmpty()) return null;
-            if (playMode == PlayMode.LoopSingle) return playList.get(curIdx);
-            int nextIndex = curIdx + 1;
-            if (nextIndex < playList.size()) return playList.get(nextIndex);
-            if (playMode == PlayMode.LoopInList || playMode == PlayMode.Random) return playList.getFirst();
-            return null;
-        }
-
-        private void updateCurrentIndex() {
-            updateCurIdx();
-        }
-
-        private AudioPlayer initializePlayer(Pair<String, String> playUrl, Music song) {
-            String type = playUrl.b().toLowerCase();
-            if (!type.equals("flac") && !type.equals("wav") && !type.equals("mp3")) {
-                throw new IllegalArgumentException("Unsupported music format, url: " + playUrl.a() + ", type: " + type);
-            }
-            AudioPlayer player = CloudMusic.player;
-            if (player == null) {
-                player = new AudioPlayer(playUrl.a(), type, song.getDuration());
-                player.setVolume(MusicState.get().getVolume());
-                CloudMusic.player = player;
-            } else {
-                player.setAudio(playUrl.a(), type, song.getDuration());
-            }
-            return player;
-        }
-
-        private void notifyWaitLock() {
-            playing.set(false);
-        }
-
-        private void loadMusicCover(Music song) {
-            CloudMusic.loadMusicCover(song);
-        }
-
-        PlayMode lastMode = playMode;
-
         private void updateCurIdx() {
-
             if (lastMode != playMode) {
-
                 if (playMode == PlayMode.Random) {
                     Collections.shuffle(songs);
                     playList = songs;
                 }
-
                 lastMode = playMode;
             }
-
             if (playMode == PlayMode.LoopSingle) {
                 if (dontAdd) {
                     dontAdd = false;
                 }
-
                 if (curIdx < 0) {
                     curIdx = 0;
                 }
@@ -844,7 +1185,6 @@ public class CloudMusic {
                 } else {
                     dontAdd = false;
                 }
-
                 if (curIdx == playList.size()) {
                     curIdx = 0;
                 }
@@ -861,7 +1201,150 @@ public class CloudMusic {
             try {
                 Thread.sleep(millis);
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                interrupt();
+            }
+        }
+
+        private record TrackSession(Music song, AudioPlayer player, AtomicBoolean ended, TailAnalysis tailAnalysis) {
+        }
+
+        private record PreparedTrack(Music song, int index, AudioPlayer player, AutoMixTrackAnalysis analysis) {
+        }
+
+        private record PlaybackResult(TrackSession next, boolean indexAdvanced) {
+        }
+
+        private enum TransitionStyle {
+            NATURAL_FADE,
+            SILENCE_SKIP,
+            MUSICAL_BLEND,
+            CONTENT_HANDOFF,
+            HARD_CUT
+        }
+
+        private record TransitionPlan(
+                long startMillis,
+                long durationMillis,
+                TransitionStyle style,
+                double playbackRate,
+                double pitchShiftSemitones,
+                long tempoRampStartMillis,
+                long tempoRampEndMillis,
+                double eqStrength) {
+        }
+
+        private final class Preparation {
+            private final Music song;
+            private final int index;
+            private final Thread thread;
+            private volatile PreparedTrack result;
+            private volatile boolean closed;
+
+            private Preparation(Music song, int index) {
+                this.song = song;
+                this.index = index;
+                this.thread = new Thread(this::run, "AutoMix Preloader");
+                this.thread.setDaemon(true);
+                this.thread.start();
+            }
+
+            private void run() {
+                AudioPlayer nextPlayer = null;
+                try {
+                    Pair<String, String> playUrl = song.getPlayUrl();
+                    if (playUrl == null || closed || PlayThread.this.isInterrupted()) {
+                        return;
+                    }
+                    nextPlayer = createPlayer(playUrl, song);
+                    AutoMixTrackAnalysis analysis;
+                    try {
+                        analysis = nextPlayer.analyzeForAutoMix(0, INTRO_ANALYSIS_MILLIS);
+                    } catch (Exception e) {
+                        analysis = AutoMixTrackAnalysis.fallback(song.getDuration());
+                    }
+                    if (closed || Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
+                    nextPlayer.setPlaybackTime((float) introCue(analysis));
+                    nextPlayer.setMixGain(0);
+                    nextPlayer.prepare();
+                    if (!nextPlayer.awaitPrepared(PREPARE_TIMEOUT_MILLIS) || closed) {
+                        return;
+                    }
+                    result = new PreparedTrack(song, index, nextPlayer, analysis);
+                    nextPlayer = null;
+                } catch (Exception e) {
+                    Platform.log("[NCM] AutoMix preloading fell back to normal playback: " + e.getMessage());
+                } finally {
+                    if (nextPlayer != null) {
+                        nextPlayer.close();
+                    }
+                }
+            }
+
+            private PreparedTrack result() {
+                return result;
+            }
+
+            private void close() {
+                closeExcept(null);
+            }
+
+            private void closeExcept(AudioPlayer retained) {
+                closed = true;
+                thread.interrupt();
+                PreparedTrack prepared = result;
+                if (prepared != null && prepared.player() != retained) {
+                    prepared.player().close();
+                }
+            }
+
+            private long introCue(AutoMixTrackAnalysis analysis) {
+                AutoMixProfile profile = analysis.profile();
+                long firstSound = analysis.firstSoundMillis();
+                MusicalTimeline timeline = analysis.timeline();
+                long openingEnd = Math.min(timeline.startMillis() + timeline.durationMillis(), firstSound + 2_500);
+                if (timeline.contentSalience(firstSound, openingEnd) >= 0.48) {
+                    return firstSound;
+                }
+                if (!profile.hasReliableBeat()) {
+                    return firstSound;
+                }
+                long beat = profile.nextBeatAfter(firstSound);
+                long latest = Math.max(firstSound, analysis.firstStrongMillis());
+                return beat <= latest + 500 && beat - firstSound <= 1_500 ? beat : firstSound;
+            }
+        }
+
+        private final class TailAnalysis {
+            private final Music song;
+            private final AudioPlayer player;
+            private final Thread thread;
+            private volatile AutoMixTrackAnalysis result;
+
+            private TailAnalysis(Music song, AudioPlayer player) {
+                this.song = song;
+                this.player = player;
+                this.thread = new Thread(this::run, "AutoMix Tail Analyzer");
+                this.thread.setDaemon(true);
+                this.thread.start();
+            }
+
+            private void run() {
+                long start = Math.max(0, song.getDuration() - TAIL_ANALYSIS_MILLIS);
+                try {
+                    result = player.analyzeForAutoMix(start, song.getDuration() - start);
+                } catch (Exception e) {
+                    result = AutoMixTrackAnalysis.fallback(song.getDuration());
+                }
+            }
+
+            private AutoMixTrackAnalysis result() {
+                return result;
+            }
+
+            private void close() {
+                thread.interrupt();
             }
         }
     }

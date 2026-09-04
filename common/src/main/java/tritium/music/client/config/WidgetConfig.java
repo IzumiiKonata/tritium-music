@@ -32,6 +32,7 @@ public class WidgetConfig {
 
     public double volume = 0.25;
     public Quality quality = Quality.STANDARD;
+    public boolean autoMix = false;
     public PlaylistViewMode playlistViewMode = PlaylistViewMode.GRID;
 
     public enum PlaylistViewMode {
@@ -135,5 +136,6 @@ public class WidgetConfig {
         state.setShowRoman(lyrics.showRoman);
         state.setVolume((float) volume);
         CloudMusic.quality = quality;
+        CloudMusic.autoMixEnabled = autoMix;
     }
 }

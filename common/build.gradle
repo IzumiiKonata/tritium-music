@@ -36,6 +36,17 @@ dependencies {
 	api "net.java.dev.jna:jna:${project.jna_version}"
 	api "net.java.dev.jna:jna-platform:${project.jna_version}"
 	api "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}"
+	api "com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}"
+	api "com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}"
+	runtimeOnly "com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}"
+
+	testImplementation platform('org.junit:junit-bom:5.13.4')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+	useJUnitPlatform()
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -51,7 +62,8 @@ java {
 }
 
 jar {
-	from(rootProject.files('LICENSE', 'COPYING', 'THIRD_PARTY_NOTICES.md')) {
+	from(rootProject.files('LICENSE', 'COPYING', 'THIRD_PARTY_NOTICES.md', 'LICENSE_BASIC_PITCH',
+			'LICENSE_SOUNDTOUCH', 'LICENSE_SOUNDTOUCH_JNI')) {
 		rename { "${it}_${rootProject.name}" }
 	}
 }

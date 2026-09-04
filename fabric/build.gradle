@@ -32,6 +32,9 @@ dependencies {
 	include implementation("net.java.dev.jna:jna-platform:${project.jna_version}")
 
 	include implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")
+	include implementation("com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}")
+	include implementation("com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}")
+	include implementation("com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}")
 	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
 		include "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it"
 	}
@@ -69,7 +72,8 @@ java {
 }
 
 jar {
-	from(rootProject.files('LICENSE', 'COPYING', 'THIRD_PARTY_NOTICES.md')) {
+	from(rootProject.files('LICENSE', 'COPYING', 'THIRD_PARTY_NOTICES.md', 'LICENSE_BASIC_PITCH',
+			'LICENSE_SOUNDTOUCH', 'LICENSE_SOUNDTOUCH_JNI')) {
 		rename { "${it}_${rootProject.name}" }
 	}
 }

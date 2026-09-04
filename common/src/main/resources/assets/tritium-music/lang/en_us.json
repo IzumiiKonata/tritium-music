@@ -77,6 +77,8 @@
   "tritium-music.ui.settings.page.lyrics": "Lyrics",
   "tritium-music.ui.settings.page.spectrum": "Spectrum",
   "tritium-music.ui.settings.section.playback": "Playback",
+  "tritium-music.ui.settings.automix.title": "AutoMix",
+  "tritium-music.ui.settings.automix.description": "Preload and blend the next track using beat, loudness, and bass-aware transitions",
   "tritium-music.ui.settings.section.music_info": "Music Info",
   "tritium-music.ui.settings.section.general": "General",
   "tritium-music.ui.settings.section.content": "Content",

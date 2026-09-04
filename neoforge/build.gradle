@@ -71,6 +71,24 @@ dependencies {
 			prefer project.lwjgl_version
 		}
 	}
+	jarJar(implementation("com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}")) {
+		version {
+			strictly "[${project.onnxruntime_version}]"
+			prefer project.onnxruntime_version
+		}
+	}
+	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}")) {
+		version {
+			strictly "[${project.soundtouch_jni_version}]"
+			prefer project.soundtouch_jni_version
+		}
+	}
+	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}")) {
+		version {
+			strictly "[${project.soundtouch_jni_version}]"
+			prefer project.soundtouch_jni_version
+		}
+	}
 
 	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
 		add(harfbuzzNatives.name, "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it")
@@ -104,7 +122,8 @@ java {
 }
 
 jar {
-	from(rootProject.files('LICENSE', 'COPYING', 'THIRD_PARTY_NOTICES.md')) {
+	from(rootProject.files('LICENSE', 'COPYING', 'THIRD_PARTY_NOTICES.md', 'LICENSE_BASIC_PITCH',
+			'LICENSE_SOUNDTOUCH', 'LICENSE_SOUNDTOUCH_JNI')) {
 		rename { "${it}_${rootProject.name}" }
 	}
 }
