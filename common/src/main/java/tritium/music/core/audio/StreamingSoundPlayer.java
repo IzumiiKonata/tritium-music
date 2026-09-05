@@ -31,6 +31,7 @@ final class StreamingSoundPlayer {
     private final String type;
     private final long durationMillis;
     private final PcmListener pcmListener;
+    private final PcmListener outputPcmListener;
     private final Object pauseLock = new Object();
     private final Object playbackClockLock = new Object();
     private final AtomicLong requestedPositionMillis = new AtomicLong(-1);
@@ -46,6 +47,8 @@ final class StreamingSoundPlayer {
     private long playbackClockPositionMillis;
     private long playbackClockNanos = System.nanoTime();
     private double playbackClockRate = 1;
+    private long playbackClockFramePosition;
+    private float playbackClockFrameRate;
     private volatile float volume = 0.25f;
     private volatile double playbackRate = 1;
     private volatile double pitchShiftSemitones;
@@ -54,19 +57,20 @@ final class StreamingSoundPlayer {
     private volatile Runnable onFailed = () -> {
     };
 
-    StreamingSoundPlayer(String url, String type, long durationMillis, PcmListener pcmListener) {
-        this(() -> HttpUtils.get(url, null), type, durationMillis, pcmListener);
+    StreamingSoundPlayer(String url, String type, long durationMillis, PcmListener pcmListener, PcmListener outputPcmListener) {
+        this(() -> HttpUtils.get(url, null), type, durationMillis, pcmListener, outputPcmListener);
     }
 
-    StreamingSoundPlayer(File file, long durationMillis, PcmListener pcmListener) {
-        this(() -> Files.newInputStream(file.toPath()), extension(file), durationMillis, pcmListener);
+    StreamingSoundPlayer(File file, long durationMillis, PcmListener pcmListener, PcmListener outputPcmListener) {
+        this(() -> Files.newInputStream(file.toPath()), extension(file), durationMillis, pcmListener, outputPcmListener);
     }
 
-    private StreamingSoundPlayer(StreamFactory streamFactory, String type, long durationMillis, PcmListener pcmListener) {
+    private StreamingSoundPlayer(StreamFactory streamFactory, String type, long durationMillis, PcmListener pcmListener, PcmListener outputPcmListener) {
         this.streamFactory = streamFactory;
         this.type = type.toLowerCase(Locale.ROOT);
         this.durationMillis = durationMillis;
         this.pcmListener = pcmListener;
+        this.outputPcmListener = outputPcmListener;
     }
 
     private static PcmChunk resample(byte[] data, int offset, int length, AudioFormat format, double rate) {
@@ -197,6 +201,11 @@ final class StreamingSoundPlayer {
             if (paused) {
                 playbackClockNanos = System.nanoTime();
                 playbackClockRate = playbackRate;
+                SourceDataLine currentLine = line;
+                if (currentLine != null) {
+                    playbackClockFramePosition = currentLine.getLongFramePosition();
+                    playbackClockFrameRate = currentLine.getFormat().getFrameRate();
+                }
             }
             paused = false;
         }
@@ -386,6 +395,11 @@ final class StreamingSoundPlayer {
             playbackClockPositionMillis = positionMillisAt(now);
             playbackClockNanos = now;
             playbackClockRate = nextRate;
+            SourceDataLine currentLine = line;
+            if (currentLine != null) {
+                playbackClockFramePosition = currentLine.getLongFramePosition();
+                playbackClockFrameRate = currentLine.getFormat().getFrameRate();
+            }
             this.playbackRate = nextRate;
         }
     }
@@ -424,6 +438,12 @@ final class StreamingSoundPlayer {
         long decodedPosition = Math.min(durationMillis, positionMillis);
         if (paused || finished || closed) {
             return Math.min(decodedPosition, playbackClockPositionMillis);
+        }
+        SourceDataLine currentLine = line;
+        if (currentLine != null && playbackClockFrameRate > 0) {
+            long elapsedFrames = Math.max(0, currentLine.getLongFramePosition() - playbackClockFramePosition);
+            long playedPosition = playbackClockPositionMillis + Math.round(elapsedFrames * 1000.0 / playbackClockFrameRate * playbackClockRate);
+            return Math.min(durationMillis, playedPosition);
         }
         long elapsedNanos = Math.max(0, now - playbackClockNanos);
         long interpolatedPosition = playbackClockPositionMillis + Math.round(elapsedNanos / 1_000_000.0 * playbackClockRate);
@@ -470,6 +490,13 @@ final class StreamingSoundPlayer {
                     try (SoundTouchAudioProcessor soundTouch = SoundTouchAudioProcessor.create(pcm.format())) {
                         StreamingResampler streamingResampler = new StreamingResampler(pcm.format());
                         line = currentLine;
+                        synchronized (playbackClockLock) {
+                            playbackClockPositionMillis = positionMillis;
+                            playbackClockNanos = System.nanoTime();
+                            playbackClockRate = playbackRate;
+                            playbackClockFramePosition = currentLine.getLongFramePosition();
+                            playbackClockFrameRate = pcm.format().getFrameRate();
+                        }
                         if (!paused) {
                             currentLine.start();
                         }
@@ -519,7 +546,7 @@ final class StreamingSoundPlayer {
                                     output = streamingResampler.process(buffer, offset, length, playbackRate);
                                     applySoftwareVolume(output.data(), output.offset(), output.length(), pcm.format(), outputGain);
                                 }
-                                if (!writeFully(currentLine, output)) {
+                                if (!writeFully(currentLine, output, pcm.format())) {
                                     continue;
                                 }
                                 offset += length;
@@ -530,10 +557,10 @@ final class StreamingSoundPlayer {
                         }
                         if (!closed && requestedPositionMillis.get() < 0) {
                             byte[] tail = soundTouch.flush(volume);
-                            writeFully(currentLine, new PcmChunk(tail, 0, tail.length));
+                            writeFully(currentLine, new PcmChunk(tail, 0, tail.length), pcm.format());
                             PcmChunk resamplerTail = streamingResampler.flush();
                             applySoftwareVolume(resamplerTail.data(), resamplerTail.offset(), resamplerTail.length(), pcm.format(), volume);
-                            writeFully(currentLine, resamplerTail);
+                            writeFully(currentLine, resamplerTail, pcm.format());
                             preparedLatch.countDown();
                             currentLine.drain();
                             freezePlaybackClock();
@@ -607,14 +634,16 @@ final class StreamingSoundPlayer {
         }
     }
 
-    private boolean writeFully(SourceDataLine target, PcmChunk output) {
+    private boolean writeFully(SourceDataLine target, PcmChunk output, AudioFormat format) {
         int offset = output.offset();
         int remaining = output.length();
+        int callbackChunk = (int) Math.max(format.getFrameSize(), millisToBytes(PCM_UPDATE_MILLIS, format));
         while (remaining > 0 && !closed && requestedPositionMillis.get() < 0) {
-            int written = target.write(output.data(), offset, remaining);
+            int written = target.write(output.data(), offset, Math.min(remaining, callbackChunk));
             if (written <= 0) {
                 return false;
             }
+            outputPcmListener.accept(output.data(), offset, written, format);
             offset += written;
             remaining -= written;
         }

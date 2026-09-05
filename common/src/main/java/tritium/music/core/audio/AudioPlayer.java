@@ -69,13 +69,13 @@ public class AudioPlayer {
 
     public AudioPlayer(File file, long durationMillis) {
         finished = false;
-        this.player = new StreamingSoundPlayer(file, durationMillis, this::onPcm);
+        this.player = new StreamingSoundPlayer(file, durationMillis, this::onPcm, this::onOutputPcm);
         this.setListeners();
     }
 
     public AudioPlayer(String url, String type, long durationMillis) {
         finished = false;
-        this.player = new StreamingSoundPlayer(url, type, durationMillis, this::onPcm);
+        this.player = new StreamingSoundPlayer(url, type, durationMillis, this::onPcm, this::onOutputPcm);
         this.setListeners();
     }
 
@@ -138,7 +138,7 @@ public class AudioPlayer {
 
     public void setAudio(File file, long durationMillis) {
         this.close();
-        this.player = new StreamingSoundPlayer(file, durationMillis, this::onPcm);
+        this.player = new StreamingSoundPlayer(file, durationMillis, this::onPcm, this::onOutputPcm);
         resetAutoMixState();
         this.setListeners();
         finished = false;
@@ -146,7 +146,7 @@ public class AudioPlayer {
 
     public void setAudio(String url, String type, long durationMillis) {
         this.close();
-        this.player = new StreamingSoundPlayer(url, type, durationMillis, this::onPcm);
+        this.player = new StreamingSoundPlayer(url, type, durationMillis, this::onPcm, this::onOutputPcm);
         resetAutoMixState();
         this.setListeners();
         finished = false;
@@ -184,28 +184,30 @@ public class AudioPlayer {
     private void onPcm(byte[] data, int offset, int length, AudioFormat format) {
         autoMixAnalyzer.accept(data, offset, length, format);
         applyTransitionFilter(data, offset, length, format);
+    }
+
+    private void onOutputPcm(byte[] data, int offset, int length, AudioFormat format) {
+        if (!spectrumEnabled || spectrumSource != this) {
+            fftSamplesSinceAnalysis = 0;
+            return;
+        }
         int channels = format.getChannels();
         int frameSize = format.getFrameSize();
         int bytesPerSample = frameSize / channels;
         int frameCount = length / frameSize;
         int fftHopSamples = Math.max(1, Math.round(format.getFrameRate() * FFT_HOP_MILLIS / 1000f));
-        float playbackVolume = effectiveVolume();
         for (int frame = 0; frame < frameCount; frame++) {
             int base = offset + frame * frameSize;
-            float left = readSample(data, base, bytesPerSample, format.isBigEndian()) * playbackVolume;
-            float right = channels > 1 ? readSample(data, base + bytesPerSample, bytesPerSample, format.isBigEndian()) * playbackVolume : left;
+            float left = readSample(data, base, bytesPerSample, format.isBigEndian());
+            float right = channels > 1 ? readSample(data, base + bytesPerSample, bytesPerSample, format.isBigEndian()) : left;
             fftWindow[fftWindowOffset++] = (left + right) * 0.5f;
             if (fftWindowOffset == fftWindow.length) {
                 fftWindowOffset = 0;
             }
-            if (spectrumEnabled && spectrumSource == this) {
-                fftSamplesSinceAnalysis++;
-                if (fftSamplesSinceAnalysis >= fftHopSamples) {
-                    publishSpectrum();
-                    fftSamplesSinceAnalysis -= fftHopSamples;
-                }
-            } else {
-                fftSamplesSinceAnalysis = 0;
+            fftSamplesSinceAnalysis++;
+            if (fftSamplesSinceAnalysis >= fftHopSamples) {
+                publishSpectrum();
+                fftSamplesSinceAnalysis -= fftHopSamples;
             }
         }
     }
