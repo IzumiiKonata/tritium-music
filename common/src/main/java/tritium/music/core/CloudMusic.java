@@ -988,13 +988,13 @@ public class CloudMusic {
                     plan = null;
                     tempoRate = 1;
                 }
-                if (autoMixEnabled && preparation != null && (session.tailAnalysis().referenceProfile != null || preparation.result() != null)) {
+                if (autoMixEnabled && preparation != null && preparation.autoMixAnalysis && (session.tailAnalysis().referenceProfile != null || preparation.result() != null)) {
                     session.tailAnalysis().start();
                 }
                 if (autoMixEnabled && preparation == null) {
                     preparation = prepareNextTrack(session.song());
                 }
-                if (!autoMixEnabled && preparation != null && preparation.autoMixAnalysis) {
+                if (!autoMixEnabled && preparation != null && preparation.isAutoMixTransition()) {
                     preparation.close();
                     preparation = prepareNextTrack(session.song());
                     session.player().setPlaybackRate(1);
@@ -1011,11 +1011,15 @@ public class CloudMusic {
                     tempoRate = 1;
                     continue;
                 }
-                if (autoMixEnabled && preparation != null && preparation.autoMixAnalysis && prepared != null && validPreparedTrack(prepared)) {
+                if (autoMixEnabled && preparation != null && preparation.isAutoMixTransition() && prepared != null && validPreparedTrack(prepared)) {
                     long position = (long) session.player().getCurrentTimeMillis();
                     if (plan == null) {
-                        AutoMixTrackAnalysis tail = session.tailAnalysis().result();
-                        plan = tail == null ? /*createFallbackTransitionPlan(session, prepared, position)*/null : createTransitionPlan(session, tail, prepared);
+                        if (prepared.rule() != null) {
+                            plan = createRuleTransitionPlan(session, prepared);
+                        } else {
+                            AutoMixTrackAnalysis tail = session.tailAnalysis().result();
+                            plan = tail == null ? /*createFallbackTransitionPlan(session, prepared, position)*/null : createTransitionPlan(session, tail, prepared);
+                        }
                     } else if (!plan.analyzed()) {
                         AutoMixTrackAnalysis tail = session.tailAnalysis().result();
                         if (tail != null) {
@@ -1056,13 +1060,14 @@ public class CloudMusic {
                 return null;
             }
             Music nextSong = playList.get(nextIndex);
-            boolean analyze = autoMixEnabled && currentSong.getDuration() >= 25_000 && nextSong.getDuration() >= 20_000;
-            if (autoMixEnabled && !analyze) {
+            AutoMixRules.Rule rule = autoMixEnabled ? AutoMixRules.match(currentSong.getId(), nextSong.getId()) : null;
+            boolean analyze = autoMixEnabled && rule == null && currentSong.getDuration() >= 25_000 && nextSong.getDuration() >= 20_000;
+            if (autoMixEnabled && !analyze && rule == null) {
                 return null;
             }
             loadMusicCover(nextSong);
             LyricsFetcher.getDefault().prefetch(lyricsQuery(nextSong));
-            return new Preparation(nextSong, nextIndex, analyze);
+            return new Preparation(nextSong, nextIndex, analyze, rule);
         }
 
         private boolean validPreparedTrack(PreparedTrack prepared) {
@@ -1153,6 +1158,16 @@ public class CloudMusic {
             return new TransitionPlan(start, Math.max(900, duration), style, rate, pitchShift, tempoRampStart, tempoRampEnd, eqStrength, incomingCue, true, lastSound);
         }
 
+        private TransitionPlan createRuleTransitionPlan(TrackSession current, PreparedTrack next) {
+            AutoMixRules.Rule rule = next.rule();
+            long start = rule.outgoingStartMillis;
+            long rampEnd = start;
+            long rampStart = Math.max(0, rampEnd - rule.tempoRampMillis);
+            TransitionStyle style = TransitionStyle.valueOf(rule.style.name());
+            Platform.log(String.format(Locale.ROOT, "[NCM] Hard AutoMix rule: %d -> %d, %s, outgoing %d ms, incoming %d ms, duration %d ms, rate %.3fx, pitch %+d st", current.song().getId(), next.song().getId(), style, start, rule.incomingStartMillis, rule.durationMillis, rule.playbackRate, rule.pitchShiftSemitones));
+            return new TransitionPlan(start, rule.durationMillis, style, rule.playbackRate, rule.pitchShiftSemitones, rampStart, rampEnd, rule.eqStrength, rule.incomingStartMillis, true, start + rule.durationMillis);
+        }
+
         private TransitionPlan createFallbackTransitionPlan(TrackSession current, PreparedTrack next, long positionMillis) {
             AutoMixTransitionTiming.Window window = AutoMixTransitionTiming.fallback(current.song().getDuration(), positionMillis);
             Platform.log(String.format(Locale.ROOT, "[NCM] AutoMix: guaranteed crossfade at %d ms for %d ms while analysis completes", window.startMillis(), window.durationMillis()));
@@ -1206,6 +1221,9 @@ public class CloudMusic {
         }
 
         private PlaybackResult performTransition(TrackSession current, PreparedTrack prepared, TransitionPlan plan) {
+            if (plan.style() == TransitionStyle.GAPLESS) {
+                return performGaplessTransition(current, prepared);
+            }
             AudioPlayer outgoing = current.player();
             AudioPlayer incoming = prepared.player();
             AutoMixProfile currentProfile = current.tailAnalysis().result() == null ? outgoing.getAutoMixProfile() : current.tailAnalysis().result().profile();
@@ -1301,6 +1319,26 @@ public class CloudMusic {
                 updateCurIdx();
                 promote(next);
             }
+            return new PlaybackResult(next, true);
+        }
+
+        private PlaybackResult performGaplessTransition(TrackSession current, PreparedTrack prepared) {
+            AudioPlayer outgoing = current.player();
+            AudioPlayer incoming = prepared.player();
+            incoming.setMixGain(1);
+            incoming.setNormalizationGain(1);
+            incoming.setTransitionEq(1, 1, 1, 0);
+            incoming.setPlaybackRate(1);
+            incoming.setPitchShiftSemitones(0);
+            if (Math.abs(incoming.getCurrentTimeMillis() - prepared.cueMillis()) > 1) {
+                incoming.setPlaybackTime((float) prepared.cueMillis());
+            }
+            TrackSession next = new TrackSession(prepared.song(), incoming, new AtomicBoolean(), new TailAnalysis(prepared.song(), incoming, prepared.analysis().profile()));
+            configureCompletion(next);
+            incoming.play();
+            outgoing.close();
+            updateCurIdx();
+            promote(next);
             return new PlaybackResult(next, true);
         }
 
@@ -1430,14 +1468,14 @@ public class CloudMusic {
         }
 
         private enum TransitionStyle {
-            CROSSFADE, NATURAL_FADE, SILENCE_SKIP, MUSICAL_BLEND
+            GAPLESS, CROSSFADE, NATURAL_FADE, SILENCE_SKIP, MUSICAL_BLEND
         }
 
         private record TrackSession(Music song, AudioPlayer player, AtomicBoolean ended, TailAnalysis tailAnalysis) {
         }
 
         private record PreparedTrack(Music song, int index, AudioPlayer player, AutoMixTrackAnalysis analysis,
-                                     long cueMillis) {
+                                     long cueMillis, AutoMixRules.Rule rule) {
         }
 
         private record PlaybackResult(TrackSession next, boolean indexAdvanced) {
@@ -1452,14 +1490,16 @@ public class CloudMusic {
             private final Music song;
             private final int index;
             private final boolean autoMixAnalysis;
+            private final AutoMixRules.Rule rule;
             private final Thread thread;
             private volatile PreparedTrack result;
             private volatile boolean closed;
 
-            private Preparation(Music song, int index, boolean autoMixAnalysis) {
+            private Preparation(Music song, int index, boolean autoMixAnalysis, AutoMixRules.Rule rule) {
                 this.song = song;
                 this.index = index;
                 this.autoMixAnalysis = autoMixAnalysis;
+                this.rule = rule;
                 this.thread = new Thread(this::run, "AutoMix Preloader");
                 this.thread.setDaemon(true);
                 this.thread.setPriority(Thread.MIN_PRIORITY);
@@ -1490,14 +1530,14 @@ public class CloudMusic {
                     if (closed || Thread.currentThread().isInterrupted()) {
                         return;
                     }
-                    long cueMillis = autoMixAnalysis ? AutoMixTransitionSearch.incomingCue(analysis) : 0;
+                    long cueMillis = rule != null ? rule.incomingStartMillis : autoMixAnalysis ? AutoMixTransitionSearch.incomingCue(analysis) : 0;
                     nextPlayer.setPlaybackTime((float) cueMillis);
                     nextPlayer.setMixGain(0);
                     nextPlayer.prepare();
                     if (!nextPlayer.awaitPrepared(PREPARE_TIMEOUT_MILLIS) || closed) {
                         return;
                     }
-                    result = new PreparedTrack(song, index, nextPlayer, analysis, cueMillis);
+                    result = new PreparedTrack(song, index, nextPlayer, analysis, cueMillis, rule);
                     nextPlayer = null;
                 } catch (Exception e) {
                     Platform.log("[NCM] AutoMix preloading fell back to normal playback: " + e.getMessage());
@@ -1510,6 +1550,10 @@ public class CloudMusic {
 
             private PreparedTrack result() {
                 return result;
+            }
+
+            private boolean isAutoMixTransition() {
+                return autoMixAnalysis || rule != null;
             }
 
             private void close() {
