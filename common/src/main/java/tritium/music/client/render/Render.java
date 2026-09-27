@@ -5,11 +5,11 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
-import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
@@ -26,22 +26,22 @@ public final class Render {
     }
 
     private static GpuSampler linearSampler() {
-        return RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+        return com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
     }
 
-    private static GuiRenderState state(GuiGraphics g) {
+    private static GuiRenderState state(GuiGraphicsExtractor g) {
         return g.guiRenderState;
     }
 
-    private static @Nullable ScreenRectangle scissor(GuiGraphics g) {
+    private static @Nullable ScreenRectangle scissor(GuiGraphicsExtractor g) {
         return g.scissorStack.peek();
     }
 
-    private static Matrix3x2f pose(GuiGraphics g) {
+    private static Matrix3x2f pose(GuiGraphicsExtractor g) {
         return new Matrix3x2f(g.pose());
     }
 
-    public static void rect(GuiGraphics g, float x, float y, float w, float h, int color) {
+    public static void rect(GuiGraphicsExtractor g, float x, float y, float w, float h, int color) {
         if (EffectQueue.captureRect(x, y, w, h, 0f, color)) {
             return;
         }
@@ -50,7 +50,36 @@ public final class Render {
         submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
     }
 
-    public static void gradientV(GuiGraphics g, float x, float y, float w, float h, int top, int bottom) {
+    public static void lineStrip(GuiGraphicsExtractor g, float[] points, int count,
+                                 float offsetX, float offsetY, float yScale, int color) {
+        if (count < 2) {
+            return;
+        }
+        List<MeshElement.Vertex> verts = new ArrayList<>((count - 1) * 2);
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        float previousX = offsetX + points[0];
+        float previousY = offsetY + points[1] * yScale;
+        for (int i = 1; i < count; i++) {
+            int index = i * 2;
+            float x = offsetX + points[index];
+            float y = offsetY + points[index + 1] * yScale;
+            verts.add(new MeshElement.Vertex(previousX, previousY, 0, 0, color));
+            verts.add(new MeshElement.Vertex(x, y, 0, 0, color));
+            minX = Math.min(minX, Math.min(previousX, x));
+            minY = Math.min(minY, Math.min(previousY, y));
+            maxX = Math.max(maxX, Math.max(previousX, x));
+            maxY = Math.max(maxY, Math.max(previousY, y));
+            previousX = x;
+            previousY = y;
+        }
+        submit(g, LinePipeline.PIPELINE, TextureSetup.noTexture(), verts,
+                minX - 1, minY - 1, maxX + 1, maxY + 1);
+    }
+
+    public static void gradientV(GuiGraphicsExtractor g, float x, float y, float w, float h, int top, int bottom) {
         List<MeshElement.Vertex> verts = new ArrayList<>(4);
         verts.add(new MeshElement.Vertex(x, y, 0, 0, top));
         verts.add(new MeshElement.Vertex(x, y + h, 0, 0, bottom));
@@ -59,7 +88,7 @@ public final class Render {
         submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
     }
 
-    public static void gradientH(GuiGraphics g, float x, float y, float w, float h, int left, int right) {
+    public static void gradientH(GuiGraphicsExtractor g, float x, float y, float w, float h, int left, int right) {
         List<MeshElement.Vertex> verts = new ArrayList<>(4);
         verts.add(new MeshElement.Vertex(x, y, 0, 0, left));
         verts.add(new MeshElement.Vertex(x, y + h, 0, 0, left));
@@ -68,7 +97,7 @@ public final class Render {
         submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
     }
 
-    public static void roundedRect(GuiGraphics g, float x, float y, float w, float h, float radius, int color) {
+    public static void roundedRect(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius, int color) {
         if (EffectQueue.captureRect(x, y, w, h, radius, color)) {
             return;
         }
@@ -77,32 +106,32 @@ public final class Render {
                 0f, 0f, 0f, 0f, color, color, color, color);
     }
 
-    public static void roundedGradient(GuiGraphics g, float x, float y, float w, float h, float radius,
+    public static void roundedGradient(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius,
                                        int bottomLeft, int topLeft, int bottomRight, int topRight) {
         Dimensions dimensions = dimensions(x, y, w, h);
         submitRounded(g, RoundedPipeline.GRADIENT, TextureSetup.noTexture(), dimensions, radius,
                 0f, 0f, 0f, 0f, topLeft, bottomLeft, bottomRight, topRight);
     }
 
-    public static void roundedOutline(GuiGraphics g, float x, float y, float w, float h, float radius,
+    public static void roundedOutline(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius,
                                       float thickness, int color) {
         Dimensions dimensions = dimensions(x, y, w, h);
         submitRounded(g, RoundedPipeline.OUTLINE, TextureSetup.noTexture(), dimensions, radius - 2f,
                 thickness, 0f, thickness, 0f, color, color, color, color);
     }
 
-    public static void roundedOutlineGradient(GuiGraphics g, float x, float y, float w, float h, float radius,
+    public static void roundedOutlineGradient(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius,
                                               float thickness, int bottomLeft, int topLeft, int bottomRight, int topRight) {
         Dimensions dimensions = dimensions(x, y, w, h);
         submitRounded(g, RoundedPipeline.OUTLINE_GRADIENT, TextureSetup.noTexture(), dimensions, radius - 2f,
                 thickness, 0f, thickness, 0f, topLeft, bottomLeft, bottomRight, topRight);
     }
 
-    public static void texture(GuiGraphics g, Identifier id, float x, float y, float w, float h, float alpha) {
+    public static void texture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float alpha) {
         texture(g, id, x, y, w, h, 0f, 0f, 1f, 1f, alpha);
     }
 
-    public static void texture(GuiGraphics g, Identifier id, float x, float y, float w, float h,
+    public static void texture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h,
                                float u0, float v0, float u1, float v1, float alpha) {
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
@@ -119,7 +148,7 @@ public final class Render {
         submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, x, y, x + w, y + h);
     }
 
-    public static void texturedQuad(GuiGraphics g, Identifier id,
+    public static void texturedQuad(GuiGraphicsExtractor g, Identifier id,
                                     float tlx, float tly, float blx, float bly, float brx, float bry, float trx, float trY,
                                     boolean flipX, float alpha) {
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
@@ -142,7 +171,7 @@ public final class Render {
         submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, minX, minY, maxX, maxY);
     }
 
-    public static void verticalFadeTexture(GuiGraphics g, Identifier id, float x, float y, float w, float h,
+    public static void verticalFadeTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h,
                                            float controlPercent, float alpha) {
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
@@ -156,7 +185,7 @@ public final class Render {
         submit(g, VerticalFadePipeline.PIPELINE, setup, verts, true, true, x, y, x + w, y + h);
     }
 
-    public static void colorQuad(GuiGraphics g,
+    public static void colorQuad(GuiGraphicsExtractor g,
                                  float tlx, float tly, float blx, float bly, float brx, float bry, float trx, float trY,
                                  int color) {
         List<MeshElement.Vertex> verts = new ArrayList<>(4);
@@ -172,26 +201,49 @@ public final class Render {
         submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, minX, minY, maxX, maxY);
     }
 
-    public static void glyph(GuiGraphics g, Identifier atlas, float x, float y, float w, float h,
+    public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
                              float u0, float v0, float u1, float v1, int color) {
         glyph(g, atlas, x, y, w, h, u0, v0, u1, v1, color, color);
     }
 
-    public static void glyph(GuiGraphics g, Identifier atlas, float x, float y, float w, float h,
+    public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
                              float u0, float v0, float u1, float v1, int leftColor, int rightColor) {
         glyphs(g, atlas, List.of(new GlyphQuad(x, y, w, h, u0, v0, u1, v1, leftColor, rightColor)));
     }
 
-    public static void glyphs(GuiGraphics g, Identifier atlas, List<GlyphQuad> quads) {
+    public static void glyphs(GuiGraphicsExtractor g, Identifier atlas, List<GlyphQuad> quads) {
         if (quads.isEmpty()) return;
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(atlas);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
 
-        List<MeshElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
         float minX = Float.POSITIVE_INFINITY;
         float minY = Float.POSITIVE_INFINITY;
         float maxX = Float.NEGATIVE_INFINITY;
         float maxY = Float.NEGATIVE_INFINITY;
+        for (GlyphQuad quad : quads) {
+            minX = Math.min(minX, quad.x());
+            minY = Math.min(minY, quad.y());
+            maxX = Math.max(maxX, quad.x() + quad.width());
+            maxY = Math.max(maxY, quad.y() + quad.height());
+        }
+
+        StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
+        if (clip != null) {
+            List<ClipElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
+            for (GlyphQuad quad : quads) {
+                float x1 = quad.x() + quad.width();
+                float y1 = quad.y() + quad.height();
+                verts.add(clipVertex(quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor(), clip));
+                verts.add(clipVertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor(), clip));
+                verts.add(clipVertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor(), clip));
+                verts.add(clipVertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor(), clip));
+            }
+            state(g).addGuiElement(new ClipElement(ClipPipeline.TEXTURED, setup, g.pose(), verts,
+                    minX, minY, maxX, maxY, scissor(g)));
+            return;
+        }
+
+        List<MeshElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
         for (GlyphQuad quad : quads) {
             float x1 = quad.x() + quad.width();
             float y1 = quad.y() + quad.height();
@@ -199,12 +251,14 @@ public final class Render {
             verts.add(new MeshElement.Vertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor()));
             verts.add(new MeshElement.Vertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor()));
             verts.add(new MeshElement.Vertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor()));
-            minX = Math.min(minX, quad.x());
-            minY = Math.min(minY, quad.y());
-            maxX = Math.max(maxX, x1);
-            maxY = Math.max(maxY, y1);
         }
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, minX, minY, maxX, maxY);
+        state(g).addGuiElement(new MeshElement(RenderPipelines.GUI_TEXTURED, setup, g.pose(), verts,
+                true, false, minX, minY, maxX, maxY, scissor(g)));
+    }
+
+    private static ClipElement.Vertex clipVertex(float x, float y, float u, float v, int color,
+                                                 StencilClipManager.ClipRect clip) {
+        return new ClipElement.Vertex(x, y, u, v, color, clip.left(), clip.top(), clip.right(), clip.bottom());
     }
 
     public record GlyphQuad(float x, float y, float width, float height,
@@ -212,21 +266,21 @@ public final class Render {
                             int leftColor, int rightColor) {
     }
 
-    public static void roundedTexture(GuiGraphics g, Identifier id, float x, float y, float w, float h, float radius, float alpha) {
+    public static void roundedTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha) {
         roundedTexture(g, id, x, y, w, h, radius, alpha, 0f, 0f, 1f, 1f);
     }
 
-    public static void roundedTexture(GuiGraphics g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
+    public static void roundedTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
                                       float u0, float v0, float u1, float v1) {
         roundedTextureInternal(g, id, x, y, w, h, radius, alpha, u0, v0, u1, v1);
     }
 
-    public static void roundedTextureSpecial(GuiGraphics g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
+    public static void roundedTextureSpecial(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
                                              float uOffset, float vOffset, float uScale, float vScale) {
         roundedTextureInternal(g, id, x, y, w, h, radius, alpha, uOffset, vOffset, uOffset + uScale, vOffset + vScale);
     }
 
-    private static void roundedTextureInternal(GuiGraphics g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
+    private static void roundedTextureInternal(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
                                                float u0, float v0, float u1, float v1) {
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
@@ -247,7 +301,7 @@ public final class Render {
                 u0, v0, u1, v1, color, color, color, color);
     }
 
-    private static void submitRounded(GuiGraphics g, RenderPipeline pipeline, TextureSetup setup, Dimensions dimensions,
+    private static void submitRounded(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup, Dimensions dimensions,
                                       float radius, float u0, float v0, float u1, float v1,
                                       int topLeft, int bottomLeft, int bottomRight, int topRight) {
         if (dimensions.width() <= 0 || dimensions.height() <= 0) {
@@ -272,7 +326,7 @@ public final class Render {
         vertices.add(new RoundedElement.Vertex(0f, dimensions.height(), u0, v1, bottomLeft, radius, clipLeft, clipTop, clipRight, clipBottom));
         vertices.add(new RoundedElement.Vertex(dimensions.width(), dimensions.height(), u1, v1, bottomRight, radius, clipLeft, clipTop, clipRight, clipBottom));
         vertices.add(new RoundedElement.Vertex(dimensions.width(), 0f, u1, v0, topRight, radius, clipLeft, clipTop, clipRight, clipBottom));
-        state(g).submitGuiElement(new RoundedElement(
+        state(g).addGuiElement(RoundedElement.of(
                 pipeline, setup, localPose, vertices, dimensions.width(), dimensions.height(), scissor(g)
         ));
     }
@@ -301,17 +355,17 @@ public final class Render {
         verts.add(new MeshElement.Vertex(x1, y0, 1, 0, color));
     }
 
-    private static void submit(GuiGraphics g, RenderPipeline pipeline, TextureSetup setup,
+    private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
                                List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1) {
         submit(g, pipeline, setup, verts, false, false, x0, y0, x1, y1);
     }
 
-    private static void submit(GuiGraphics g, RenderPipeline pipeline, TextureSetup setup,
+    private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
                                List<MeshElement.Vertex> verts, boolean writeUv, float x0, float y0, float x1, float y1) {
         submit(g, pipeline, setup, verts, writeUv, false, x0, y0, x1, y1);
     }
 
-    private static void submit(GuiGraphics g, RenderPipeline pipeline, TextureSetup setup,
+    private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
                                List<MeshElement.Vertex> verts, boolean writeUv, boolean writeNormal,
                                float x0, float y0, float x1, float y1) {
         StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
@@ -324,12 +378,12 @@ public final class Render {
                         clip.left(), clip.top(), clip.right(), clip.bottom()
                 ));
             }
-            state(g).submitGuiElement(new ClipElement(
-                    clippedPipeline, setup, pose(g), clippedVertices, x0, y0, x1, y1, scissor(g)
+            state(g).addGuiElement(new ClipElement(
+                    clippedPipeline, setup, g.pose(), clippedVertices, x0, y0, x1, y1, scissor(g)
             ));
             return;
         }
-        state(g).submitGuiElement(new MeshElement(pipeline, setup, pose(g), verts, writeUv, writeNormal, x0, y0, x1, y1, scissor(g)));
+        state(g).addGuiElement(new MeshElement(pipeline, setup, g.pose(), verts, writeUv, writeNormal, x0, y0, x1, y1, scissor(g)));
     }
 
     private static float clamp01(float v) {

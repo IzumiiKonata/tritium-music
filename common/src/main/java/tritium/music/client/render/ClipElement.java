@@ -33,8 +33,7 @@ public record ClipElement(
     public ClipElement(RenderPipeline pipeline, TextureSetup textureSetup, Matrix3x2fc pose, List<Vertex> vertices,
                        float x0, float y0, float x1, float y1, @Nullable ScreenRectangle scissorArea) {
         this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, scissorArea,
-                new MeshElement(pipeline, textureSetup, pose, List.of(), false, false,
-                        x0, y0, x1, y1, scissorArea).bounds());
+                MeshElement.bounds(x0, y0, x1, y1, pose, scissorArea));
     }
 
     @Override

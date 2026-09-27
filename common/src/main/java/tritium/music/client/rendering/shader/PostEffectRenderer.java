@@ -9,12 +9,21 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.DynamicUniformStorage;
+import net.minecraft.client.renderer.DynamicUniformStorage;
 import org.joml.Vector4f;
 
 import java.nio.ByteBuffer;
 import java.util.*;
 
 public final class PostEffectRenderer {
+
+    private static final float BLUR_STEP_WIDTH = 0.5f;
+    private static final int BLUR_COMPOSITE_PADDING = 7;
+    private static final int BLOOM_COMPOSITE_PADDING = 50;
+    private static final int BLOOM_KERNEL_PADDING = 74;
+    private static final float BLOOM_RADIUS = 12f;
+    private static final float BLOOM_STEP_WIDTH = 2f;
+    private static final float INVISIBLE_ALPHA = 0.004f;
 
     private static TextureTarget source;
     private static TextureTarget scratch;
@@ -37,11 +46,10 @@ public final class PostEffectRenderer {
             RenderSystem.assertOnRenderThread();
             ensureUniforms();
             Minecraft minecraft = Minecraft.getInstance();
-            RenderTarget main = minecraft.getMainRenderTarget();
+            RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
             ensureTargets(main.width, main.height);
 
             if (!blurs.isEmpty()) {
-                copy(main, source);
                 Map<Float, List<EffectQueue.Region>> blursByRadius = new LinkedHashMap<>();
                 for (EffectQueue.Region region : blurs) {
                     blursByRadius.computeIfAbsent(region.blurRadius(), ignored -> new java.util.ArrayList<>()).add(region);
@@ -49,17 +57,19 @@ public final class PostEffectRenderer {
                 for (Map.Entry<Float, List<EffectQueue.Region>> entry : blursByRadius.entrySet()) {
                     float radius = entry.getKey();
                     List<EffectQueue.Region> regions = entry.getValue();
-                    int padding = (int) Math.ceil(radius * 2.5f);
+                    int reach = (int) Math.ceil(radius * BLUR_STEP_WIDTH);
+                    int padding = BLUR_COMPOSITE_PADDING + reach + 2;
                     ScissorBounds blurBounds = bounds(regions, minecraft.getWindow().getGuiScale(), main.width, main.height, padding);
-                    gaussian(source, scratch, radius, 0.5f, 1f, 0f, blurBounds);
-                    gaussian(scratch, output, radius, 0.5f, 0f, 1f, blurBounds);
-                    for (EffectQueue.Region region : regions) {
-                        compositeBlur(main, region, minecraft.getWindow().getGuiScale());
-                    }
+                    gaussian(main, scratch, radius, BLUR_STEP_WIDTH, 1f, 0f, blurBounds);
+                    gaussian(scratch, output, radius, BLUR_STEP_WIDTH, 0f, 1f, blurBounds);
+                    compositeBlur(main, regions, minecraft.getWindow().getGuiScale());
                 }
             }
 
             for (EffectQueue.Region region : blooms) {
+                if (region.alpha() <= INVISIBLE_ALPHA) {
+                    continue;
+                }
                 renderBloom(main, region, minecraft.getWindow().getGuiScale());
             }
         } finally {
@@ -75,16 +85,10 @@ public final class PostEffectRenderer {
                 scratch.destroyBuffers();
                 output.destroyBuffers();
             }
-            source = new TextureTarget("Tritium effect source", width, height, false);
-            scratch = new TextureTarget("Tritium effect scratch", width, height, false);
-            output = new TextureTarget("Tritium effect output", width, height, false);
+            source = new TextureTarget("Tritium effect source", width, height, false, com.mojang.blaze3d.textures.TextureFormat.RGBA8);
+            scratch = new TextureTarget("Tritium effect scratch", width, height, false, com.mojang.blaze3d.textures.TextureFormat.RGBA8);
+            output = new TextureTarget("Tritium effect output", width, height, false, com.mojang.blaze3d.textures.TextureFormat.RGBA8);
         }
-    }
-
-    private static void copy(RenderTarget from, RenderTarget to) {
-        RenderSystem.getDevice().createCommandEncoder().copyTextureToTexture(
-                from.getColorTexture(), to.getColorTexture(), 0, 0, 0, 0, 0, from.width, from.height
-        );
     }
 
     private static void gaussian(RenderTarget from, RenderTarget to, float radius, float stepWidth, float dx, float dy,
@@ -93,53 +97,58 @@ public final class PostEffectRenderer {
         try (RenderPass pass = pass("Tritium gaussian", to)) {
             pass.setPipeline(EffectPipelines.GAUSSIAN);
             RenderSystem.bindDefaultUniforms(pass);
-            pass.bindTexture("InSampler", from.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+            pass.bindTexture("InSampler", from.getColorTextureView(), linearSampler());
             pass.setUniform("BlurInfo", uniform);
             bounds.apply(pass);
-            pass.draw(0, 3);
+            pass.draw(3, 1, 0, 0);
         }
     }
 
-    private static void compositeBlur(RenderTarget main, EffectQueue.Region region, int guiScale) {
-        GpuBufferSlice uniform = effectUniforms.writeUniform(new EffectInfo(region.alpha()));
+    private static void compositeBlur(RenderTarget main, List<EffectQueue.Region> regions, int guiScale) {
         try (RenderPass pass = pass("Tritium blur composite", main)) {
             pass.setPipeline(EffectPipelines.BLUR_COMPOSITE);
             RenderSystem.bindDefaultUniforms(pass);
-            pass.bindTexture("InSampler", output.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
-            pass.setUniform("EffectInfo", uniform);
-            applyScissor(pass, region, guiScale, main.width, main.height, 7);
-            pass.draw(0, 3);
+            pass.bindTexture("InSampler", output.getColorTextureView(), linearSampler());
+            for (EffectQueue.Region region : regions) {
+                pass.setUniform("EffectInfo", effectUniforms.writeUniform(new EffectInfo(region.alpha())));
+                applyScissor(pass, region, guiScale, main.width, main.height, BLUR_COMPOSITE_PADDING);
+                pass.draw(3, 1, 0, 0);
+            }
         }
     }
 
     private static void renderBloom(RenderTarget main, EffectQueue.Region region, int guiScale) {
-        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(source.getColorTexture(), 0);
+        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(source.getColorTexture(), new Vector4f(0f));
         GpuBufferSlice shape = shapeUniform(region, guiScale, main.height);
         try (RenderPass pass = pass("Tritium bloom mask", source)) {
             pass.setPipeline(EffectPipelines.BLOOM_MASK);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("ShapeInfo", shape);
             bounds(List.of(region), guiScale, main.width, main.height, 1).apply(pass);
-            pass.draw(0, 3);
+            pass.draw(3, 1, 0, 0);
         }
-        ScissorBounds bloomBounds = bounds(List.of(region), guiScale, main.width, main.height, 74);
-        gaussian(source, scratch, 12f, 2f, 1f, 0f, bloomBounds);
-        gaussian(scratch, output, 12f, 2f, 0f, 1f, bloomBounds);
+        ScissorBounds bloomBounds = bounds(List.of(region), guiScale, main.width, main.height, BLOOM_KERNEL_PADDING);
+        gaussian(source, scratch, BLOOM_RADIUS, BLOOM_STEP_WIDTH, 1f, 0f, bloomBounds);
+        gaussian(scratch, output, BLOOM_RADIUS, BLOOM_STEP_WIDTH, 0f, 1f, bloomBounds);
         try (RenderPass pass = pass("Tritium bloom composite", main)) {
             pass.setPipeline(EffectPipelines.BLOOM_COMPOSITE);
             RenderSystem.bindDefaultUniforms(pass);
-            pass.bindTexture("InSampler", output.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+            pass.bindTexture("InSampler", output.getColorTextureView(), linearSampler());
             pass.setUniform("ShapeInfo", shape);
-            applyScissor(pass, region, guiScale, main.width, main.height, 50);
-            pass.draw(0, 3);
+            applyScissor(pass, region, guiScale, main.width, main.height, BLOOM_COMPOSITE_PADDING);
+            pass.draw(3, 1, 0, 0);
         }
+    }
+
+    private static com.mojang.blaze3d.textures.GpuSampler linearSampler() {
+        return RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
     }
 
     private static RenderPass pass(String label, RenderTarget target) {
         return RenderSystem.getDevice().createCommandEncoder().createRenderPass(
                 () -> label,
                 target.getColorTextureView(),
-                OptionalInt.empty(),
+                Optional.empty(),
                 null,
                 OptionalDouble.empty()
         );
@@ -152,6 +161,8 @@ public final class PostEffectRenderer {
         int bottom = Math.min(targetHeight, (int) Math.ceil((region.y() + region.height()) * scale) + padding);
         if (right > left && bottom > top) {
             pass.enableScissor(left, targetHeight - bottom, right - left, bottom - top);
+        } else {
+            pass.disableScissor();
         }
     }
 
