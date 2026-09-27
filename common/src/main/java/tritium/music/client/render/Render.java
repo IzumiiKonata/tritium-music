@@ -216,11 +216,34 @@ public final class Render {
         AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(atlas);
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
 
-        List<MeshElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
         float minX = Float.POSITIVE_INFINITY;
         float minY = Float.POSITIVE_INFINITY;
         float maxX = Float.NEGATIVE_INFINITY;
         float maxY = Float.NEGATIVE_INFINITY;
+        for (GlyphQuad quad : quads) {
+            minX = Math.min(minX, quad.x());
+            minY = Math.min(minY, quad.y());
+            maxX = Math.max(maxX, quad.x() + quad.width());
+            maxY = Math.max(maxY, quad.y() + quad.height());
+        }
+
+        StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
+        if (clip != null) {
+            List<ClipElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
+            for (GlyphQuad quad : quads) {
+                float x1 = quad.x() + quad.width();
+                float y1 = quad.y() + quad.height();
+                verts.add(clipVertex(quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor(), clip));
+                verts.add(clipVertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor(), clip));
+                verts.add(clipVertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor(), clip));
+                verts.add(clipVertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor(), clip));
+            }
+            state(g).addGuiElement(new ClipElement(ClipPipeline.TEXTURED, setup, g.pose(), verts,
+                    minX, minY, maxX, maxY, scissor(g)));
+            return;
+        }
+
+        List<MeshElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
         for (GlyphQuad quad : quads) {
             float x1 = quad.x() + quad.width();
             float y1 = quad.y() + quad.height();
@@ -228,12 +251,14 @@ public final class Render {
             verts.add(new MeshElement.Vertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor()));
             verts.add(new MeshElement.Vertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor()));
             verts.add(new MeshElement.Vertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor()));
-            minX = Math.min(minX, quad.x());
-            minY = Math.min(minY, quad.y());
-            maxX = Math.max(maxX, x1);
-            maxY = Math.max(maxY, y1);
         }
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, minX, minY, maxX, maxY);
+        state(g).addGuiElement(new MeshElement(RenderPipelines.GUI_TEXTURED, setup, g.pose(), verts,
+                true, false, minX, minY, maxX, maxY, scissor(g)));
+    }
+
+    private static ClipElement.Vertex clipVertex(float x, float y, float u, float v, int color,
+                                                 StencilClipManager.ClipRect clip) {
+        return new ClipElement.Vertex(x, y, u, v, color, clip.left(), clip.top(), clip.right(), clip.bottom());
     }
 
     public record GlyphQuad(float x, float y, float width, float height,
@@ -301,7 +326,7 @@ public final class Render {
         vertices.add(new RoundedElement.Vertex(0f, dimensions.height(), u0, v1, bottomLeft, radius, clipLeft, clipTop, clipRight, clipBottom));
         vertices.add(new RoundedElement.Vertex(dimensions.width(), dimensions.height(), u1, v1, bottomRight, radius, clipLeft, clipTop, clipRight, clipBottom));
         vertices.add(new RoundedElement.Vertex(dimensions.width(), 0f, u1, v0, topRight, radius, clipLeft, clipTop, clipRight, clipBottom));
-        state(g).addGuiElement(new RoundedElement(
+        state(g).addGuiElement(RoundedElement.of(
                 pipeline, setup, localPose, vertices, dimensions.width(), dimensions.height(), scissor(g)
         ));
     }
@@ -354,11 +379,11 @@ public final class Render {
                 ));
             }
             state(g).addGuiElement(new ClipElement(
-                    clippedPipeline, setup, pose(g), clippedVertices, x0, y0, x1, y1, scissor(g)
+                    clippedPipeline, setup, g.pose(), clippedVertices, x0, y0, x1, y1, scissor(g)
             ));
             return;
         }
-        state(g).addGuiElement(new MeshElement(pipeline, setup, pose(g), verts, writeUv, writeNormal, x0, y0, x1, y1, scissor(g)));
+        state(g).addGuiElement(new MeshElement(pipeline, setup, g.pose(), verts, writeUv, writeNormal, x0, y0, x1, y1, scissor(g)));
     }
 
     private static float clamp01(float v) {

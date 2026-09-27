@@ -67,6 +67,11 @@ public record MeshElement(
         }
     }
 
+    static ScreenRectangle bounds(float x0, float y0, float x1, float y1, Matrix3x2fc pose,
+                                  @Nullable ScreenRectangle scissorArea) {
+        return computeBounds(x0, y0, x1, y1, pose, scissorArea);
+    }
+
     private static ScreenRectangle computeBounds(
             float x0, float y0, float x1, float y1, Matrix3x2fc pose, @Nullable ScreenRectangle scissorArea
     ) {

@@ -43,6 +43,18 @@ public record RoundedElement(
         this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, scissorArea, computeBounds(width, height, pose, scissorArea));
     }
 
+    public static RoundedElement of(
+            RenderPipeline pipeline,
+            TextureSetup textureSetup,
+            Matrix3x2f pose,
+            List<Vertex> vertices,
+            float width,
+            float height,
+            @Nullable ScreenRectangle scissorArea
+    ) {
+        return new RoundedElement(pipeline, textureSetup, pose, vertices, scissorArea, computeBounds(width, height, pose, scissorArea));
+    }
+
     @Override
     public void buildVertices(VertexConsumer consumer) {
         for (Vertex vertex : vertices) {
