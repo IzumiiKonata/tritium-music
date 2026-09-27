@@ -351,7 +351,13 @@ public class AudioPlayer {
     private long lastInterpolationStamp = -1L;
     private float lastTrackedPlaybackTime = 0f;
 
+    final boolean useInterpolation = false;
+
     public float getCurrentTimeMillisInterpolated() {
+
+        if (!useInterpolation) {
+            return getCurrentTimeMillis();
+        }
 
         float currentTimeMillis = this.getCurrentTimeMillis();
 
