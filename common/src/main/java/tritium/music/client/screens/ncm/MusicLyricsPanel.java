@@ -439,7 +439,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                         double gradientWidth = 16;
 
                         if (progress > 0.001 && progress < 1.0) {
-                            int scale = 4;
+                            int scale = 2;
                             int fbWidth = (int) (stringWidthD * scale);
                             int fbHeight = (FontManager.pf65bold.getHeight() + 6) * scale;
 
@@ -469,7 +469,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                                 }
 
                                 float yScaled = (float) (-word.emphasizes[charIndex] * scale);
-                                baseGlyphs.add(new LyricOffscreen.GlyphCmd(c, xScaled, yScaled));
+                                baseGlyphs.add(new LyricOffscreen.GlyphCmd(foldGlyphChar(c), xScaled, yScaled));
 
                                 xScaled += FontManager.pf65bold.getCharWidth(c, nextChar) * scale;
                             }
@@ -841,6 +841,15 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             case "netease" -> I18n.get("tritium-music.ui.lyrics.provider.netease");
             case "qq" -> I18n.get("tritium-music.ui.lyrics.provider.qq");
             default -> fallback;
+        };
+    }
+
+    private static char foldGlyphChar(char c) {
+        return switch (c) {
+            case '（' -> '(';
+            case '）' -> ')';
+            case '・' -> '·';
+            default -> c;
         };
     }
 

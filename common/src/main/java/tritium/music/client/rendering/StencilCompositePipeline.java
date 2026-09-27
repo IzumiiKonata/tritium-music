@@ -1,10 +1,11 @@
 package tritium.music.client.rendering;
 
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
 public final class StencilCompositePipeline {
@@ -18,14 +19,8 @@ public final class StencilCompositePipeline {
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0")
             .withSampler("Sampler1")
-            .withBlend(BlendFunction.TRANSLUCENT)
+            .withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA)
             .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
-//            .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-//            .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
-//            .withBindGroupLayout(BindGroupLayouts.SAMPLER0_SAMPLER1)
-//            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-//            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
-//            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withCull(false)
             .build());
 

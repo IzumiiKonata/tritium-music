@@ -106,15 +106,16 @@ public final class LyricOffscreen {
                 AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(entry.getKey());
                 float atlasWidth = texture.getTexture().getWidth(0);
                 float atlasHeight = texture.getTexture().getHeight(0);
-                float du = 1f / (blitScale * atlasWidth);
-                float dv = 1f / (blitScale * atlasHeight);
+                float du = 0.5f / atlasWidth;
+                float dv = 0.5f / atlasHeight;
+                float pad = 0.5f * blitScale;
 
                 for (GlyphQuad quad : entry.getValue()) {
                     Glyph glyph = quad.glyph();
-                    float left = quad.x() - 1f;
-                    float top = quad.y() - 1f;
-                    float right = quad.x() + glyph.width * blitScale + 1f;
-                    float bottom = quad.y() + glyph.height * blitScale + 1f;
+                    float left = quad.x() - pad;
+                    float top = quad.y() - pad;
+                    float right = quad.x() + glyph.width * blitScale + pad;
+                    float bottom = quad.y() + glyph.height * blitScale + pad;
                     float u0 = glyph.u0 - du;
                     float v0 = glyph.v0 - dv;
                     float u1 = glyph.u1 + du;
