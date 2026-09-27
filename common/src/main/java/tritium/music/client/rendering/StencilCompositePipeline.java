@@ -17,7 +17,7 @@ public final class StencilCompositePipeline {
             .withBindGroupLayout(BindGroupLayouts.GLOBALS)
             .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
             .withBindGroupLayout(BindGroupLayouts.SAMPLER0_SAMPLER1)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
             .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withCull(false)
