@@ -17,15 +17,14 @@ out vec4 fragColor;
 void main() {
     vec2 texel = Direction * StepWidth / vec2(textureSize(InSampler, 0));
     float sigma = Radius * 0.5;
-    float total = 0.0;
-    vec4 color = vec4(0.0);
-    for (int i = -16; i <= 16; i++) {
+    int halfWidth = min(int(Radius), 16);
+    vec4 color = texture(InSampler, texCoord);
+    float total = 1.0;
+    for (int i = 1; i <= halfWidth; i++) {
         float distance = float(i);
-        if (abs(distance) <= Radius) {
-            float weight = exp(-0.5 * distance * distance / (sigma * sigma));
-            color += texture(InSampler, texCoord + texel * distance) * weight;
-            total += weight;
-        }
+        float weight = exp(-0.5 * distance * distance / (sigma * sigma));
+        color += (texture(InSampler, texCoord + texel * distance) + texture(InSampler, texCoord - texel * distance)) * weight;
+        total += 2.0 * weight;
     }
     fragColor = color / total;
 }

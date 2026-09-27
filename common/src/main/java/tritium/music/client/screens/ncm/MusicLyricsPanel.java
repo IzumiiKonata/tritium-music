@@ -354,7 +354,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         for (int k = 0; k < CloudMusic.lyrics.size(); k++) {
             LyricLine lyric = CloudMusic.lyrics.get(k);
             int lyricDistance = Math.abs(k - currentIndex);
-            float blurTarget = !hoveringLyrics && lyricDistance > 0 ? Math.min(1f, .45f + (lyricDistance - 1) * .2f) : 0f;
+            float blurTarget = !hoveringLyrics && lyricDistance > 0 ? Math.min(1f, .55f + (lyricDistance - 1) * .22f) : 0f;
             lyric.blurAlpha = Interpolations.interpolate(lyric.blurAlpha, blurTarget, 0.05f);
         }
 
@@ -418,7 +418,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                     double emphasizeWholeWord = word.emphasizes[fragment.startInWord()];
 
                     String fragmentText = fragment.text();
-                    char[] charArray = fragmentText.toCharArray();
+                    int fragmentLength = fragmentText.length();
 
                     double emphasizeTarget = 1;
                     double emphasizeSpeed = 0.05;
@@ -460,9 +460,9 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
                             List<LyricOffscreen.GlyphCmd> baseGlyphs = new ArrayList<>();
                             float xScaled = 0;
-                            for (int j = 0; j < charArray.length; j++) {
-                                char c = charArray[j];
-                                char nextChar = j + 1 < charArray.length ? charArray[j + 1] : '\0';
+                            for (int j = 0; j < fragmentLength; j++) {
+                                char c = fragmentText.charAt(j);
+                                char nextChar = j + 1 < fragmentLength ? fragmentText.charAt(j + 1) : '\0';
                                 int charIndex = fragment.startInWord() + j;
 
                                 if (charIndex <= prog && lyric.renderEmphasizes) {
@@ -483,7 +483,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             stencilShader.draw(targets.base(), targets.stencil(), renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
 
                         } else if (progress >= 1.0) {
-                            for (int j = 0; j < charArray.length; j++) {
+                            for (int j = 0; j < fragmentLength; j++) {
                                 int charIndex = fragment.startInWord() + j;
 
                                 if (lyric.renderEmphasizes)
@@ -523,7 +523,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
             if (Shaders.BLUR_SHADER.isAvailable() && alpha * lyric.blurAlpha > 0.004f) {
                 double by = lyric.posY + scrollOffset;
-                float blurRadius = Math.min(16f, 7f + Math.min(3, Math.max(0, lyricDistance - 1)) * 3f);
+                float blurRadius = Math.min(16f, 8f + Math.min(3, Math.max(0, lyricDistance - 1)) * 3f);
                 blurRects.computeIfAbsent(blurRadius, ignored -> new ArrayList<>())
                         .add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1, 1, 1, alpha * lyric.blurAlpha)));
             }
@@ -857,20 +857,39 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     private String formatDuration(float totalMillis) {
         float totalSeconds = totalMillis / 1000;
 
-        float hours = totalSeconds / 3600;
-        float minutes = (totalSeconds % 3600) / 60;
-        float seconds = totalSeconds % 60;
+        int hours = (int) (totalSeconds / 3600);
+        int minutes = (int) ((totalSeconds % 3600) / 60);
+        int seconds = (int) (totalSeconds % 60);
 
-        StringBuilder sb = new StringBuilder();
-
-        if ((int) hours > 0) {
-            sb.append(String.format("%02d:", (int) hours));
+        if (hours < 0 || minutes < 0 || seconds < 0) {
+            StringBuilder fallback = new StringBuilder();
+            if (hours > 0) {
+                fallback.append(String.format("%02d:", hours));
+            }
+            fallback.append(String.format("%02d:", minutes));
+            fallback.append(String.format("%02d", seconds));
+            return fallback.toString();
         }
 
-        sb.append(String.format("%02d:", (int) minutes));
-        sb.append(String.format("%02d", (int) seconds));
+        StringBuilder sb = new StringBuilder(9);
+
+        if (hours > 0) {
+            appendTwoDigits(sb, hours);
+            sb.append(':');
+        }
+
+        appendTwoDigits(sb, minutes);
+        sb.append(':');
+        appendTwoDigits(sb, seconds);
 
         return sb.toString();
+    }
+
+    private static void appendTwoDigits(StringBuilder sb, int value) {
+        if (value < 10) {
+            sb.append('0');
+        }
+        sb.append(value);
     }
 
     private void renderBackground(double posX, double posY, double width, double height, float alpha) {
