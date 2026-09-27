@@ -12,5 +12,5 @@ layout(location = 0) out vec4 fragColor;
 void main() {
     vec4 base = texture(Sampler0, texCoord0);
     float stencil = texture(Sampler1, texCoord0).a;
-    fragColor = vec4(base.rgb, base.a * stencil) * vertexColor;
+    fragColor = vec4(base.rgb * vertexColor.rgb, base.a) * (stencil * vertexColor.a);
 }
