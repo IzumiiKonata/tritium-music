@@ -226,7 +226,7 @@ public class MusicLyricsWidget extends HudWidget {
         LyricRenderInfo currentInfo = new LyricRenderInfo();
         currentInfo.yPosition = karaokeY(true, true, smallFontHeight, margin);
         currentInfo.fade = computeEdgeFade(currentInfo.yPosition);
-        renderKaraokeCurrentLine(current, currentInfo, progress, true, secondaryLyrics[currentIndex]);
+        renderKaraokeCurrentLine(current, currentInfo, progress, true, secondaryLyrics[currentIndex], false);
 
         LyricLine next = editorLyrics[currentIndex + 1];
         updateLyricAnimation(next, false);
@@ -343,26 +343,32 @@ public class MusicLyricsWidget extends HudWidget {
 
                 updateLyricAnimation(line, i == indexOf);
 
-                double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
-                double scale = 1.0 + focus * 0.05;
+                if (shouldNotDisplayOtherLyrics) {
+                    renderLyricLine(line, renderInfo, i, indexOf, songProgress);
+                } else {
+                    double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
 
-                RenderContext.graphics().pose().pushMatrix();
-                scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, scale);
-
-                if (cfg().scrollEffect == ScrollEffects.Aurora && !line.words.isEmpty()) {
-                    updateAuroraLinger(line, renderInfo, line == currentLyric());
+                    RenderContext.graphics().pose().pushMatrix();
+                    scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+                    renderLyricLine(line, renderInfo, i, indexOf, songProgress);
+                    RenderContext.graphics().pose().popMatrix();
                 }
-
-                renderLyricText(line, renderInfo, i, indexOf);
-
-                if (line == currentLyric() && !line.words.isEmpty()) {
-                    handleScrollEffects(line, renderInfo, songProgress);
-                }
-
-                RenderContext.graphics().pose().popMatrix();
 
                 offsetY += lyricH;
             }
+        }
+    }
+
+    private void renderLyricLine(LyricLine line, LyricRenderInfo renderInfo, int index,
+                                 int currentIndex, float songProgress) {
+        if (cfg().scrollEffect == ScrollEffects.Aurora && !line.words.isEmpty()) {
+            updateAuroraLinger(line, renderInfo, line == currentLyric());
+        }
+
+        renderLyricText(line, renderInfo, index, currentIndex);
+
+        if (line == currentLyric() && !line.words.isEmpty()) {
+            handleScrollEffects(line, renderInfo, songProgress);
         }
     }
 
@@ -390,7 +396,7 @@ public class MusicLyricsWidget extends HudWidget {
             LyricRenderInfo info = new LyricRenderInfo();
             info.yPosition = karaokeY(currentOnLeft, hasSecondary, smallFontHeight, margin);
             info.fade = computeEdgeFade(info.yPosition);
-            renderKaraokeCurrentLine(current, info, songProgress, currentOnLeft, hasSecondary ? getSecondaryLyrics(current) : "");
+            renderKaraokeCurrentLine(current, info, songProgress, currentOnLeft, hasSecondary ? getSecondaryLyrics(current) : "", singleLineMode);
         }
 
         if (preview != null && !singleLineMode) {
@@ -404,11 +410,14 @@ public class MusicLyricsWidget extends HudWidget {
         }
     }
 
-    private void renderKaraokeCurrentLine(LyricLine line, LyricRenderInfo info, float songProgress, boolean onLeft, String secondaryLyric) {
-        double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
+    private void renderKaraokeCurrentLine(LyricLine line, LyricRenderInfo info, float songProgress,
+                                          boolean onLeft, String secondaryLyric, boolean singleLineMode) {
         double pivotX = onLeft ? getX() : getX() + getWidth();
         RenderContext.graphics().pose().pushMatrix();
-        scaleAtPos(pivotX, info.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+        if (!singleLineMode) {
+            double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
+            scaleAtPos(pivotX, info.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+        }
         updateAuroraLinger(line, info, true);
         renderKaraokeLine(line, info, onLeft, true, secondaryLyric);
         if (!line.words.isEmpty()) {
