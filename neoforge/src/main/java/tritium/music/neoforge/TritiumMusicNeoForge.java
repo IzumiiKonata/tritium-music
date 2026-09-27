@@ -16,7 +16,6 @@ import net.neoforged.neoforge.client.event.lifecycle.ClientStartedEvent;
 import net.neoforged.neoforge.client.event.lifecycle.ClientStoppingEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
-import org.lwjgl.glfw.GLFW;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.render.ClipPipeline;
@@ -48,7 +47,7 @@ public final class TritiumMusicNeoForge {
     public static final String MOD_ID = "tritium_music";
     private static final String ASSET_NAMESPACE = "tritium-music";
     private static final KeyMapping.Category KEY_CATEGORY = new KeyMapping.Category(Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "ncm"));
-    private static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, KEY_CATEGORY);
+    private static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYBOARD, InputConstants.KEY_M, KEY_CATEGORY);
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();

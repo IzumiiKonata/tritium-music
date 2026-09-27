@@ -2,7 +2,7 @@ package tritium.music.client.screens.ncm.panels;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.animation.Interpolations;
@@ -40,8 +40,7 @@ public class PlaylistPanel extends NCMPanel {
 
     private static boolean isCtrlDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        return Minecraft.getInstance().hasControlDown();
     }
 
     @Override
@@ -155,7 +154,7 @@ public class PlaylistPanel extends NCMPanel {
 
             this.tfSearch.setOnKeyTypedCallback((character, keyCode) -> {
                 if (this.tfSearch.isFocused()) {
-                    if (keyCode == GLFW.GLFW_KEY_ESCAPE)
+                    if (keyCode == InputConstants.KEY_ESCAPE)
                         this.tfSearch.setFocused(false);
                     return true;
                 }
@@ -163,7 +162,7 @@ public class PlaylistPanel extends NCMPanel {
             });
 
             this.setOnKeyTypedCallback((character, keyCode) -> {
-                if (isCtrlDown() && keyCode == GLFW.GLFW_KEY_G) {
+                if (isCtrlDown() && keyCode == InputConstants.KEY_G) {
                     this.tfSearch.setFocused(true);
                     return true;
                 }

@@ -3,7 +3,7 @@ package tritium.music.client.screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.language.I18n;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
@@ -166,7 +166,7 @@ public class WidgetEditorScreen extends BaseScreen {
 
     @Override
     public void onKeyTyped(char typedChar, int keyCode) {
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+        if (keyCode == InputConstants.KEY_ESCAPE) {
             close();
         }
     }

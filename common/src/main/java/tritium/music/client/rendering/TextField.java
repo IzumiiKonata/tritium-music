@@ -1,10 +1,9 @@
 package tritium.music.client.rendering;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.PreeditEvent;
 import org.joml.Vector2f;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
@@ -17,6 +16,11 @@ import java.awt.*;
 public class TextField {
 
     private static TextField focusedTextField;
+    private static FocusListener focusListener;
+
+    public interface FocusListener {
+        void onFocusChanged(Object owner, boolean focused);
+    }
 
     public interface TextChangedCallback {
         void onTextChanged(String text);
@@ -52,6 +56,10 @@ public class TextField {
     public TextField setFontRenderer(CFontRenderer fontRenderer) {
         this.fontRenderer = fontRenderer;
         return this;
+    }
+
+    public void setFocusListener(FocusListener listener) {
+        focusListener = listener;
     }
 
     public void setWholeAlpha(float alpha) {
@@ -92,14 +100,8 @@ public class TextField {
         } else if (focusedTextField == this) {
             focusedTextField = null;
         }
-        if (changed) {
-            Minecraft minecraft = Minecraft.getInstance();
-            Screen screen = minecraft.gui.screen();
-            if (screen != null) {
-                minecraft.onTextInputFocusChange(screen, focused);
-            } else {
-                minecraft.textInputManager().onTextInputFocusChange(focused);
-            }
+        if (changed && focusListener != null) {
+            focusListener.onFocusChanged(this, focused);
         }
         return this;
     }
@@ -229,15 +231,11 @@ public class TextField {
     }
 
     private static boolean isCtrlDown() {
-        long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        return Minecraft.getInstance().hasControlDown();
     }
 
     private static boolean isShiftDown() {
-        long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+        return Minecraft.getInstance().hasShiftDown();
     }
 
     public void charTyped(char character) {
@@ -261,23 +259,23 @@ public class TextField {
 
         if (isCtrlDown()) {
             switch (key) {
-                case GLFW.GLFW_KEY_A -> {
+                case InputConstants.KEY_A -> {
                     selectAll();
                     return true;
                 }
-                case GLFW.GLFW_KEY_C -> {
-                    GLFW.glfwSetClipboardString(Minecraft.getInstance().getWindow().handle(), getSelectedText());
+                case InputConstants.KEY_C -> {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(getSelectedText());
                     return true;
                 }
-                case GLFW.GLFW_KEY_V -> {
-                    String clip = GLFW.glfwGetClipboardString(Minecraft.getInstance().getWindow().handle());
+                case InputConstants.KEY_V -> {
+                    String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
                     if (clip != null) {
                         insert(clip);
                     }
                     return true;
                 }
-                case GLFW.GLFW_KEY_X -> {
-                    GLFW.glfwSetClipboardString(Minecraft.getInstance().getWindow().handle(), getSelectedText());
+                case InputConstants.KEY_X -> {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(getSelectedText());
                     if (hasSelection()) {
                         deleteSelection();
                     }
@@ -289,7 +287,7 @@ public class TextField {
         boolean shift = isShiftDown();
 
         switch (key) {
-            case GLFW.GLFW_KEY_BACKSPACE -> {
+            case InputConstants.KEY_BACKSPACE -> {
                 if (hasSelection()) {
                     deleteSelection();
                 } else if (cursorPosition > 0) {
@@ -299,7 +297,7 @@ public class TextField {
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_DELETE -> {
+            case InputConstants.KEY_DELETE -> {
                 if (hasSelection()) {
                     deleteSelection();
                 } else if (cursorPosition < text.length()) {
@@ -308,21 +306,21 @@ public class TextField {
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_LEFT -> {
+            case InputConstants.KEY_LEFT -> {
                 int target = hasSelection() && !shift ? Math.min(cursorPosition, selectionEnd) : Math.max(0, cursorPosition - 1);
                 moveCursor(target, shift);
                 return true;
             }
-            case GLFW.GLFW_KEY_RIGHT -> {
+            case InputConstants.KEY_RIGHT -> {
                 int target = hasSelection() && !shift ? Math.max(cursorPosition, selectionEnd) : Math.min(text.length(), cursorPosition + 1);
                 moveCursor(target, shift);
                 return true;
             }
-            case GLFW.GLFW_KEY_HOME -> {
+            case InputConstants.KEY_HOME -> {
                 moveCursor(0, shift);
                 return true;
             }
-            case GLFW.GLFW_KEY_END -> {
+            case InputConstants.KEY_END -> {
                 moveCursor(text.length(), shift);
                 return true;
             }

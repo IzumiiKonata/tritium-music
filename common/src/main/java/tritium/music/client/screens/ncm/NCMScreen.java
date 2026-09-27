@@ -4,7 +4,7 @@ import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.language.I18n;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
@@ -353,14 +353,14 @@ public class NCMScreen extends BaseScreen {
             return;
         }
 
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+        if (keyCode == InputConstants.KEY_ESCAPE) {
             if (this.musicLyricsPanel != null)
                 this.musicLyricsPanel.close();
             else
                 closing = true;
         }
 
-        if (keyCode == GLFW.GLFW_KEY_SPACE && CloudMusic.currentlyPlaying != null && CloudMusic.player != null && !CloudMusic.player.isFinished()) {
+        if (keyCode == InputConstants.KEY_SPACE && CloudMusic.currentlyPlaying != null && CloudMusic.player != null && !CloudMusic.player.isFinished()) {
             if (CloudMusic.player.isPausing())
                 CloudMusic.player.unpause();
             else

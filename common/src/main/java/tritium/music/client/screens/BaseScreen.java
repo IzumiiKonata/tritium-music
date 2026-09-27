@@ -8,7 +8,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.SharedRenderingConstants;
@@ -16,6 +15,7 @@ import tritium.music.client.rendering.TextField;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.shader.EffectQueue;
 import tritium.music.client.util.CursorUtils;
+import tritium.music.client.util.MouseUtil;
 
 public class BaseScreen extends Screen implements SharedRenderingConstants {
 
@@ -71,10 +71,6 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     public void renderLast(double mouseX, double mouseY) {
     }
 
-    private boolean isButtonDown(int button) {
-        return GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().handle(), button) == GLFW.GLFW_PRESS;
-    }
-
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         EffectQueue.beginFrame();
@@ -96,12 +92,12 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
                 double mx = RenderSystem.getMouseX();
                 double my = RenderSystem.getMouseY();
 
-                boolean lmb = isButtonDown(GLFW.GLFW_MOUSE_BUTTON_LEFT);
-                boolean rmb = isButtonDown(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+                boolean lmb = MouseUtil.isButtonDown(MouseUtil.BUTTON_LEFT);
+                boolean rmb = MouseUtil.isButtonDown(MouseUtil.BUTTON_RIGHT);
 
                 if (lmb || rmb) {
                     if (clickMoveTicks > 1) {
-                        this.mouseClickMove(mx, my, lmb ? 0 : 1, System.currentTimeMillis() - lastClick);
+                        this.mouseClickMove(mx, my, toLegacyButton(lmb ? MouseUtil.BUTTON_LEFT : MouseUtil.BUTTON_RIGHT), System.currentTimeMillis() - lastClick);
                     }
                     clickMoveTicks++;
                 }
@@ -140,6 +136,7 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
 
     @Override
     public void removed() {
+        MouseUtil.clearButtons();
         TextField.clearFocus();
         super.removed();
     }
@@ -150,10 +147,11 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         double my = RenderSystem.getMouseY();
         clickMoveTicks = 0;
         lastClick = System.currentTimeMillis();
-        if (event.button() == 0) lmbPressed = true;
-        if (event.button() == 1) rmbPressed = true;
+        if (event.button() == MouseUtil.BUTTON_LEFT) lmbPressed = true;
+        if (event.button() == MouseUtil.BUTTON_RIGHT) rmbPressed = true;
+        MouseUtil.setButtonDown(event.button(), true);
         TextField.clearFocusOutside(mx, my);
-        this.mouseClicked(mx, my, event.button());
+        this.mouseClicked(mx, my, toLegacyButton(event.button()));
         return true;
     }
 
@@ -161,10 +159,22 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     public boolean mouseReleased(MouseButtonEvent event) {
         double mx = RenderSystem.getMouseX();
         double my = RenderSystem.getMouseY();
-        if (event.button() == 0) this.lmbPressed = false;
-        if (event.button() == 1) this.rmbPressed = false;
-        this.mouseReleased(mx, my, event.button());
+        if (event.button() == MouseUtil.BUTTON_LEFT) this.lmbPressed = false;
+        if (event.button() == MouseUtil.BUTTON_RIGHT) this.rmbPressed = false;
+        MouseUtil.setButtonDown(event.button(), false);
+        this.mouseReleased(mx, my, toLegacyButton(event.button()));
         return true;
+    }
+
+    private static int toLegacyButton(int sdlButton) {
+        return switch (sdlButton) {
+            case MouseUtil.BUTTON_LEFT -> 0;
+            case MouseUtil.BUTTON_MIDDLE -> 2;
+            case MouseUtil.BUTTON_RIGHT -> 1;
+            case MouseUtil.BUTTON_BACK -> 3;
+            case MouseUtil.BUTTON_FORWARD -> 4;
+            default -> sdlButton;
+        };
     }
 
     @Override

@@ -2,7 +2,7 @@ package tritium.music.client.rendering.ui.container;
 
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.animation.Interpolations;
@@ -83,7 +83,7 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
 
     private static boolean isShiftDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS;
+        return Minecraft.getInstance().hasShiftDown();
     }
 
     private void performScroll(int dWheel) {

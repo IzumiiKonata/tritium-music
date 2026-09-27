@@ -1,8 +1,8 @@
 package tritium.music.client.rendering;
 
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -66,7 +66,7 @@ public final class LyricOffscreen {
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
                         () -> "Tritium lyric stencil",
                         rt.colorView(), Optional.of(new Vector4f(0f)))) {
-                    pass.setPipeline(LyricOffscreenPipelines.MASK);
+                    pass.setPipeline(RenderSystem.getCompiledPipeline(LyricOffscreenPipelines.MASK));
                     pass.setVertexBuffer(0, vertices.slice());
                     pass.setIndexBuffer(indexBuffer, indices.type());
                     pass.drawIndexed(mesh.drawState().indexCount(), 1, 0, 0, 0);
@@ -140,12 +140,12 @@ public final class LyricOffscreen {
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
                         () -> "Tritium lyric glyphs",
                         rt.colorView(), Optional.of(new Vector4f(0f)))) {
-                    pass.setPipeline(LyricOffscreenPipelines.GLYPH);
+                    pass.setPipeline(RenderSystem.getCompiledPipeline(LyricOffscreenPipelines.GLYPH));
                     pass.setVertexBuffer(0, vertices.slice());
                     pass.setIndexBuffer(indexBuffer, indices.type());
                     for (GlyphBatch draw : draws) {
-                        pass.bindTexture("Sampler0", draw.texture().getTextureView(),
-                                RenderSystem.getSamplerCache().getClampToEdge(com.mojang.blaze3d.textures.FilterMode.LINEAR));
+                        pass.setUniform("Sampler0", draw.texture().getTextureView(),
+                                com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(com.mojang.renderpearl.api.textures.FilterMode.LINEAR));
                         pass.drawIndexed(draw.quadCount() * 6, 1, draw.firstQuad() * 6, 0, 0);
                     }
                 }

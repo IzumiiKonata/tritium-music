@@ -1,16 +1,17 @@
 package tritium.music.client.util;
 
+import com.mojang.blaze3d.platform.cursor.CursorType;
+import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import tritium.music.client.render.RenderContext;
 
 public final class CursorUtils {
 
-    public static final long ARROW = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
-    public static final long HAND = GLFW.glfwCreateStandardCursor(GLFW.GLFW_HAND_CURSOR);
-    public static final long TEXT = GLFW.glfwCreateStandardCursor(GLFW.GLFW_IBEAM_CURSOR);
+    public static final CursorType ARROW = CursorTypes.ARROW;
+    public static final CursorType HAND = CursorTypes.POINTING_HAND;
+    public static final CursorType TEXT = CursorTypes.IBEAM;
 
-    private static long overrideCursor = ARROW;
-    private static long appliedCursor = -1;
+    private static CursorType overrideCursor = ARROW;
 
     private CursorUtils() {
     }
@@ -19,15 +20,15 @@ public final class CursorUtils {
         overrideCursor = ARROW;
     }
 
-    public static void setOverride(long cursor) {
+    public static void setOverride(CursorType cursor) {
         overrideCursor = cursor;
     }
 
     public static void applyOverride() {
-        if (overrideCursor != appliedCursor) {
-            appliedCursor = overrideCursor;
-            long handle = Minecraft.getInstance().getWindow().handle();
-            GLFW.glfwSetCursor(handle, overrideCursor);
+        if (RenderContext.active()) {
+            RenderContext.graphics().requestCursor(overrideCursor);
+        } else {
+            Minecraft.getInstance().getWindow().selectCursor(overrideCursor);
         }
     }
 }

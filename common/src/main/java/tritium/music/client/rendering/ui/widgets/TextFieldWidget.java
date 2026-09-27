@@ -1,12 +1,14 @@
 package tritium.music.client.rendering.ui.widgets;
 
 import lombok.Getter;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import tritium.music.client.rendering.TextField;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.ui.AbstractWidget;
 import tritium.music.client.util.CursorUtils;
 
-public class TextFieldWidget extends AbstractWidget<TextFieldWidget> {
+public class TextFieldWidget extends AbstractWidget<TextFieldWidget> implements GuiEventListener {
 
     @Getter
     private final TextField textField;
@@ -14,7 +16,22 @@ public class TextFieldWidget extends AbstractWidget<TextFieldWidget> {
     public TextFieldWidget(CFontRenderer fontRenderer) {
         this.textField = new TextField();
         this.textField.setFontRenderer(fontRenderer);
+        this.textField.setFocusListener(this::onTextInputFocusChanged);
         this.setShouldOverrideMouseCursor(true);
+    }
+
+    private void onTextInputFocusChanged(Object owner, boolean focused) {
+        Minecraft.getInstance().onTextInputFocusChange(this, focused);
+    }
+
+    @Override
+    public void setFocused(boolean focused) {
+        this.textField.setFocused(focused);
+    }
+
+    @Override
+    public boolean isFocused() {
+        return this.textField.isFocused();
     }
 
     @Override
@@ -29,7 +46,7 @@ public class TextFieldWidget extends AbstractWidget<TextFieldWidget> {
     }
 
     @Override
-    public long getHoveringCursorType() {
+    public com.mojang.blaze3d.platform.cursor.CursorType getHoveringCursorType() {
         return CursorUtils.TEXT;
     }
 
@@ -55,15 +72,6 @@ public class TextFieldWidget extends AbstractWidget<TextFieldWidget> {
     public TextFieldWidget setDisabledTextColor(int color) {
         this.textField.setDisabledTextColour(color);
         return this;
-    }
-
-    public TextFieldWidget setFocused(boolean focused) {
-        this.textField.setFocused(focused);
-        return this;
-    }
-
-    public boolean isFocused() {
-        return this.textField.isFocused();
     }
 
     public TextFieldWidget setEnabled(boolean enabled) {

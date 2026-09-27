@@ -1,9 +1,9 @@
 package tritium.music.client.render;
 
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -25,7 +25,8 @@ public final class RoundedPipeline {
                 .withVertexShader(id("core/" + name))
                 .withFragmentShader(id("core/" + name))
                 .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-                .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+                .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
                 .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                 .withVertexBinding(0, RoundedElement.FORMAT)
                 .withPrimitiveTopology(PrimitiveTopology.QUADS)

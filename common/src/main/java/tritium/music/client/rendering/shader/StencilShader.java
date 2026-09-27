@@ -1,8 +1,8 @@
 package tritium.music.client.rendering.shader;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuSampler;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.gui.render.TextureSetup;
 import org.joml.Matrix3x2f;
 import tritium.music.client.render.MeshElement;
@@ -26,7 +26,7 @@ public class StencilShader {
                      double uMax, double vMax, float alpha) {
         if (alpha <= 0.004f) return;
 
-        GpuSampler sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+        GpuSampler sampler = com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
 
         TextureSetup textureSetup = TextureSetup.doubleTexture(
                 base.colorView(), sampler,

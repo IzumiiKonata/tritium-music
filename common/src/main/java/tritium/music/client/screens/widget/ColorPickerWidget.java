@@ -1,7 +1,7 @@
 package tritium.music.client.screens.widget;
 
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import tritium.music.client.util.MouseUtil;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
@@ -55,7 +55,7 @@ public class ColorPickerWidget extends AbstractWidget<ColorPickerWidget> {
     @Override
     public void onRender(double mouseX, double mouseY) {
         if (dragging >= 0) {
-            if (GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
+            if (MouseUtil.isLeftDown()) {
                 updateDrag(mouseX, mouseY);
             } else {
                 dragging = -1;

@@ -1,8 +1,11 @@
 package tritium.music.client.rendering;
 
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -10,7 +13,7 @@ import net.minecraft.resources.Identifier;
 public final class LyricOffscreenPipelines {
 
     private static final BindGroupLayout SAMPLER = BindGroupLayout.builder()
-            .withSampler("Sampler0")
+            .withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER)
             .build();
 
     public static final RenderPipeline MASK = RenderPipelines.register(RenderPipeline.builder()
@@ -19,6 +22,7 @@ public final class LyricOffscreenPipelines {
             .withFragmentShader(id("core/lyric_offscreen_mask"))
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withCull(false)
             .build());
 
@@ -29,6 +33,7 @@ public final class LyricOffscreenPipelines {
             .withBindGroupLayout(SAMPLER)
             .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withCull(false)
             .build());
 

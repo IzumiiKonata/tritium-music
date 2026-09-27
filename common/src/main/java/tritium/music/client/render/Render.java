@@ -1,9 +1,9 @@
 package tritium.music.client.render;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuSampler;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
@@ -26,7 +26,7 @@ public final class Render {
     }
 
     private static GpuSampler linearSampler() {
-        return RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+        return com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
     }
 
     private static GuiRenderState state(GuiGraphicsExtractor g) {

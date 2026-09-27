@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:globals.glsl>
 
 layout(std140) uniform ShapeInfo {
     vec4 Rect;
@@ -8,9 +9,9 @@ layout(std140) uniform ShapeInfo {
     float Opacity;
 };
 
-in vec2 texCoord;
+layout(location = 0) in vec2 texCoord;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 float roundedDistance(vec2 point, vec4 rect, float radius) {
     vec2 halfSize = rect.zw * 0.5;

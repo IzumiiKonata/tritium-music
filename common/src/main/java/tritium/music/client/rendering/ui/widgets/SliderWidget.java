@@ -1,7 +1,7 @@
 package tritium.music.client.rendering.ui.widgets;
 
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import tritium.music.client.util.MouseUtil;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
@@ -43,7 +43,7 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
     @Override
     public void onRender(double mouseX, double mouseY) {
         if (dragging) {
-            if (GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
+            if (MouseUtil.isLeftDown()) {
                 update(mouseX - getX());
             } else {
                 dragging = false;

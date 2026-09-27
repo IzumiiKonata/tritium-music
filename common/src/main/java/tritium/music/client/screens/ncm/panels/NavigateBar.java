@@ -5,8 +5,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.animation.Interpolations;
@@ -50,8 +51,7 @@ public class NavigateBar extends NCMPanel {
 
     private static boolean isCtrlDown() {
         long handle = net.minecraft.client.Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        return Minecraft.getInstance().hasControlDown();
     }
 
     private void layout() {
@@ -68,7 +68,7 @@ public class NavigateBar extends NCMPanel {
         });
 
         this.setOnKeyTypedCallback((character, keyCode) -> {
-            if (isCtrlDown() && keyCode == GLFW.GLFW_KEY_F) {
+            if (isCtrlDown() && keyCode == InputConstants.KEY_F) {
                 this.searchField.setFocused(true);
                 return true;
             }
@@ -129,10 +129,10 @@ public class NavigateBar extends NCMPanel {
 
         this.searchField.setOnKeyTypedCallback((character, keyCode) -> {
             if (this.searchField.isFocused()) {
-                if (keyCode == GLFW.GLFW_KEY_ESCAPE)
+                if (keyCode == InputConstants.KEY_ESCAPE)
                     this.searchField.setFocused(false);
 
-                if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER) {
                     submitSearch(this.searchField.getText());
                 }
 

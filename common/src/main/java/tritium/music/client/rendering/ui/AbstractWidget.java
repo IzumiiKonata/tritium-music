@@ -156,7 +156,7 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
         return (SELF) this;
     }
 
-    public long getHoveringCursorType() {
+    public com.mojang.blaze3d.platform.cursor.CursorType getHoveringCursorType() {
         return CursorUtils.HAND;
     }
 

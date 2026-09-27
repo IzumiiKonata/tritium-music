@@ -2,7 +2,7 @@ package tritium.music.client.screens.ncm;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
-import org.lwjgl.glfw.GLFW;
+
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.*;
@@ -251,7 +251,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
     private static boolean isShiftDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS;
+        return Minecraft.getInstance().hasShiftDown();
     }
 
     TRenderTarget rt = null;

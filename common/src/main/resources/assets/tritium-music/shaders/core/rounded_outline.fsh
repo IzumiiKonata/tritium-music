@@ -1,14 +1,15 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-in vec2 localCoord;
-in vec2 localPosition;
-in vec4 vertexColor;
-in float radius;
-in float borderSize;
-in vec2 guiPosition;
-flat in ivec4 clipRectFixed;
+layout(location = 0) in vec2 localCoord;
+layout(location = 1) in vec2 localPosition;
+layout(location = 2) in vec4 vertexColor;
+layout(location = 3) in float radius;
+layout(location = 4) in float borderSize;
+layout(location = 5) in vec2 guiPosition;
+layout(location = 6) flat in ivec4 clipRectFixed;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 vec2 logicalSize() {
     vec2 positionDx = dFdx(localPosition);
