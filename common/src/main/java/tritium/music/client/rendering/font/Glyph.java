@@ -10,6 +10,7 @@ public class Glyph {
     public final int bitmapWidth;
     public final int bitmapHeight;
     public final int originX;
+    public final int originY;
     public final int overhang;
     public final char value;
 
@@ -18,12 +19,14 @@ public class Glyph {
     public Identifier atlasIdentifier;
     public NativeImage atlasImage;
 
-    public Glyph(int width, int height, int bitmapWidth, int bitmapHeight, int originX, int overhang, char value) {
+    public Glyph(int width, int height, int bitmapWidth, int bitmapHeight,
+                 int originX, int originY, int overhang, char value) {
         this.width = width;
         this.height = height;
         this.bitmapWidth = bitmapWidth;
         this.bitmapHeight = bitmapHeight;
         this.originX = originX;
+        this.originY = originY;
         this.overhang = overhang;
         this.value = value;
     }

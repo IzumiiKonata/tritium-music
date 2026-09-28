@@ -112,7 +112,7 @@ public class HudSettingsPanel extends NCMPanel {
                 content.getParentHeight() - 130));
         addChild(content);
 
-        fontPage.setContentInsets(24, 94, 24, 130);
+        fontPage.setContentInsets(24, 94, 24, 36);
         addChild(fontPage);
 
         rebuildContent();

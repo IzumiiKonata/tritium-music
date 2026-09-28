@@ -444,26 +444,13 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
                         if (progress > 0.001 && progress < 1.0) {
                             int scale = 2;
-                            int fbWidth = (int) (stringWidthD * scale);
-                            int fbHeight = (FontManager.pf65bold.getHeight() + 6) * scale;
-
-                            RenderTargets targets = acquireRenderTargets(renderTargetIndex++, fbWidth, fbHeight);
-                            int allocW = targets.base().width();
-                            double uMax = fbWidth / (double) allocW;
-
-                            double sungW = progress * (stringWidthD + gradientWidth) * scale;
-                            double gradW = gradientWidth * scale;
-
-                            LyricOffscreen.renderStencilMask(targets.stencil(), allocW, fbHeight, sungW, gradW);
-
+                            float blitScale = scale / 2.0f;
                             int prog = (int) (wordProgress * word.word.length());
-
                             int baseTextColor = hexColor(1f, 1f, 1f, lyric.alpha);
 
                             List<LyricOffscreen.GlyphCmd> baseGlyphs = new ArrayList<>();
                             CFontRenderer lyricFont = FontManager.pf65bold;
                             CharMetrics metrics = lyricFont.metrics(fragmentText);
-                            float blitScale = scale / 2.0f;
 
                             if (metrics != null) {
                                 for (int glyphIndex = 0; glyphIndex < metrics.glyphCount(); glyphIndex++) {
@@ -507,11 +494,46 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                                 }
                             }
 
+                            float minX = 0f;
+                            float maxX = (float) (stringWidthD * scale);
+                            float minY = 0f;
+                            float maxY = (lyricFont.getHeight() + 6) * scale;
+                            for (LyricOffscreen.GlyphCmd cmd : baseGlyphs) {
+                                Glyph glyph = cmd.glyph();
+                                minX = Math.min(minX, cmd.x() + glyph.originX * blitScale);
+                                maxX = Math.max(maxX, cmd.x() + (glyph.originX + glyph.bitmapWidth) * blitScale);
+                                minY = Math.min(minY, cmd.y() + glyph.originY * blitScale);
+                                maxY = Math.max(maxY, cmd.y() + (glyph.originY + glyph.bitmapHeight) * blitScale);
+                            }
+
+                            float pad = 2f * blitScale + 1f;
+                            float shiftX = -minX + pad;
+                            float shiftY = -minY + pad;
+                            int fbWidth = Math.max(1, (int) Math.ceil(maxX + shiftX + pad));
+                            int fbHeight = Math.max(1, (int) Math.ceil(maxY + shiftY + pad));
+
+                            List<LyricOffscreen.GlyphCmd> placedGlyphs = new ArrayList<>(baseGlyphs.size());
+                            for (LyricOffscreen.GlyphCmd cmd : baseGlyphs) {
+                                placedGlyphs.add(new LyricOffscreen.GlyphCmd(
+                                        cmd.glyph(), cmd.x() + shiftX, cmd.y() + shiftY));
+                            }
+
+                            RenderTargets targets = acquireRenderTargets(renderTargetIndex++, fbWidth, fbHeight);
+                            int allocW = targets.base().width();
+                            double uMax = fbWidth / (double) allocW;
+
+                            double sungW = progress * ((stringWidthD + gradientWidth) * scale) + shiftX;
+                            double gradW = gradientWidth * scale;
+
+                            LyricOffscreen.renderStencilMask(targets.stencil(), allocW, fbHeight, sungW, gradW);
+
                             LyricOffscreen.renderBaseGlyphs(targets.base(), allocW, fbHeight,
-                                    baseTextColor, baseGlyphs, (int) blitScale);
+                                    baseTextColor, placedGlyphs, (int) blitScale);
 
                             double invScale = 1.0 / scale;
-                            stencilShader.draw(targets.base(), targets.stencil(), renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
+                            stencilShader.draw(targets.base(), targets.stencil(),
+                                    renderX - shiftX * invScale, renderY - 2 - shiftY * invScale,
+                                    fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
 
                         } else if (progress >= 1.0) {
                             for (int j = 0; j < fragmentLength; j++) {

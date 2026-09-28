@@ -21,6 +21,8 @@ public class CFontRenderer implements Closeable {
 
     public static volatile boolean advancedShaping = true;
 
+    private static final double MAX_BAND_RATIO = 1.4;
+
     public Glyph[] allGlyphs = new Glyph['￿' + 1];
 
     public Font font;
@@ -116,13 +118,14 @@ public class CFontRenderer implements Closeable {
         Font[] fonts = new Font[count];
         FontShaper[] slotShapers = new FontShaper[count];
         int band = 1;
+        int bandCap = (int) Math.ceil(sizePx * 2 * MAX_BAND_RATIO);
 
         for (int i = 0; i < count; i++) {
             Face face = i < list.size() ? list.get(i) : list.get(list.size() - 1);
             Font derived = face.font().deriveFont(sizePx * 2);
             fonts[i] = derived;
             slotShapers[i] = face.shaper() != null && face.shaper().isUsable() ? face.shaper() : null;
-            band = Math.max(band, GlyphGenerator.lineHeightPx(derived));
+            band = Math.max(band, Math.min(GlyphGenerator.lineHeightPx(derived), bandCap));
         }
 
         this.slotFonts = fonts;
@@ -701,7 +704,7 @@ public class CFontRenderer implements Closeable {
     private static void drawGlyph(GuiGraphicsExtractor graphics, Glyph glyph, float x, float y,
                                   int leftColor, int rightColor) {
         Render.glyph(graphics, glyph.atlasIdentifier,
-                x + glyph.originX, y, glyph.bitmapWidth, glyph.bitmapHeight,
+                x + glyph.originX, y + glyph.originY, glyph.bitmapWidth, glyph.bitmapHeight,
                 glyph.u0, glyph.v0, glyph.u1, glyph.v1, leftColor, rightColor);
     }
 
@@ -718,7 +721,8 @@ public class CFontRenderer implements Closeable {
         } else {
             batch = batches.getLast();
         }
-        batch.quads.add(new Render.GlyphQuad(x + glyph.originX, y, glyph.bitmapWidth, glyph.bitmapHeight,
+        batch.quads.add(new Render.GlyphQuad(x + glyph.originX, y + glyph.originY,
+                glyph.bitmapWidth, glyph.bitmapHeight,
                 glyph.u0, glyph.v0, glyph.u1, glyph.v1, leftColor, rightColor));
     }
 

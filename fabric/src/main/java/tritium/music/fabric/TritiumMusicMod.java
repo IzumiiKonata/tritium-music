@@ -65,7 +65,7 @@ public class TritiumMusicMod implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             FontManager.loadFonts();
             FontCatalog.preload();
-            SystemFontIndex.preload();
+            SystemFontIndex.preload(FontManager::retryShaping);
             WidgetConfig.get();
             AsyncUtil.runAsync(CloudMusic::initNCM);
         });

@@ -86,7 +86,7 @@ public class GlyphGenerator {
     }
 
     private static Glyph blank(int width, int height) {
-        Glyph glyph = new Glyph(0, Math.max(1, height), Math.max(1, width), Math.max(1, height), 0, 0, (char) 0);
+        Glyph glyph = new Glyph(0, Math.max(1, height), Math.max(1, width), Math.max(1, height), 0, 0, 0, (char) 0);
         glyph.uploaded = true;
         return glyph;
     }
@@ -108,7 +108,11 @@ public class GlyphGenerator {
         LineMetrics metrics = font.getLineMetrics("Ag", context);
 
         int advance = (int) Math.ceil(gv.getGlyphMetrics(0).getAdvance());
-        int height = Math.max(1, bandHeight);
+        int band = Math.max(1, bandHeight);
+
+        int ascent = (int) Math.ceil(Math.max(0f, metrics.getAscent()));
+        int descent = (int) Math.ceil(Math.max(0f, metrics.getDescent()));
+        int bandBaseline = Math.round((band + metrics.getAscent() - metrics.getDescent()) * 0.5f);
 
         Rectangle2D visual = gv.getVisualBounds();
         boolean hasInk = !visual.isEmpty();
@@ -124,9 +128,11 @@ public class GlyphGenerator {
         int left = Math.min(0, (int) Math.floor(visualMinX)) - BITMAP_PADDING;
 
         int bitmapWidth = Math.max(1, right - left);
-        int bitmapHeight = height;
+        int bitmapHeight = Math.max(1, ascent + descent + BITMAP_PADDING * 2);
+        int originY = bandBaseline - ascent - BITMAP_PADDING;
+        int baselineInBitmap = ascent + BITMAP_PADDING;
 
-        Glyph glyph = new Glyph(advance, height, bitmapWidth, bitmapHeight, left, overhang, (char) 0);
+        Glyph glyph = new Glyph(advance, band, bitmapWidth, bitmapHeight, left, originY, overhang, (char) 0);
         store.accept(glyph);
 
         if (!hasInk) {
@@ -152,8 +158,7 @@ public class GlyphGenerator {
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
                 g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
                 g2d.setFont(font);
-                int baselineY = Math.round((height + metrics.getAscent() - metrics.getDescent()) * 0.5f);
-                g2d.drawGlyphVector(gv, -left, baselineY);
+                g2d.drawGlyphVector(gv, -left, baselineInBitmap);
                 g2d.dispose();
 
                 for (int x = 0; x < bi.getWidth(); x++) {
@@ -168,7 +173,7 @@ public class GlyphGenerator {
                     return;
                 }
 
-                onLoaded.onLoaded(height);
+                onLoaded.onLoaded(band);
                 BufferedImage image = bi;
                 AsyncUtil.runOnRenderThread(() -> {
                     try {

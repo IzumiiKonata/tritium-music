@@ -165,8 +165,8 @@
   "tritium-music.ui.settings.font.rescan": "重新扫描",
   "tritium-music.ui.settings.font.preview": "预览",
   "tritium-music.ui.settings.font.preparing": "正在加载字体...",
-  "tritium-music.ui.settings.font.sample.normal": "音乐播放器 Tritium Music",
-  "tritium-music.ui.settings.font.sample.bold": "加粗 Bold 音乐 0123",
+  "tritium-music.ui.settings.font.sample.normal": "fi fl ffi office 音乐播放器",
+  "tritium-music.ui.settings.font.sample.bold": "AVATAR To 音乐 0123",
   "tritium-music.ui.settings.font.source.builtin": "内置",
   "tritium-music.ui.settings.font.source.system": "系统",
   "tritium-music.ui.settings.font.source.user": "自定义",
@@ -179,8 +179,6 @@
   "tritium-music.ui.settings.font.folder_path": "自定义字体目录：%s",
   "tritium-music.ui.settings.font.loading": "正在应用字体...",
   "tritium-music.ui.settings.font.shaping": "高级排版",
-  "tritium-music.ui.settings.font.dlig": "自由连字",
-  "tritium-music.ui.settings.font.shaping_hint": "HarfBuzz 塑形：连字 / 上下文替换 / 标记定位",
   "tritium-music.ui.settings.font.shaping_unavailable": "当前字体没有可用的塑形数据，已退回基础排版",
   "tritium-music.ui.settings.font.warning.cjk": "当前主字体无法显示中文，中文可能显示为方块"
 }

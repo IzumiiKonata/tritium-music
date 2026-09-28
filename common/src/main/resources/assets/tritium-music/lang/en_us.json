@@ -165,8 +165,8 @@
   "tritium-music.ui.settings.font.rescan": "Rescan",
   "tritium-music.ui.settings.font.preview": "Preview",
   "tritium-music.ui.settings.font.preparing": "Loading font...",
-  "tritium-music.ui.settings.font.sample.normal": "音乐播放器 Tritium Music",
-  "tritium-music.ui.settings.font.sample.bold": "加粗 Bold 音乐 0123",
+  "tritium-music.ui.settings.font.sample.normal": "fi fl ffi office 音乐播放器",
+  "tritium-music.ui.settings.font.sample.bold": "AVATAR To 音乐 0123",
   "tritium-music.ui.settings.font.source.builtin": "Built-in",
   "tritium-music.ui.settings.font.source.system": "System",
   "tritium-music.ui.settings.font.source.user": "Custom",
@@ -179,8 +179,6 @@
   "tritium-music.ui.settings.font.folder_path": "Custom font folder: %s",
   "tritium-music.ui.settings.font.loading": "Applying fonts...",
   "tritium-music.ui.settings.font.shaping": "Advanced shaping",
-  "tritium-music.ui.settings.font.dlig": "Discretionary ligatures",
-  "tritium-music.ui.settings.font.shaping_hint": "HarfBuzz shaping: ligatures / contextual alternates / mark positioning",
   "tritium-music.ui.settings.font.shaping_unavailable": "No shaping data for the current fonts; fell back to basic layout",
   "tritium-music.ui.settings.font.warning.cjk": "The main font cannot display Chinese characters; they may render as boxes"
 }
