@@ -73,19 +73,19 @@ public final class LyricOffscreen {
     }
 
     public static void renderBaseGlyphs(TRenderTarget rt, int w, int h,
-                                        Glyph[] glyphTable, int baseColor,
+                                        int baseColor,
                                         List<GlyphCmd> glyphs, int blitScale) {
         TextureAtlas.flushAllDirty();
         Map<Identifier, List<GlyphQuad>> batches = new LinkedHashMap<>();
         int quadCount = 0;
 
         for (GlyphCmd cmd : glyphs) {
-            Glyph glyph = glyphTable[cmd.ch];
+            Glyph glyph = cmd.glyph();
             if (glyph == null || !glyph.uploaded || glyph.atlasIdentifier == null) {
                 continue;
             }
             batches.computeIfAbsent(glyph.atlasIdentifier, ignored -> new ArrayList<>())
-                    .add(new GlyphQuad(glyph, cmd.x, cmd.y));
+                    .add(new GlyphQuad(glyph, cmd.x(), cmd.y()));
             quadCount++;
         }
 
@@ -112,10 +112,11 @@ public final class LyricOffscreen {
 
                 for (GlyphQuad quad : entry.getValue()) {
                     Glyph glyph = quad.glyph();
-                    float left = quad.x() - pad;
+                    float originX = glyph.originX * blitScale;
+                    float left = quad.x() + originX - pad;
                     float top = quad.y() - pad;
-                    float right = quad.x() + glyph.width * blitScale + pad;
-                    float bottom = quad.y() + glyph.height * blitScale + pad;
+                    float right = quad.x() + originX + glyph.bitmapWidth * blitScale + pad;
+                    float bottom = quad.y() + glyph.bitmapHeight * blitScale + pad;
                     float u0 = glyph.u0 - du;
                     float v0 = glyph.v0 - dv;
                     float u1 = glyph.u1 + du;
@@ -190,6 +191,6 @@ public final class LyricOffscreen {
     private record GlyphBatch(AbstractTexture texture, int firstQuad, int quadCount) {
     }
 
-    public record GlyphCmd(char ch, float x, float y) {
+    public record GlyphCmd(Glyph glyph, float x, float y) {
     }
 }

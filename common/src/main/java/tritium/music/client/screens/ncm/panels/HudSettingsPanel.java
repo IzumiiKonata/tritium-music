@@ -23,6 +23,7 @@ import java.util.function.*;
 public class HudSettingsPanel extends NCMPanel {
 
     private final ScrollPanel content = new ScrollPanel();
+    private final FontSettingsPage fontPage = new FontSettingsPage();
     private Page page = Page.GENERAL;
 
     @Override
@@ -110,6 +111,10 @@ public class HudSettingsPanel extends NCMPanel {
                 content.getParentWidth() - 48,
                 content.getParentHeight() - 130));
         addChild(content);
+
+        fontPage.setContentInsets(24, 94, 24, 130);
+        addChild(fontPage);
+
         rebuildContent();
     }
 
@@ -118,11 +123,29 @@ public class HudSettingsPanel extends NCMPanel {
         content.actualScrollOffset = 0;
         content.targetScrollOffset = 0;
 
+        boolean fontPageVisible = page == Page.FONT;
+        content.setHidden(fontPageVisible);
+        fontPage.setHidden(!fontPageVisible);
+
+        if (fontPageVisible) {
+            fontPage.onInit();
+            return;
+        }
+
+        fontPage.onRemoved();
+
         switch (page) {
             case GENERAL -> buildGeneralPage();
             case LYRICS -> buildLyricsPage();
             case SPECTRUM -> buildSpectrumPage();
+            default -> {
+            }
         }
+    }
+
+    @Override
+    public void onRemoved() {
+        fontPage.onRemoved();
     }
 
     private void buildGeneralPage() {
@@ -299,6 +322,10 @@ public class HudSettingsPanel extends NCMPanel {
                 config.musicSpectrum = new WidgetConfig.WidgetSettings(0, 0, 1, false);
                 config.spectrum = new WidgetConfig.Spectrum();
             }
+            case FONT -> {
+                fontPage.resetToDefault();
+                return;
+            }
         }
         save();
         rebuildContent();
@@ -443,7 +470,8 @@ public class HudSettingsPanel extends NCMPanel {
     private enum Page {
         GENERAL("page.general"),
         LYRICS("page.lyrics"),
-        SPECTRUM("page.spectrum");
+        SPECTRUM("page.spectrum"),
+        FONT("page.font");
 
         private final String labelKey;
 

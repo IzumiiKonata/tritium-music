@@ -12,13 +12,18 @@ import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.animation.spring.SpringAnimation;
 import tritium.music.client.rendering.animation.spring.SpringParams;
 import tritium.music.client.rendering.font.CFontRenderer;
+import tritium.music.client.rendering.font.CharMetrics;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.font.Glyph;
+import tritium.music.client.rendering.font.ShapedGlyph;
 import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.util.ClientSettings;
 import tritium.music.client.util.Mth;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.lyric.LyricLine;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -735,37 +740,61 @@ public class MusicLyricsWidget extends HudWidget {
 
         double unsung = cfg().auroraUnsungOpacity;
 
-        char[] chars = text.toCharArray();
-        double x = leftX;
-
-        for (int i = 0; i < chars.length; i++) {
-            char c = chars[i];
-            char next = i + 1 < chars.length ? chars[i + 1] : '\0';
-            double cw = fr.getCharWidth(c, next);
-
+        for (PlacedGlyph placed : placeGlyphs(fr, text, leftX)) {
+            double cw = placed.width();
+            double x = placed.x();
             double reveal = Mth.limit((headX - x) / Math.max(1.0E-3, cw), 0.0, 1.0);
             double charAlpha = (unsung + (1.0 - unsung) * reveal) * fade;
 
             if (charAlpha > 0.003) {
-                double cx = x + cw * 0.5;
+                double cx = placed.centerX();
                 double d = headX - cx;
                 double wave = Math.exp(-(d * d) / (2.0 * waveSigma * waveSigma));
                 double lift = wave * liftAmount;
                 double charScale = 1.0 + wave * maxCharScale;
 
-                int accent = RGBA.opaque(glowColor(i * 0.2, 255));
+                int accent = RGBA.opaque(glowColor(placed.index() * 0.2, 255));
                 int tinted = RGBA.srgbLerp((float) (wave * 0.55), 0xFFFFFFFF, accent);
                 int color = withFade(tinted, charAlpha);
 
                 RenderContext.graphics().pose().pushMatrix();
                 scaleAtPos(cx, baseY + fontH * 0.5 - lift, charScale);
-                fr.drawString(String.valueOf(c), x, baseY - lift, color);
+                fr.drawGlyphAt(placed.glyph(), x, baseY - lift, color);
                 RenderContext.graphics().pose().popMatrix();
             }
-
-            x += cw;
         }
 
+    }
+
+    private record PlacedGlyph(Glyph glyph, int index, double x, double centerX, double width, char source) {
+    }
+
+    private List<PlacedGlyph> placeGlyphs(CFontRenderer fr, String text, double leftX) {
+        List<PlacedGlyph> placed = new ArrayList<>();
+        CharMetrics metrics = fr.metrics(text);
+
+        if (metrics != null) {
+            for (int i = 0; i < metrics.glyphCount(); i++) {
+                ShapedGlyph shaped = metrics.glyph(i);
+                int charIndex = metrics.charIndexOfGlyph(i);
+                double x = leftX + (metrics.glyphX(i) + shaped.xOffset()) * 0.5;
+                double width = metrics.advanceOfChar(charIndex) * 0.5;
+                placed.add(new PlacedGlyph(fr.locateShapedGlyph(shaped), i, x, x + width * 0.5, width,
+                        text.charAt(Math.min(text.length() - 1, charIndex))));
+            }
+            return placed;
+        }
+
+        char[] chars = text.toCharArray();
+        double x = leftX;
+        for (int i = 0; i < chars.length; i++) {
+            char c = chars[i];
+            char next = i + 1 < chars.length ? chars[i + 1] : '\0';
+            double cw = fr.getCharWidth(c, next);
+            placed.add(new PlacedGlyph(fr.glyphForChar(c), i, x, x + cw * 0.5, cw, c));
+            x += cw;
+        }
+        return placed;
     }
 
     private double computeSungTotal(CFontRenderer fr, LyricLine line) {
@@ -791,19 +820,16 @@ public class MusicLyricsWidget extends HudWidget {
         };
 
         char[] chars = text.toCharArray();
-        double x = leftX;
 
-        for (int i = 0; i < chars.length; i++) {
-            char c = chars[i];
-            char next = i + 1 < chars.length ? chars[i + 1] : '\0';
-            double cw = fr.getCharWidth(c, next);
+        for (PlacedGlyph placed : placeGlyphs(fr, text, leftX)) {
+            double cw = placed.width();
+            double x = placed.x();
 
             double reveal = Mth.limit((headX - x) / Math.max(1.0E-3, cw), 0.0, 1.0);
 
-            if (reveal > 0.01 && c != ' ') {
-                double cx = x + cw * 0.5;
+            if (reveal > 0.01 && placed.source() != ' ') {
+                double cx = placed.centerX();
                 int rgb = cfg().glowColor & 0xFFFFFF;
-                String s = String.valueOf(c);
 
                 for (double[] layer : layers) {
                     int alpha = (int) (intensity * reveal * layer[1] * 255.0);
@@ -811,12 +837,10 @@ public class MusicLyricsWidget extends HudWidget {
 
                     RenderContext.graphics().pose().pushMatrix();
                     scaleAtPos(cx, centerY, layer[0]);
-                    fr.drawString(s, x, baseY, RGBA.color(rgb, alpha));
+                    fr.drawGlyphAt(placed.glyph(), x, baseY, RGBA.color(rgb, alpha));
                     RenderContext.graphics().pose().popMatrix();
                 }
             }
-
-            x += cw;
         }
     }
 

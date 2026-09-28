@@ -332,6 +332,9 @@ public class NCMScreen extends BaseScreen {
     }
 
     private void innerSetCurrentPanel(NCMPanel panel, boolean shouldCallInit) {
+        if (this.currentPanel != null && this.currentPanel != panel) {
+            this.currentPanel.detach();
+        }
         this.prevAnimatingPanel = this.currentPanel;
         this.prevAnimatingPanelAlpha = 1.0f;
         this.currentPanel = panel;
@@ -341,6 +344,14 @@ public class NCMScreen extends BaseScreen {
             this.currentPanel.setAlpha(0);
             this.curPanelAlphaAnimation = 0f;
         }
+    }
+
+    @Override
+    public void removed() {
+        if (this.currentPanel != null) {
+            this.currentPanel.onRemoved();
+        }
+        super.removed();
     }
 
     @Override
