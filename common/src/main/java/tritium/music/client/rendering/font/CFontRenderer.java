@@ -99,6 +99,10 @@ public class CFontRenderer implements Closeable {
         return advancedShaping && shapingAvailable && !closed;
     }
 
+    public boolean hasShaper(int slot) {
+        return slot >= 0 && slot < shapers.length && shapers[slot] != null && shapers[slot].isUsable();
+    }
+
     private void apply(Face primary, float sizePx, Face... fallbacks) {
         List<Face> list = new ArrayList<>();
         if (primary != null && primary.font() != null) {
@@ -137,13 +141,10 @@ public class CFontRenderer implements Closeable {
         this.fallBackFonts = count > 1 ? Arrays.copyOfRange(fonts, 1, count) : null;
         this.kerningCache.clear();
 
-        boolean available = true;
+        boolean available = false;
         for (int i = 0; i < count; i++) {
-            if (fonts[i] == null) {
-                continue;
-            }
-            if (slotShapers[i] == null || !slotShapers[i].isUsable()) {
-                available = false;
+            if (fonts[i] != null && slotShapers[i] != null && slotShapers[i].isUsable()) {
+                available = true;
                 break;
             }
         }

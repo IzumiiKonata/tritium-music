@@ -70,7 +70,7 @@
   "tritium-music.ui.lyrics.provider.qq": "QQ Music",
   "tritium-music.ui.unit.pixels": "%s px",
   "tritium-music.ui.unit.lines": "%s lines",
-  "tritium-music.ui.settings.title": "HUD Widgets",
+  "tritium-music.ui.settings.title": "Settings",
   "tritium-music.ui.settings.subtitle": "Configure music info, lyrics, and spectrum widgets",
   "tritium-music.ui.settings.layout": "Layout",
   "tritium-music.ui.settings.reset_page": "Reset Page",

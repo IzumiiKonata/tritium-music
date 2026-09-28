@@ -70,7 +70,7 @@
   "tritium-music.ui.lyrics.provider.qq": "QQ 音乐",
   "tritium-music.ui.unit.pixels": "%s px",
   "tritium-music.ui.unit.lines": "%s 行",
-  "tritium-music.ui.settings.title": "HUD 组件",
+  "tritium-music.ui.settings.title": "设置",
   "tritium-music.ui.settings.subtitle": "调整音乐信息、歌词与频谱",
   "tritium-music.ui.settings.layout": "布局",
   "tritium-music.ui.settings.reset_page": "重置本页",

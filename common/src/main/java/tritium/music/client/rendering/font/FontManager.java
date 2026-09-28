@@ -2,6 +2,7 @@ package tritium.music.client.rendering.font;
 
 import tritium.music.client.config.FontConfig;
 import tritium.music.core.util.AsyncUtil;
+import tritium.music.platform.Platform;
 
 import java.awt.Font;
 import java.util.ArrayList;
@@ -195,6 +196,24 @@ public class FontManager {
         englishBoldResource = englishBold;
 
         shapingActive = config.shaping && pf14bold != null && pf14bold.isShapingEnabled();
+        logShapingState(config, main, english, mainBold, englishBold);
+    }
+
+    private static void logShapingState(FontConfig config,
+                                        FontLibrary.Loaded main,
+                                        FontLibrary.Loaded english,
+                                        FontLibrary.Loaded mainBold,
+                                        FontLibrary.Loaded englishBold) {
+        try {
+            Platform.log(String.format(java.util.Locale.ROOT,
+                    "[font] advanced shaping=%s | english=%s:%s shaper=%s | main=%s:%s shaper=%s | englishBold shaper=%s | mainBold shaper=%s",
+                    shapingActive,
+                    config.english.source, config.english.value, english.shaper() != null,
+                    config.main.source, config.main.value, main.shaper() != null,
+                    englishBold.shaper() != null,
+                    mainBold.shaper() != null));
+        } catch (Throwable ignored) {
+        }
     }
 
     private static CFontRenderer.Face face(FontLibrary.Loaded resource) {
