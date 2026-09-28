@@ -18,6 +18,7 @@ public class FontManager {
     private static final String FONT_PATH = FontLibrary.FONT_PATH;
 
     private static final AtomicBoolean RELOADING = new AtomicBoolean();
+    private static final AtomicBoolean RELOAD_PENDING = new AtomicBoolean();
     private static volatile boolean loaded = false;
     private static volatile boolean shapingActive = true;
 
@@ -47,6 +48,15 @@ public class FontManager {
         return shapingActive;
     }
 
+    public static void retryShaping() {
+        if (!loaded) {
+            return;
+        }
+        if (FontLibrary.invalidateWithoutShaper() > 0) {
+            reload();
+        }
+    }
+
     public static void loadFonts() {
         if (loaded) {
             return;
@@ -70,6 +80,7 @@ public class FontManager {
             return;
         }
         if (!RELOADING.compareAndSet(false, true)) {
+            RELOAD_PENDING.set(true);
             return;
         }
 
@@ -88,7 +99,7 @@ public class FontManager {
                 englishBold = acquire(config.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD);
             } catch (Throwable throwable) {
                 throwable.printStackTrace();
-                RELOADING.set(false);
+                finishReload();
                 return;
             }
 
@@ -102,10 +113,17 @@ public class FontManager {
                     close(mainBold);
                     close(englishBold);
                 } finally {
-                    RELOADING.set(false);
+                    finishReload();
                 }
             });
         });
+    }
+
+    private static void finishReload() {
+        RELOADING.set(false);
+        if (RELOAD_PENDING.compareAndSet(true, false)) {
+            reload();
+        }
     }
 
     public static void dispose() {

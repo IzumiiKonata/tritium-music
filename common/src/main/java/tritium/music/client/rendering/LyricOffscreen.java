@@ -116,10 +116,11 @@ public final class LyricOffscreen {
                 for (GlyphQuad quad : entry.getValue()) {
                     Glyph glyph = quad.glyph();
                     float originX = glyph.originX * blitScale;
+                    float originY = glyph.originY * blitScale;
                     float left = quad.x() + originX - pad;
-                    float top = quad.y() - pad;
+                    float top = quad.y() + originY - pad;
                     float right = quad.x() + originX + glyph.bitmapWidth * blitScale + pad;
-                    float bottom = quad.y() + glyph.bitmapHeight * blitScale + pad;
+                    float bottom = quad.y() + originY + glyph.bitmapHeight * blitScale + pad;
                     float u0 = glyph.u0 - du;
                     float v0 = glyph.v0 - dv;
                     float u1 = glyph.u1 + du;
