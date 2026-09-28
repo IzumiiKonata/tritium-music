@@ -7,6 +7,7 @@ import tritium.music.client.rendering.ui.AbstractWidget;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
@@ -19,6 +20,7 @@ public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
     private final T[] values;
     private final Function<T, String> formatter;
     private final CFontRenderer font = FontManager.pf12bold;
+    private Predicate<T> disabled = value -> false;
     private boolean expanded;
 
     public DropdownWidget(Supplier<T> getter, Consumer<T> setter, T[] values, Function<T, String> formatter) {
@@ -28,6 +30,11 @@ public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
         this.formatter = formatter;
         setBounds(WIDTH, ITEM_HEIGHT);
         setShouldOverrideMouseCursor(true);
+    }
+
+    public DropdownWidget<T> setDisabled(Predicate<T> disabled) {
+        this.disabled = disabled;
+        return this;
     }
 
     @Override
@@ -68,8 +75,10 @@ public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
         T selected = getter.get();
         for (int index = 0; index < values.length; index++) {
             double itemY = listY + index * ITEM_HEIGHT;
-            boolean hovered = isHovered(mouseX, mouseY, getX(), itemY, getWidth(), ITEM_HEIGHT);
-            if (hovered || values[index].equals(selected)) {
+            boolean itemDisabled = disabled.test(values[index]);
+            boolean hovered = !itemDisabled && isHovered(mouseX, mouseY, getX(), itemY, getWidth(), ITEM_HEIGHT);
+            boolean isCurrent = values[index].equals(selected);
+            if (hovered || isCurrent) {
                 Rect.draw(
                         getX() + 3,
                         itemY + 2,
@@ -81,7 +90,7 @@ public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
                     formatter.apply(values[index]),
                     getX() + 10,
                     itemY,
-                    values[index].equals(selected) ? 0xFFFFFFFF : 0xFFD2D4D9);
+                    itemDisabled ? 0xFF6F727A : (isCurrent ? 0xFFFFFFFF : 0xFFD2D4D9));
         }
     }
 
@@ -107,6 +116,9 @@ public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
         int index = (int) ((relativeY - ITEM_HEIGHT - 2) / ITEM_HEIGHT);
         if (index < 0 || index >= values.length) {
             return false;
+        }
+        if (disabled.test(values[index])) {
+            return true;
         }
         setter.accept(values[index]);
         expanded = false;

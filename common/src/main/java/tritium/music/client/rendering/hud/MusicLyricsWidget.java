@@ -24,6 +24,10 @@ import java.util.WeakHashMap;
 
 public class MusicLyricsWidget extends HudWidget {
 
+    private static final double REGION_WIDTH = 450;
+    private static final double REGION_VERTICAL_PADDING = 4;
+    private static final double TEXT_BOX_TOP_OFFSET = 2;
+
     private static double scrollOffset = 0;
     private static final SpringAnimation scrollSpring = createSpring();
     private static LyricLine scrollLyricsFirst;
@@ -99,6 +103,20 @@ public class MusicLyricsWidget extends HudWidget {
         return CloudMusic.hasSecondaryLyrics();
     }
 
+    private double regionHeight(double lyricHeight, boolean hasSecondaryLyrics) {
+        double linesBelowCenter = Math.floor(cfg().lines / 2.0);
+        double extentAboveCenter = fontH * 0.5 + TEXT_BOX_TOP_OFFSET;
+        double extentBelowCenter = (hasSecondaryLyrics
+                ? fontH + textBoxHeight(getSmallFontRenderer())
+                : textBoxHeight(getFontRenderer()) - TEXT_BOX_TOP_OFFSET) - fontH * 0.5;
+        double requiredHeight = 2 * (linesBelowCenter * lyricHeight + Math.max(extentAboveCenter, extentBelowCenter));
+        return Math.max(cfg().lines * lyricHeight, requiredHeight + REGION_VERTICAL_PADDING);
+    }
+
+    private static double textBoxHeight(CFontRenderer font) {
+        return Math.max(0, font.fontHeight * 0.5);
+    }
+
     public static String getSecondaryLyrics(LyricLine bean) {
         return CloudMusic.getSecondaryLyrics(bean);
     }
@@ -113,21 +131,22 @@ public class MusicLyricsWidget extends HudWidget {
             return;
         }
 
-        this.setWidth(cfg().width);
-        this.setHeight(cfg().height);
-
         this.fontH = getFontRenderer().getHeight();
-        this.lyricH = getLyricHeight();
+        boolean hasSecondary = hasSecondaryLyrics();
+        this.lyricH = getLyricHeight(hasSecondary);
+
+        this.setWidth(REGION_WIDTH);
+        this.setHeight(regionHeight(this.lyricH, hasSecondary));
 
         float songProgress = CloudMusic.player.getCurrentTimeMillisInterpolated();
 
-        boolean shouldNotDisplayOtherLyrics = cfg().singleLine;
+        boolean shouldNotDisplayOtherLyrics = cfg().singleLine();
 
         handleSingleLineMode(shouldNotDisplayOtherLyrics);
 
         updateScrollOffset(shouldNotDisplayOtherLyrics);
 
-        StencilClipManager.beginClip(() -> Rect.draw(this.getX() - 2, this.getY(), this.getWidth() + 4, this.getHeight(), -1));
+        StencilClipManager.beginClip(() -> Rect.draw(0, this.getY(), RenderSystem.getWidth(), this.getHeight(), -1));
 
         renderAllLyrics(shouldNotDisplayOtherLyrics, songProgress);
 
@@ -153,10 +172,10 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private void renderEditorData() {
-        setWidth(cfg().width);
-        setHeight(cfg().height);
         fontH = getFontRenderer().getHeight();
         lyricH = getLyricHeight(true);
+        setWidth(REGION_WIDTH);
+        setHeight(regionHeight(lyricH, true));
 
         String[] secondaryLyrics = {
                 I18n.get("tritium-music.ui.editor.lyric.previous_secondary"),
@@ -174,7 +193,7 @@ public class MusicLyricsWidget extends HudWidget {
         double startY = getY() + getHeight() * 0.5 - fontH * 0.5 - lyricH;
         double pivotX = alignPivotX(cfg().alignMode);
 
-        StencilClipManager.beginClip(() -> Rect.draw(getX() - 2, getY(), getWidth() + 4, getHeight(), -1));
+        StencilClipManager.beginClip(() -> Rect.draw(0, getY(), RenderSystem.getWidth(), getHeight(), -1));
         for (int index = 0; index < editorLyrics.length; index++) {
             LyricLine line = editorLyrics[index];
             boolean current = index == currentIndex;
@@ -219,7 +238,7 @@ public class MusicLyricsWidget extends HudWidget {
         double smallFontHeight = getSmallFontRenderer().getHeight();
         karaokeRightAligned = false;
 
-        StencilClipManager.beginClip(() -> Rect.draw(getX() - 2, getY(), getWidth() + 4, getHeight(), -1));
+        StencilClipManager.beginClip(() -> Rect.draw(0, getY(), RenderSystem.getWidth(), getHeight(), -1));
 
         LyricLine current = editorLyrics[currentIndex];
         updateLyricAnimation(current, true);

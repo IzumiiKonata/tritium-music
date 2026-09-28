@@ -6,7 +6,7 @@ public final class ClientSettings {
     }
 
     public static final Flag RENDER_BLUR = new Flag(false);
-    public static final Flag RENDER_GLOW = new Flag(false);
+    public static final Flag RENDER_GLOW = new Flag(true);
     public static final Flag SHOW_WIDGET_BOUNDARY = new Flag(false);
     public static final Flag DEBUG_MODE = new Flag(false);
 
