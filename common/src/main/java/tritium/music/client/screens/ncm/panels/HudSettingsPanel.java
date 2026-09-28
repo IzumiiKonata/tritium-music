@@ -176,7 +176,8 @@ public class HudSettingsPanel extends NCMPanel {
                         () -> lyrics.alignMode,
                         value -> lyrics.alignMode = value,
                         MusicLyricsWidget.AlignMode.values(),
-                        HudSettingsPanel::alignName)));
+                        HudSettingsPanel::alignName)
+                        .setDisabled(value -> value == MusicLyricsWidget.AlignMode.Karaoke && lyrics.singleLine())));
 
         content.addChild(new SectionRow(text("section.content")));
         content.addChild(row(text("lyrics.translation.title"), text("lyrics.translation.description"),
@@ -185,18 +186,18 @@ public class HudSettingsPanel extends NCMPanel {
                 toggle(() -> lyrics.showRoman, value -> lyrics.showRoman = value)));
         content.addChild(row(text("lyrics.shadow.title"), text("lyrics.shadow.description"),
                 toggle(() -> lyrics.shadow, value -> lyrics.shadow = value)));
-        content.addChild(row(text("lyrics.single_line.title"), text("lyrics.single_line.description"),
-                toggle(() -> lyrics.singleLine, value -> lyrics.singleLine = value)));
         content.addChild(row(text("lyrics.smooth_scroll.title"), text("lyrics.smooth_scroll.description"),
                 toggle(() -> lyrics.graceScroll, value -> lyrics.graceScroll = value)));
 
         content.addChild(new SectionRow(text("section.size")));
+        content.addChild(row(text("lyrics.lines.title"), text("lyrics.lines.description"),
+                slider(() -> lyrics.lines, value -> {
+                    lyrics.lines = (int) value;
+                    lyrics.sanitize();
+                }, WidgetConfig.Lyrics.MIN_LINES, WidgetConfig.Lyrics.MAX_LINES, WidgetConfig.Lyrics.LINE_STEP,
+                        HudSettingsPanel::lines)));
         content.addChild(row(text("lyrics.font_size.title"), text("lyrics.font_size.description"),
                 slider(() -> lyrics.lyricHeight, value -> lyrics.lyricHeight = value, 12, 40, 1, HudSettingsPanel::pixels)));
-        content.addChild(row(text("lyrics.width.title"), text("lyrics.width.description"),
-                slider(() -> lyrics.width, value -> lyrics.width = (int) value, 220, 900, 10, HudSettingsPanel::pixels)));
-        content.addChild(row(text("lyrics.height.title"), text("lyrics.height.description"),
-                slider(() -> lyrics.height, value -> lyrics.height = (int) value, 60, 300, 5, HudSettingsPanel::pixels)));
 
         content.addChild(new SectionRow(text("section.aurora")));
         content.addChild(row(text("lyrics.aurora_bloom.title"), text("lyrics.aurora_bloom.description"),
@@ -425,6 +426,10 @@ public class HudSettingsPanel extends NCMPanel {
 
     private static String pixels(double value) {
         return I18n.get("tritium-music.ui.unit.pixels", Math.round(value));
+    }
+
+    private static String lines(double value) {
+        return I18n.get("tritium-music.ui.unit.lines", Math.round(value));
     }
 
     private static String format(double value, int digits) {

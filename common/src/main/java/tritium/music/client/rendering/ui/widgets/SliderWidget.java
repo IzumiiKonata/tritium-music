@@ -98,7 +98,8 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
         double trackWidth = getWidth() - labelWidth - 16;
         double normalized = clamp((relativeX - trackX) / trackWidth, 0, 1);
         double value = min + normalized * (max - min);
-        setter.accept(clamp(Math.round(value / step) * step, min, max));
+        double snapped = min + Math.round((value - min) / step) * step;
+        setter.accept(clamp(snapped, min, max));
     }
 
     private static double clamp(double value, double min, double max) {
