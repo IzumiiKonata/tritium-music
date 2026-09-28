@@ -78,7 +78,7 @@ public class SpectrumVisualizer {
         }
 
         float tilt = spectrumTilt;
-        float volumeComp = absoluteVolume ? (float) (-20.0 * Math.log10(Math.max(volume, 1.0e-3))) : 0.0f;
+        float volumeComp = /*absoluteVolume ? */(float) (-20.0 * Math.log10(Math.max(volume, 1.0e-3)))/* : 0.0f*/;
 
         int maxBin = Math.min(usableBins - 1, magnitudes.length - 1);
 
