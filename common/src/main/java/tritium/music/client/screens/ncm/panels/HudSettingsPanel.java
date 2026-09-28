@@ -218,8 +218,6 @@ public class HudSettingsPanel extends NCMPanel {
                 toggle(() -> config.musicSpectrum.enabled, value -> config.musicSpectrum.enabled = value)));
         content.addChild(row(text("scale.title"), text("spectrum.scale.description"),
                 slider(() -> config.musicSpectrum.scale, value -> config.musicSpectrum.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
-        content.addChild(row(text("spectrum.compact.title"), text("spectrum.compact.description"),
-                toggle(() -> spectrum.compatMode, value -> spectrum.compatMode = value)));
         content.addChild(row(text("spectrum.indicator.title"), text("spectrum.indicator.description"),
                 toggle(() -> spectrum.indicator, value -> spectrum.indicator = value)));
 

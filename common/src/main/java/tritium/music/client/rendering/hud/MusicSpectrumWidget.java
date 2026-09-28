@@ -37,40 +37,23 @@ public class MusicSpectrumWidget extends HudWidget {
 
     @Override
     public void onRender() {
-        boolean compatMode = cfg().compatMode;
-        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
+        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
 
         if (CloudMusic.player != null) {
-            if (compatMode) {
-                this.setWidth(200);
-                this.setHeight(80);
-                this.roundedRect(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 6, 0, 0, 0, 0.4f);
-            }
-
             this.updateSpectrum();
-            this.drawBars(compatMode);
-            if (!compatMode) {
-                this.setWidth(RenderSystem.getWidth());
-                this.setHeight(RenderSystem.getHeight() * 0.33);
-            }
+            this.drawBars();
+            this.setWidth(RenderSystem.getWidth());
+            this.setHeight(RenderSystem.getHeight() * 0.33);
         } else if (editorPreview) {
-            if (compatMode) {
-                this.setWidth(200);
-                this.setHeight(80);
-                this.roundedRect(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 6, 0, 0, 0, 0.4f);
-            }
-
             updateEditorSpectrum();
-            drawBars(compatMode);
-            if (!compatMode) {
-                this.setWidth(RenderSystem.getWidth());
-                this.setHeight(RenderSystem.getHeight() * 0.33);
-            }
+            drawBars();
+            this.setWidth(RenderSystem.getWidth());
+            this.setHeight(RenderSystem.getHeight() * 0.33);
         }
     }
 
     private void updateEditorSpectrum() {
-        int count = cfg().compatMode ? 32 : 96;
+        int count = 96;
         if (renderSpectrum.length != count) {
             renderSpectrum = new float[count];
             renderSpectrumIndicator = new float[count];
@@ -149,30 +132,21 @@ public class MusicSpectrumWidget extends HudWidget {
         return from + (to - from) * (1.0f - (float) Math.exp(-deltaSeconds / timeConstant));
     }
 
-    private void drawBars(boolean compact) {
+    private void drawBars() {
         int n = renderSpectrum.length;
         if (n == 0) {
             return;
         }
 
-        double pad = 4;
         double regionX, regionW, baseY, maxH;
 
-        if (compact) {
-            regionX = this.getX() + pad;
-            regionW = this.getWidth() - pad * 2;
-            baseY = this.getY() + this.getHeight() - pad;
-            maxH = this.getHeight() - pad * 2;
-        } else {
-            regionX = 0;
-            regionW = RenderSystem.getWidth();
-            baseY = RenderSystem.getHeight();
-            maxH = RenderSystem.getHeight() * 0.33;
-        }
+        regionX = 0;
+        regionW = RenderSystem.getWidth();
+        baseY = RenderSystem.getHeight();
+        maxH = RenderSystem.getHeight() * 0.33;
 
         double mult = cfg().multiplier;
         double pitch = regionW / n;
-        double barW = /*compact ? Math.max(1.0, pitch * 0.82) : */pitch;
 
         int rectColor = cfg().rectColor;
         int rgb = rectColor & 0xFFFFFF;
@@ -184,16 +158,16 @@ public class MusicSpectrumWidget extends HudWidget {
                 continue;
             }
 
-            double x0 = regionX + i * pitch + (pitch - barW) * 0.5;
+            double x0 = regionX + i * pitch;
             double top = baseY - h;
 
             int topAlpha = (int) (a * (1.0 - 0.8 * (h / maxH)));
 
-            RenderSystem.drawGradientRectTopToBottom(x0, top, x0 + barW, baseY, RGBA.color(rgb, topAlpha), RGBA.color(rgb, a));
+            RenderSystem.drawGradientRectTopToBottom(x0, top, x0 + pitch, baseY, RGBA.color(rgb, topAlpha), RGBA.color(rgb, a));
         }
 
         if (cfg().indicator) {
-            double capH = compact ? 1.0 : 1.5;
+            double capH = 1.5;
 
             for (int i = 0; i < n; i++) {
                 double ph = Math.min(maxH, renderSpectrumIndicator[i] * maxH * mult);
@@ -201,10 +175,10 @@ public class MusicSpectrumWidget extends HudWidget {
                     continue;
                 }
 
-                double x0 = regionX + i * pitch + (pitch - barW) * 0.5;
+                double x0 = regionX + i * pitch;
                 double capY = baseY - ph;
 
-                Rect.draw(x0, capY - capH, barW, capH, RGBA.color(rgb, Math.min(255, a + 64)));
+                Rect.draw(x0, capY - capH, pitch, capH, RGBA.color(rgb, Math.min(255, a + 64)));
             }
         }
     }

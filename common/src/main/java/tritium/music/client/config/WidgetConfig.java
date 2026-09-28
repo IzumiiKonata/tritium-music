@@ -78,7 +78,6 @@ public class WidgetConfig {
     }
 
     public static class Spectrum {
-        public boolean compatMode = false;
         public boolean indicator = true;
         public double multiplier = 1.0;
         public double smoothing = 0.55;
