@@ -22,7 +22,9 @@ import tritium.music.client.render.VerticalFadePipeline;
 import tritium.music.client.rendering.LyricOffscreen;
 import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.StencilCompositePipeline;
+import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.font.SystemFontIndex;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -62,12 +64,15 @@ public class TritiumMusicMod implements ClientModInitializer {
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             FontManager.loadFonts();
+            FontCatalog.preload();
+            SystemFontIndex.preload();
             WidgetConfig.get();
             AsyncUtil.runAsync(CloudMusic::initNCM);
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             CloudMusic.shutdownPlayback();
             CloudMusic.onStop();
+            FontManager.dispose();
         });
 
         CloudMusic.addListener(new MusicListener() {

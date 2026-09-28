@@ -10,7 +10,11 @@ import tritium.music.client.rendering.Image;
 import tritium.music.client.rendering.animation.Easing;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.animation.spring.SpringAnimation;
+import tritium.music.client.rendering.font.CFontRenderer;
+import tritium.music.client.rendering.font.CharMetrics;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.font.Glyph;
+import tritium.music.client.rendering.font.ShapedGlyph;
 import tritium.music.client.rendering.shader.BloomShader;
 import tritium.music.client.rendering.shader.Shaders;
 import tritium.music.client.rendering.shader.StencilShader;
@@ -454,30 +458,58 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                             LyricOffscreen.renderStencilMask(targets.stencil(), allocW, fbHeight, sungW, gradW);
 
                             int prog = (int) (wordProgress * word.word.length());
-                            int glyphBlitScale = scale / 2;
 
                             int baseTextColor = hexColor(1f, 1f, 1f, lyric.alpha);
 
                             List<LyricOffscreen.GlyphCmd> baseGlyphs = new ArrayList<>();
-                            float xScaled = 0;
-                            for (int j = 0; j < fragmentLength; j++) {
-                                char c = fragmentText.charAt(j);
-                                char nextChar = j + 1 < fragmentLength ? fragmentText.charAt(j + 1) : '\0';
-                                int charIndex = fragment.startInWord() + j;
+                            CFontRenderer lyricFont = FontManager.pf65bold;
+                            CharMetrics metrics = lyricFont.metrics(fragmentText);
+                            float blitScale = scale / 2.0f;
 
-                                if (charIndex <= prog && lyric.renderEmphasizes) {
-                                    word.emphasizes[charIndex] = Interpolations.interpolate(word.emphasizes[charIndex], emphasizeTarget, emphasizeSpeed);
+                            if (metrics != null) {
+                                for (int glyphIndex = 0; glyphIndex < metrics.glyphCount(); glyphIndex++) {
+                                    ShapedGlyph shaped = metrics.glyph(glyphIndex);
+                                    int charIndex = fragment.startInWord() + metrics.charIndexOfGlyph(glyphIndex);
+                                    if (charIndex < 0 || charIndex >= word.emphasizes.length) {
+                                        continue;
+                                    }
+
+                                    if (charIndex <= prog && lyric.renderEmphasizes) {
+                                        word.emphasizes[charIndex] = Interpolations.interpolate(word.emphasizes[charIndex], emphasizeTarget, emphasizeSpeed);
+                                    }
+
+                                    Glyph bitmap = lyricFont.locateShapedGlyph(shaped);
+                                    if (bitmap == null) {
+                                        continue;
+                                    }
+
+                                    float xScaled = (metrics.glyphX(glyphIndex) + shaped.xOffset()) * blitScale;
+                                    float yScaled = (float) (-word.emphasizes[charIndex] * scale);
+                                    baseGlyphs.add(new LyricOffscreen.GlyphCmd(bitmap, xScaled, yScaled));
                                 }
+                            } else {
+                                float xScaled = 0;
+                                for (int j = 0; j < fragmentLength; j++) {
+                                    char c = fragmentText.charAt(j);
+                                    char nextChar = j + 1 < fragmentLength ? fragmentText.charAt(j + 1) : '\0';
+                                    int charIndex = fragment.startInWord() + j;
 
-                                float yScaled = (float) (-word.emphasizes[charIndex] * scale);
-                                baseGlyphs.add(new LyricOffscreen.GlyphCmd(foldGlyphChar(c), xScaled, yScaled));
+                                    if (charIndex <= prog && lyric.renderEmphasizes) {
+                                        word.emphasizes[charIndex] = Interpolations.interpolate(word.emphasizes[charIndex], emphasizeTarget, emphasizeSpeed);
+                                    }
 
-                                xScaled += FontManager.pf65bold.getCharWidth(c, nextChar) * scale;
+                                    Glyph bitmap = lyricFont.glyphForChar(c);
+                                    if (bitmap != null) {
+                                        float yScaled = (float) (-word.emphasizes[charIndex] * scale);
+                                        baseGlyphs.add(new LyricOffscreen.GlyphCmd(bitmap, xScaled, yScaled));
+                                    }
+
+                                    xScaled += lyricFont.getCharWidth(c, nextChar) * scale;
+                                }
                             }
 
                             LyricOffscreen.renderBaseGlyphs(targets.base(), allocW, fbHeight,
-                                    FontManager.pf65bold.allGlyphs, baseTextColor,
-                                    baseGlyphs, glyphBlitScale);
+                                    baseTextColor, baseGlyphs, (int) blitScale);
 
                             double invScale = 1.0 / scale;
                             stencilShader.draw(targets.base(), targets.stencil(), renderX, renderY - 2, fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
@@ -842,15 +874,6 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             case "netease" -> I18n.get("tritium-music.ui.lyrics.provider.netease");
             case "qq" -> I18n.get("tritium-music.ui.lyrics.provider.qq");
             default -> fallback;
-        };
-    }
-
-    private static char foldGlyphChar(char c) {
-        return switch (c) {
-            case '（' -> '(';
-            case '）' -> ')';
-            case '・' -> '·';
-            default -> c;
         };
     }
 

@@ -6,69 +6,142 @@ import java.awt.*;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
 import java.awt.font.LineMetrics;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
 public class GlyphGenerator {
 
     static final FontRenderContext context = new FontRenderContext(null, true, true);
 
-    private static boolean canFontDisplayChar(Font f, char ch) {
-        return f.canDisplay(ch);
+    private static final int BITMAP_PADDING = 1;
+    private static final double ITALIC_SHEAR = 0.22;
+
+    public interface GlyphLoadedCallback {
+        void onLoaded(double fontHeight);
     }
 
-    private static Font getFontForGlyph(char ch, Font f, Font... fallBackFonts) {
-        if (!canFontDisplayChar(f, ch)) {
-            if (fallBackFonts != null) {
-                for (Font fallBackFont : fallBackFonts) {
-                    if (fallBackFont != null && canFontDisplayChar(fallBackFont, ch)) {
-                        return fallBackFont;
-                    }
-                }
-            }
+    interface GlyphStore extends java.util.function.Consumer<Glyph> {
+    }
+
+    static int lineHeightPx(Font font) {
+        if (font == null) {
+            return 0;
         }
-        return f;
-    }
-
-    private static int getMaxFontHeight(Font originalFont, Font[] fallbackFonts) {
-        int maxHeight = fontHeight(originalFont);
-
-        if (fallbackFonts != null) {
-            for (Font fallbackFont : fallbackFonts) {
-                if (fallbackFont != null) {
-                    maxHeight = Math.max(maxHeight, fontHeight(fallbackFont));
-                }
-            }
-        }
-
-        return maxHeight;
-    }
-
-    private static int fontHeight(Font font) {
         LineMetrics metrics = font.getLineMetrics("Ag", context);
         return (int) Math.ceil(metrics.getAscent() + metrics.getDescent());
     }
 
-    public static void generate(CFontRenderer fr, char ch, Font originalFont,
-                                TextureAtlas atlas, GlyphLoadedCallback onLoaded) {
-        Font fallbackFont = getFontForGlyph(ch, originalFont, fr.fallBackFonts);
+    static Font fontForGlyph(int codePoint, Font primary, Font[] fallbacks) {
+        if (primary != null && primary.canDisplay(codePoint)) {
+            return primary;
+        }
+        if (fallbacks != null) {
+            for (Font fallback : fallbacks) {
+                if (fallback != null && fallback.canDisplay(codePoint)) {
+                    return fallback;
+                }
+            }
+        }
+        return primary;
+    }
 
-        GlyphVector gv = fallbackFont.createGlyphVector(context, String.valueOf(ch));
-        int width = (int) Math.ceil(gv.getGlyphMetrics(0).getAdvance());
-        int height = getMaxFontHeight(originalFont, fr.fallBackFonts);
-        LineMetrics metrics = fallbackFont.getLineMetrics(String.valueOf(ch), context);
+    public static void generateChar(CFontRenderer fr, char ch, Font font, Font[] fallbacks, int bandHeight,
+                                    TextureAtlas atlas, long generation, GlyphLoadedCallback onLoaded) {
+        if (font == null || atlas == null || atlas.isDestroyed()) {
+            return;
+        }
 
-        Glyph glyph = new Glyph(width, height, ch);
-        fr.allGlyphs[ch] = glyph;
+        Font target = fontForGlyph(ch, font, fallbacks);
+        if (target == null) {
+            return;
+        }
 
-        if (width == 0) {
+        GlyphVector gv = target.createGlyphVector(context, String.valueOf(ch));
+        generate(fr, target, gv, bandHeight, atlas, generation, onLoaded,
+                glyph -> fr.allGlyphs[ch] = glyph,
+                glyph -> fr.discardGlyph(ch, glyph));
+    }
+
+    public static void generateById(CFontRenderer fr, int slot, Font font, int glyphId, int bandHeight,
+                                    TextureAtlas atlas, long generation, GlyphLoadedCallback onLoaded) {
+        if (font == null || atlas == null || atlas.isDestroyed()) {
+            return;
+        }
+
+        GlyphVector gv;
+        try {
+            gv = font.createGlyphVector(context, new int[]{glyphId});
+        } catch (Throwable throwable) {
+            fr.storeShapedGlyph(slot, glyphId, blank(1, bandHeight));
+            return;
+        }
+        if (gv == null || gv.getNumGlyphs() == 0) {
+            fr.storeShapedGlyph(slot, glyphId, blank(1, bandHeight));
+            return;
+        }
+
+        generate(fr, font, gv, bandHeight, atlas, generation, onLoaded,
+                glyph -> fr.storeShapedGlyph(slot, glyphId, glyph),
+                glyph -> fr.discardShapedGlyph(slot, glyphId, glyph));
+    }
+
+    private static Glyph blank(int width, int height) {
+        Glyph glyph = new Glyph(0, Math.max(1, height), Math.max(1, width), Math.max(1, height), 0, 0, (char) 0);
+        glyph.uploaded = true;
+        return glyph;
+    }
+
+    private static void generate(CFontRenderer fr, Font font, GlyphVector gv, int bandHeight,
+                                 TextureAtlas atlas, long generation, GlyphLoadedCallback onLoaded,
+                                 GlyphStore store, GlyphStore discard) {
+        try {
+            generateUnsafe(fr, font, gv, bandHeight, atlas, generation, onLoaded, store, discard);
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
+            store.accept(blank(1, bandHeight));
+        }
+    }
+
+    private static void generateUnsafe(CFontRenderer fr, Font font, GlyphVector gv, int bandHeight,
+                                       TextureAtlas atlas, long generation, GlyphLoadedCallback onLoaded,
+                                       GlyphStore store, GlyphStore discard) {
+        LineMetrics metrics = font.getLineMetrics("Ag", context);
+
+        int advance = (int) Math.ceil(gv.getGlyphMetrics(0).getAdvance());
+        int height = Math.max(1, bandHeight);
+
+        Rectangle2D visual = gv.getVisualBounds();
+        boolean hasInk = !visual.isEmpty();
+        double visualMinX = hasInk ? visual.getMinX() : 0;
+        double visualMaxX = hasInk ? visual.getMaxX() : advance;
+
+        boolean slanted = (font.getStyle() & Font.ITALIC) != 0;
+        int shearExtent = slanted ? (int) Math.ceil(Math.max(0f, metrics.getAscent()) * ITALIC_SHEAR) + 1 : 0;
+
+        int right = Math.max(advance, (int) Math.ceil(visualMaxX));
+        int overhang = Math.max(0, right - advance);
+        right = Math.max(right, advance + shearExtent) + BITMAP_PADDING;
+        int left = Math.min(0, (int) Math.floor(visualMinX)) - BITMAP_PADDING;
+
+        int bitmapWidth = Math.max(1, right - left);
+        int bitmapHeight = height;
+
+        Glyph glyph = new Glyph(advance, height, bitmapWidth, bitmapHeight, left, overhang, (char) 0);
+        store.accept(glyph);
+
+        if (!hasInk) {
             glyph.uploaded = true;
             return;
         }
 
         AsyncUtil.runAsync(() -> {
+            if (fr.getLayoutGeneration() != generation || atlas.isDestroyed()) {
+                return;
+            }
+
             BufferedImage bi = null;
             try {
-                bi = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+                bi = new BufferedImage(bitmapWidth, bitmapHeight, BufferedImage.TYPE_INT_ARGB);
                 Graphics2D g2d = bi.createGraphics();
                 g2d.setColor(new Color(255, 255, 255, 255));
                 g2d.setComposite(AlphaComposite.Src);
@@ -78,9 +151,9 @@ public class GlyphGenerator {
                 g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
                 g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-                g2d.setFont(fallbackFont);
+                g2d.setFont(font);
                 int baselineY = Math.round((height + metrics.getAscent() - metrics.getDescent()) * 0.5f);
-                g2d.drawString(String.valueOf(ch), 0, baselineY);
+                g2d.drawGlyphVector(gv, -left, baselineY);
                 g2d.dispose();
 
                 for (int x = 0; x < bi.getWidth(); x++) {
@@ -90,28 +163,35 @@ public class GlyphGenerator {
                     }
                 }
 
+                if (fr.getLayoutGeneration() != generation || atlas.isDestroyed()) {
+                    bi.flush();
+                    return;
+                }
+
                 onLoaded.onLoaded(height);
                 BufferedImage image = bi;
                 AsyncUtil.runOnRenderThread(() -> {
-                    TextureAtlas.AtlasRegion region = atlas.upload(image);
-                    if (region == null) {
-                        fr.discardGlyph(ch, glyph);
-                    } else {
-                        glyph.setAtlasRegion(region);
-                        atlas.scheduleFlush();
+                    try {
+                        if (fr.getLayoutGeneration() != generation || atlas.isDestroyed()) {
+                            return;
+                        }
+                        TextureAtlas.AtlasRegion region = atlas.upload(image);
+                        if (region == null) {
+                            discard.accept(glyph);
+                        } else {
+                            glyph.setAtlasRegion(region);
+                            atlas.scheduleFlush();
+                        }
+                    } finally {
+                        image.flush();
                     }
-                    image.flush();
                 });
             } catch (Throwable throwable) {
                 if (bi != null) {
                     bi.flush();
                 }
-                fr.discardGlyph(ch, glyph);
+                discard.accept(glyph);
             }
         });
-    }
-
-    public interface GlyphLoadedCallback {
-        void onLoaded(double fontHeight);
     }
 }
