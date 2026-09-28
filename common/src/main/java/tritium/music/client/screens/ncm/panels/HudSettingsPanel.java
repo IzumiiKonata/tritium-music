@@ -29,26 +29,29 @@ public class HudSettingsPanel extends NCMPanel {
     public void onInit() {
         getChildren().clear();
 
-        LabelWidget title = new LabelWidget(text("title"), FontManager.pf25bold);
+        LabelWidget title = new LabelWidget(text("title"), FontManager.pf34bold);
         title.setColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         title.setBeforeRenderCallback(() -> title.setPosition(24, 22));
         addChild(title);
 
-        LabelWidget subtitle = new LabelWidget(text("subtitle"), FontManager.pf12);
-        subtitle.setColor(getColor(NCMScreen.ColorType.SECONDARY_TEXT));
-        subtitle.setBeforeRenderCallback(() -> {
-            double titleHeight = FontManager.pf25bold.getStringHeight(title.getLabel());
-            subtitle.setPosition(24, 22 + titleHeight + 5);
-        });
-        addChild(subtitle);
+//        LabelWidget subtitle = new LabelWidget(text("subtitle"), FontManager.pf12);
+//        subtitle.setColor(getColor(NCMScreen.ColorType.SECONDARY_TEXT));
+//        subtitle.setBeforeRenderCallback(() -> {
+//            double titleHeight = FontManager.pf25bold.getStringHeight(title.getLabel());
+//            subtitle.setPosition(24, 22 + titleHeight + 5);
+//        });
+//        addChild(subtitle);
 
         double tabWidth = 82;
         double tabSpacing = 6;
         RoundedButtonWidget layoutTab = new RoundedButtonWidget(text("layout"), FontManager.pf14bold);
         layoutTab.setRadius(5);
         layoutTab.setBounds(tabWidth, 26);
+
+        double tabRowY = 56;
+
         layoutTab.setBeforeRenderCallback(() -> {
-            layoutTab.setPosition(24, 72);
+            layoutTab.setPosition(24, tabRowY);
             layoutTab.setColor(getColor(NCMScreen.ColorType.ELEMENT_HOVER));
             layoutTab.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         });
@@ -68,7 +71,7 @@ public class HudSettingsPanel extends NCMPanel {
             tab.setBounds(tabWidth, 26);
             int tabIndex = index;
             tab.setBeforeRenderCallback(() -> {
-                tab.setPosition(24 + (tabIndex + 1) * (tabWidth + tabSpacing), 72);
+                tab.setPosition(24 + (tabIndex + 1) * (tabWidth + tabSpacing), tabRowY);
                 tab.setColor(page == target ? 0xFFC30218 : getColor(NCMScreen.ColorType.ELEMENT_HOVER));
                 tab.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
             });
@@ -87,7 +90,7 @@ public class HudSettingsPanel extends NCMPanel {
         reset.setRadius(5);
         reset.setBounds(88, 26);
         reset.setBeforeRenderCallback(() -> {
-            reset.setPosition(reset.getParentWidth() - reset.getWidth() - 24, 72);
+            reset.setPosition(reset.getParentWidth() - reset.getWidth() - 24, tabRowY);
             reset.setColor(getColor(NCMScreen.ColorType.ELEMENT_HOVER));
             reset.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         });
@@ -103,7 +106,7 @@ public class HudSettingsPanel extends NCMPanel {
         content.setSpacing(3);
         content.setBeforeRenderCallback(() -> content.setBounds(
                 24,
-                110,
+                94,
                 content.getParentWidth() - 48,
                 content.getParentHeight() - 130));
         addChild(content);
@@ -227,8 +230,8 @@ public class HudSettingsPanel extends NCMPanel {
                 slider(() -> spectrum.smoothing, value -> spectrum.smoothing = value, 0, 0.95, 0.05, HudSettingsPanel::percent)));
         content.addChild(row(text("spectrum.tilt.title"), text("spectrum.tilt.description"),
                 slider(() -> spectrum.spectrumTilt, value -> spectrum.spectrumTilt = value, 0, 8, 0.25, value -> format(value, 2))));
-        content.addChild(row(text("spectrum.absolute_volume.title"), text("spectrum.absolute_volume.description"),
-                toggle(() -> spectrum.absVol, value -> spectrum.absVol = value)));
+//        content.addChild(row(text("spectrum.absolute_volume.title"), text("spectrum.absolute_volume.description"),
+//                toggle(() -> spectrum.absVol, value -> spectrum.absVol = value)));
 
         content.addChild(new SectionRow(text("section.color")));
         content.addChild(row(text("spectrum.color.title"), text("spectrum.color.description"),
@@ -333,7 +336,7 @@ public class HudSettingsPanel extends NCMPanel {
                 double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
 //                double descriptionHeight = FontManager.pf12.getStringHeight(description.getLabel());
                 double blockHeight = titleHeight + 2;
-                title.setPosition(16, (40 - blockHeight) * 0.5);
+                title.setPosition(16, (40 - blockHeight) * 0.5 + .5);
             });
 //            description.setBeforeRenderCallback(() -> {
 //                double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
