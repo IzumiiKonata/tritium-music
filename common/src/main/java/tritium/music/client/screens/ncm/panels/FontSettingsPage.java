@@ -467,13 +467,13 @@ public class FontSettingsPage extends NCMPanel {
         Rect.draw(previewX + 1, previewY + headerHeight, previewWidth - 2, 1,
                 reAlpha(COLOR_CARD_DIVIDER, alpha));
         FontManager.pf12bold.drawString(I18n.get("tritium-music.ui.settings.font.preview"),
-                previewX + 10, previewY + 6, secondary);
+                previewX + 10, previewY + headerHeight * .5 - FontManager.pf12.getHeight() * .5, secondary);
 
         String notice = previewNotice();
         if (notice != null) {
             double noticeWidth = Math.min(FontManager.pf12.getStringWidthD(notice), previewWidth * 0.66);
             FontManager.pf12.drawString(FontManager.pf12.trim(notice, noticeWidth),
-                    previewX + previewWidth - 10 - noticeWidth, previewY + 6, reAlpha(0xFFE0A030, alpha));
+                    previewX + previewWidth - 10 - noticeWidth, previewY + headerHeight * .5 - FontManager.pf12.getHeight() * .5, reAlpha(0xFFE0A030, alpha));
         }
 
         double sampleTop = previewY + headerHeight + 8;
