@@ -12,6 +12,11 @@ import tritium.music.core.audio.AudioPlayer;
 
 public class MusicSpectrumWidget extends HudWidget {
 
+    private static final float REFERENCE_SMOOTHING = 0.55f;
+    private static final float REFERENCE_RISE_SECONDS = 0.0123f;
+    private static final float REFERENCE_FALL_SECONDS = 0.0253f;
+    private static final float MAX_SMOOTHING = 1.0f;
+
     private float[] renderSpectrum = new float[1];
     private float[] renderSpectrumIndicator = new float[1];
 
@@ -71,16 +76,19 @@ public class MusicSpectrumWidget extends HudWidget {
             renderSpectrumIndicator = new float[count];
             indicatorTimeStamp = new long[count];
         }
+        float smoothing = smoothing();
+        float deltaSeconds = deltaSeconds();
         double phase = System.currentTimeMillis() * 0.003;
         for (int index = 0; index < count; index++) {
             float energy = (float) (0.18 + Math.abs(Math.sin(index * 0.31 + phase)) * 0.48 + Math.abs(Math.sin(index * 0.11 - phase * 0.7)) * 0.22);
-            renderSpectrum[index] = Interpolations.interpolate(renderSpectrum[index], Math.min(1, energy), 0.24f);
+            renderSpectrum[index] = easeToward(renderSpectrum[index], Math.min(1, energy), smoothing, deltaSeconds);
             renderSpectrumIndicator[index] = Math.max(Interpolations.interpolateLinear(renderSpectrumIndicator[index], 0, 0.08f), renderSpectrum[index]);
         }
     }
 
     private void updateSpectrum() {
-        float[] spectrum = AudioPlayer.sampleSpectrum();
+        float smoothing = smoothing();
+        float[] spectrum = smoothing > 0.0f ? AudioPlayer.sampleSpectrum() : AudioPlayer.bandValues;
         int n = spectrum.length;
 
         if (renderSpectrum.length != n) {
@@ -90,9 +98,7 @@ public class MusicSpectrumWidget extends HudWidget {
         }
 
         boolean playing = CloudMusic.player.isPlaying();
-        float smooth = (float) cfg().smoothing;
-        float attackFraction = 1.0f + (1.0f - smooth) * 1.4f;
-        float decayFraction = 0.07f + (1.0f - smooth) * 1.6f;
+        float deltaSeconds = deltaSeconds();
 
         long now = System.currentTimeMillis();
         boolean indicator = cfg().indicator;
@@ -105,7 +111,7 @@ public class MusicSpectrumWidget extends HudWidget {
             }
 
             float previous = renderSpectrum[i];
-            float current = Interpolations.interpolate(previous, target, target > previous ? attackFraction : decayFraction);
+            float current = easeToward(previous, target, smoothing, deltaSeconds);
             renderSpectrum[i] = current;
 
             if (indicator) {
@@ -118,6 +124,29 @@ public class MusicSpectrumWidget extends HudWidget {
                 }
             }
         }
+    }
+
+    private float smoothing() {
+        return (float) Math.clamp(cfg().smoothing, 0.0, MAX_SMOOTHING);
+    }
+
+    private static float deltaSeconds() {
+        return (float) (RenderSystem.getFrameDeltaTime() * 0.01);
+    }
+
+    private static float easeToward(float from, float to, float smoothing, float deltaSeconds) {
+        if (from == to) {
+            return to;
+        }
+
+        float scale = smoothing / REFERENCE_SMOOTHING;
+        float timeConstant = scale * scale * (to > from ? REFERENCE_RISE_SECONDS : REFERENCE_FALL_SECONDS);
+
+        if (timeConstant <= 0.0f) {
+            return to;
+        }
+
+        return from + (to - from) * (1.0f - (float) Math.exp(-deltaSeconds / timeConstant));
     }
 
     private void drawBars(boolean compact) {
