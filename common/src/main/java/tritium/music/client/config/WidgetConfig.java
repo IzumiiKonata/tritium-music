@@ -61,20 +61,39 @@ public class WidgetConfig {
     }
 
     public static class Lyrics {
+
+        public static final int MIN_LINES = 1;
+        public static final int MAX_LINES = 7;
+        public static final int LINE_STEP = 2;
+
         public MusicLyricsWidget.ScrollEffects scrollEffect = MusicLyricsWidget.ScrollEffects.Scroll;
         public MusicLyricsWidget.AlignMode alignMode = MusicLyricsWidget.AlignMode.Center;
         public boolean shadow = false;
-        public boolean singleLine = false;
         public boolean graceScroll = true;
         public boolean showTranslation = true;
         public boolean showRoman = false;
         public double lyricHeight = 20.0;
-        public int width = 450;
-        public int height = 120;
+        public int lines = 3;
         public boolean auroraBloom = true;
         public boolean audioReactive = true;
         public double auroraUnsungOpacity = 0.35;
         public int glowColor = new Color(140, 215, 255).getRGB();
+
+        public boolean singleLine() {
+            return lines <= MIN_LINES;
+        }
+
+        public static int snapLines(int lines) {
+            int snapped = MIN_LINES + Math.round((lines - MIN_LINES) / (float) LINE_STEP) * LINE_STEP;
+            return Math.max(MIN_LINES, Math.min(MAX_LINES, snapped));
+        }
+
+        public void sanitize() {
+            lines = snapLines(lines);
+            if (singleLine() && alignMode == MusicLyricsWidget.AlignMode.Karaoke) {
+                alignMode = MusicLyricsWidget.AlignMode.Center;
+            }
+        }
     }
 
     public static class Spectrum {
@@ -126,6 +145,7 @@ public class WidgetConfig {
         if (musicLyrics == null) musicLyrics = new WidgetSettings(0.5f - 225f / 1920f, 1f - 140f / 1080f, 1.0, false);
         if (musicSpectrum == null) musicSpectrum = new WidgetSettings(0f, 0f, 1.0, false);
         if (lyrics == null) lyrics = new Lyrics();
+        lyrics.sanitize();
         if (spectrum == null) spectrum = new Spectrum();
         if (quality == null) quality = Quality.STANDARD;
         if (playlistViewMode == null) playlistViewMode = PlaylistViewMode.GRID;
