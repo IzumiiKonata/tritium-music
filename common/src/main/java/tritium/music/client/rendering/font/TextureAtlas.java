@@ -3,6 +3,7 @@ package tritium.music.client.rendering.font;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.Identifier;
 import tritium.music.core.util.AsyncUtil;
 
@@ -31,14 +32,15 @@ public class TextureAtlas {
     private final String identifierPath;
     private final List<Page> pages = new ArrayList<>();
     private volatile boolean flushScheduled = false;
+    private volatile boolean destroyed = false;
 
     public TextureAtlas() {
         this.identifierPath = "font/atlas_" + COUNTER.getAndIncrement();
         LIVE_ATLASES.add(this);
     }
 
-    public void init() {
-        LIVE_ATLASES.add(this);
+    public boolean isDestroyed() {
+        return destroyed;
     }
 
     public Identifier identifier() {
@@ -50,6 +52,10 @@ public class TextureAtlas {
     }
 
     public AtlasRegion upload(BufferedImage glyph) {
+        if (destroyed || glyph == null) {
+            return null;
+        }
+
         if (pages.isEmpty()) {
             createPage();
         }
@@ -61,37 +67,64 @@ public class TextureAtlas {
             }
         }
 
-        return createPage().upload(glyph);
+        Page page = createPage();
+        return page == null ? null : page.upload(glyph);
     }
 
     public void scheduleFlush() {
-        if (!flushScheduled) {
-            flushScheduled = true;
-            AsyncUtil.runOnRenderThread(this::flush);
+        if (destroyed || flushScheduled) {
+            return;
         }
+        flushScheduled = true;
+        AsyncUtil.runOnRenderThread(this::flush);
     }
 
     public void flush() {
         flushScheduled = false;
+        if (destroyed) {
+            return;
+        }
         for (Page page : pages) {
             page.flush();
         }
     }
 
     public void destroy() {
+        if (destroyed) {
+            return;
+        }
+        destroyed = true;
         LIVE_ATLASES.remove(this);
+
         List<Page> oldPages = new ArrayList<>(pages);
         pages.clear();
+
+        if (oldPages.isEmpty()) {
+            return;
+        }
+
         AsyncUtil.runOnRenderThread(() -> {
-            for (Page page : oldPages) {
-                Minecraft.getInstance().getTextureManager().release(page.identifier);
-                page.texture = null;
-                page.image = null;
+            try {
+                TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+                for (Page page : oldPages) {
+                    try {
+                        textureManager.release(page.identifier);
+                    } catch (Throwable throwable) {
+                        throwable.printStackTrace();
+                    }
+                    page.texture = null;
+                    page.image = null;
+                }
+            } catch (Throwable throwable) {
+                throwable.printStackTrace();
             }
         });
     }
 
     private Page createPage() {
+        if (destroyed) {
+            return null;
+        }
         Identifier identifier = Identifier.fromNamespaceAndPath("tritium-music", identifierPath + "_" + pages.size());
         NativeImage image = new NativeImage(ATLAS_SIZE, ATLAS_SIZE, true);
         DynamicTexture texture = new DynamicTexture(identifier::toString, image);
@@ -119,6 +152,9 @@ public class TextureAtlas {
         private AtlasRegion upload(BufferedImage glyph) {
             int width = glyph.getWidth();
             int height = glyph.getHeight();
+            if (width <= 0 || height <= 0) {
+                return null;
+            }
             if (width + PADDING * 2 > ATLAS_SIZE || height + PADDING * 2 > ATLAS_SIZE) {
                 return null;
             }
