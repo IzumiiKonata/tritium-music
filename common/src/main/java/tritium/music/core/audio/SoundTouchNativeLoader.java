@@ -5,6 +5,8 @@ import com.tianscar.soundtouch.SoundTouch;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -12,6 +14,8 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class SoundTouchNativeLoader {
+    private static final String UTILITY_CLASS = "com.tianscar.soundtouch.Util";
+
     private static boolean loaded;
 
     private SoundTouchNativeLoader() {
@@ -21,6 +25,39 @@ final class SoundTouchNativeLoader {
         if (loaded) {
             return;
         }
+        Class<?> utility = Class.forName(UTILITY_CLASS, true, SoundTouch.class.getClassLoader());
+        try {
+            loadWithLibraryLoader(utility);
+        } catch (Throwable libraryFailure) {
+            try {
+                loadExtractedNatives(utility);
+            } catch (Throwable extractionFailure) {
+                IOException failure = new IOException(extractionFailure + " (library loader: " + libraryFailure + ")", extractionFailure);
+                failure.addSuppressed(libraryFailure);
+                throw failure;
+            }
+        }
+        loaded = true;
+    }
+
+    private static void loadWithLibraryLoader(Class<?> utility) throws Exception {
+        Method loadLibrary = utility.getDeclaredMethod("loadLibrary");
+        loadLibrary.setAccessible(true);
+        try {
+            loadLibrary.invoke(null);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            throw e;
+        }
+    }
+
+    private static void loadExtractedNatives(Class<?> utility) throws Exception {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
         String directory;
@@ -46,19 +83,24 @@ final class SoundTouchNativeLoader {
         Path bindingPath = extract(directory, binding, extraction);
         System.load(libraryPath.toAbsolutePath().toString());
         System.load(bindingPath.toAbsolutePath().toString());
-        Class<?> utility = Class.forName("com.tianscar.soundtouch.Util", true, SoundTouchNativeLoader.class.getClassLoader());
-        Field librariesLoaded = utility.getDeclaredField("librariesLoaded");
-        librariesLoaded.setAccessible(true);
-        Object loadedState = librariesLoaded.get(null);
-        if (loadedState instanceof AtomicBoolean atomic) {
-            atomic.set(true);
-        } else {
-            librariesLoaded.setBoolean(null, true);
-        }
+        markLibrariesLoadedBestEffort(utility);
         libraryPath.toFile().deleteOnExit();
         bindingPath.toFile().deleteOnExit();
         extraction.toFile().deleteOnExit();
-        loaded = true;
+    }
+
+    private static void markLibrariesLoadedBestEffort(Class<?> utility) {
+        try {
+            Field librariesLoaded = utility.getDeclaredField("librariesLoaded");
+            librariesLoaded.setAccessible(true);
+            Object state = librariesLoaded.get(null);
+            if (state instanceof AtomicBoolean atomic) {
+                atomic.set(true);
+            } else {
+                librariesLoaded.setBoolean(null, true);
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
     }
 
     private static Path extract(String directory, String name, Path destination) throws IOException {

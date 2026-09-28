@@ -116,7 +116,7 @@ final class StreamingSoundPlayer {
             }
         }
         int shift = 32 - bytes * 8;
-        return (long) value << shift >> shift;
+        return (value << shift) >> shift;
     }
 
     private static void writeSignedSample(byte[] data, int offset, int bytes, boolean bigEndian, long value) {
@@ -617,7 +617,7 @@ final class StreamingSoundPlayer {
         return result;
     }
 
-    private void applySoftwareVolume(byte[] data, int offset, int length, AudioFormat format, float gain) {
+    static void applySoftwareVolume(byte[] data, int offset, int length, AudioFormat format, float gain) {
         if (gain >= 0.9999f || !AudioFormat.Encoding.PCM_SIGNED.equals(format.getEncoding())) {
             return;
         }
@@ -690,6 +690,9 @@ final class StreamingSoundPlayer {
         PcmChunk process(byte[] data, int offset, int length, double rate) {
             int frameSize = format.getFrameSize();
             int currentFrames = length / frameSize;
+            if (currentFrames == 0) {
+                return new PcmChunk(new byte[0], 0, 0);
+            }
             if (!active && Math.abs(rate - 1) < 0.0005) {
                 return new PcmChunk(data, offset, currentFrames * frameSize);
             }

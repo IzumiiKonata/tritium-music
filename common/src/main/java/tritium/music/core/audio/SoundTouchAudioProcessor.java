@@ -38,8 +38,9 @@ final class SoundTouchAudioProcessor implements AutoCloseable {
             failureMessage = throwable.toString();
             if (FAILURE_LOGGED.compareAndSet(false, true)) {
                 try {
-                    Platform.log("[NCM] SoundTouch unavailable, using rate-only fallback: " + throwable.getMessage());
-                } catch (IllegalStateException ignored) {
+                    Platform.log("[NCM] SoundTouch unavailable, using rate-only fallback: " + throwable
+                            + " [library loader " + SoundTouch.class.getClassLoader() + ", loader " + SoundTouchAudioProcessor.class.getClassLoader() + "]");
+                } catch (Throwable ignored) {
                 }
             }
             return new SoundTouchAudioProcessor(null, format);
