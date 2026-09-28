@@ -8,7 +8,7 @@ in vec2 localPosition;
 in float alpha;
 in float radius;
 in vec2 guiPosition;
-flat in ivec4 clipRectFixed;
+flat in vec4 clipRect;
 
 out vec4 fragColor;
 
@@ -23,28 +23,28 @@ vec2 logicalSize() {
     );
 }
 
-float clipCoverage() {
-    vec4 clipRect = vec4(clipRectFixed) / 8.0;
-    vec2 inside = min(guiPosition - clipRect.xy, clipRect.zw - guiPosition);
-    float distance = min(inside.x, inside.y);
-    if (distance < 0.0) {
-        return 0.0;
-    }
-    float aa = max(fwidth(distance), 0.0001);
-    return smoothstep(0.0, aa, distance);
-}
-
-void main() {
-    vec4 textureColor = texture(Sampler0, texCoord);
-    if (textureColor.a == 0.0) {
-        discard;
-    }
+float shapeCoverage() {
     vec2 size = logicalSize();
     vec2 center = localCoord * size - size * 0.5;
     vec2 cornerDistance = abs(center) - (size * 0.5 - radius);
     float rawDistance = length(max(cornerDistance, 0.0)) - radius;
     float aa = max(length(vec2(dFdx(rawDistance), dFdy(rawDistance))) * 2.0, 0.0001);
     float distance = length(max(cornerDistance + aa, 0.0)) - radius;
-    float coverage = 1.0 - smoothstep(0.0, aa, distance);
-    fragColor = vec4(textureColor.rgb, alpha * coverage * clipCoverage());
+    return 1.0 - smoothstep(0.0, aa, distance);
+}
+
+float clipCoverage() {
+    vec2 outside = max(clipRect.xy - guiPosition, guiPosition - clipRect.zw);
+    float distance = max(outside.x, outside.y);
+    float aa = max(fwidth(distance), 0.0001);
+    return clamp(0.5 - distance / aa, 0.0, 1.0);
+}
+
+void main() {
+    vec4 textureColor = texture(Sampler0, texCoord);
+    float coverage = alpha * min(shapeCoverage(), clipCoverage());
+    if (textureColor.a <= 0.0 || coverage <= 0.0) {
+        discard;
+    }
+    fragColor = vec4(textureColor.rgb, coverage);
 }

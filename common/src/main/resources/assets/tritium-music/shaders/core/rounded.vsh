@@ -11,27 +11,25 @@ layout(std140) uniform Projection {
 };
 
 in vec3 Position;
-in vec2 UV0;
 in vec4 Color;
-in float LineWidth;
 in ivec2 UV1;
-in ivec2 UV2;
+in vec2 UV3;
+in float LineWidth;
 
 out vec2 localCoord;
 out vec2 localPosition;
 out vec4 vertexColor;
 out float radius;
 out vec2 guiPosition;
-flat out ivec4 clipRectFixed;
+flat out vec4 clipRect;
 
 void main() {
     vec2 corners[4] = vec2[4](vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0));
-    vec4 gui = ModelViewMat * vec4(Position.xy, 0.0, 1.0);
-    gl_Position = ProjMat * gui;
+    gl_Position = ProjMat * ModelViewMat * vec4(Position.xy, 0.0, 1.0);
     localCoord = corners[gl_VertexID & 3];
     localPosition = Position.xy;
     vertexColor = Color * ColorModulator;
-    radius = LineWidth;
-    guiPosition = gui.xy;
-    clipRectFixed = ivec4(UV1, UV2);
+    radius = float(UV1.x) / 32.0;
+    guiPosition = Position.xy;
+    clipRect = vec4(UV3, Position.z, LineWidth);
 }

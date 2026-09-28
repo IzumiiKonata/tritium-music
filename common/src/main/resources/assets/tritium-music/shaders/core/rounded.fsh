@@ -5,7 +5,7 @@ in vec2 localPosition;
 in vec4 vertexColor;
 in float radius;
 in vec2 guiPosition;
-flat in ivec4 clipRectFixed;
+flat in vec4 clipRect;
 
 out vec4 fragColor;
 
@@ -20,7 +20,8 @@ vec2 logicalSize() {
     );
 }
 
-float roundedCoverage(vec2 size) {
+float shapeCoverage() {
+    vec2 size = logicalSize();
     vec2 center = localCoord * size - size * 0.5;
     vec2 cornerDistance = abs(center) - (size * 0.5 - radius);
     float rawDistance = length(max(cornerDistance, 0.0)) - radius;
@@ -30,19 +31,15 @@ float roundedCoverage(vec2 size) {
 }
 
 float clipCoverage() {
-    vec4 clipRect = vec4(clipRectFixed) / 8.0;
-    vec2 inside = min(guiPosition - clipRect.xy, clipRect.zw - guiPosition);
-    float distance = min(inside.x, inside.y);
-    if (distance < 0.0) {
-        return 0.0;
-    }
+    vec2 outside = max(clipRect.xy - guiPosition, guiPosition - clipRect.zw);
+    float distance = max(outside.x, outside.y);
     float aa = max(fwidth(distance), 0.0001);
-    return smoothstep(0.0, aa, distance);
+    return clamp(0.5 - distance / aa, 0.0, 1.0);
 }
 
 void main() {
     vec4 color = vertexColor;
-    color.a *= roundedCoverage(logicalSize()) * clipCoverage();
+    color.a *= min(shapeCoverage(), clipCoverage());
     if (color.a <= 0.0) {
         discard;
     }

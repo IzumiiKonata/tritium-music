@@ -17,19 +17,11 @@ public record MeshElement(
         Matrix3x2fc pose,
         List<Vertex> vertices,
         boolean writeUv,
-        boolean writeNormal,
         @Nullable ScreenRectangle scissorArea,
         @Nullable ScreenRectangle bounds
 ) implements GuiElementRenderState {
 
-    public record Vertex(float x, float y, float u, float v, int color, float nx, float ny, float nz) {
-        public Vertex(float x, float y, float u, float v, int color) {
-            this(x, y, u, v, color, 0f, 0f, 0f);
-        }
-
-        public Vertex(float x, float y, float u, float v, int color, float aa) {
-            this(x, y, u, v, color, aa, 0f, 0f);
-        }
+    public record Vertex(float x, float y, float u, float v, int color) {
     }
 
     public MeshElement(
@@ -38,26 +30,22 @@ public record MeshElement(
             Matrix3x2fc pose,
             List<Vertex> vertices,
             boolean writeUv,
-            boolean writeNormal,
             float x0,
             float y0,
             float x1,
             float y1,
             @Nullable ScreenRectangle scissorArea
     ) {
-        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, writeUv, writeNormal, scissorArea, computeBounds(x0, y0, x1, y1, pose, scissorArea));
+        this(pipeline, textureSetup, new Matrix3x2f(pose), vertices, writeUv, scissorArea, computeBounds(x0, y0, x1, y1, pose, scissorArea));
     }
 
     @Override
     public void buildVertices(final VertexConsumer consumer) {
         if (writeUv) {
             for (Vertex vertex : vertices) {
-                VertexConsumer vc = consumer.addVertexWith2DPose(this.pose, vertex.x(), vertex.y())
+                consumer.addVertexWith2DPose(this.pose, vertex.x(), vertex.y())
                         .setUv(vertex.u(), vertex.v())
                         .setColor(vertex.color());
-                if (writeNormal) {
-                    vc.setNormal(vertex.nx(), vertex.ny(), vertex.nz());
-                }
             }
         } else {
             for (Vertex vertex : vertices) {
