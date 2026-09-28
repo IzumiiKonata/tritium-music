@@ -28,7 +28,7 @@ public final class RoundedPipeline {
                 .withBindGroupLayout(BindGroupLayouts.PROJECTION)
                 .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
                 .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-                .withVertexBinding(0, RoundedElement.FORMAT)
+                .withVertexBinding(0, ClipElement.FORMAT)
                 .withPrimitiveTopology(PrimitiveTopology.QUADS)
                 .withCull(false);
         if (textured) {

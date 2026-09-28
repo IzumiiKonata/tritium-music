@@ -10,15 +10,16 @@ import net.minecraft.resources.Identifier;
 
 public final class ClipPipeline {
 
-    public static final RenderPipeline SOLID = create("clipped", false);
-    public static final RenderPipeline TEXTURED = create("clipped_texture", true);
+    public static final RenderPipeline SOLID = create("clipped", false, PrimitiveTopology.QUADS);
+    public static final RenderPipeline TEXTURED = create("clipped_texture", true, PrimitiveTopology.QUADS);
+    public static final RenderPipeline LINES = create("clipped", false, PrimitiveTopology.DEBUG_LINES);
 
     public static void initialize() {
     }
 
-    private static RenderPipeline create(String name, boolean textured) {
+    private static RenderPipeline create(String name, boolean textured, PrimitiveTopology topology) {
         RenderPipeline.Builder builder = RenderPipeline.builder()
-                .withLocation(id("pipeline/" + name))
+                .withLocation(id("pipeline/" + name + "_" + topology.name().toLowerCase()))
                 .withVertexShader(id("core/" + name))
                 .withFragmentShader(id("core/" + name))
                 .withBindGroupLayout(BindGroupLayouts.GLOBALS)
@@ -26,7 +27,7 @@ public final class ClipPipeline {
                 .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
                 .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                 .withVertexBinding(0, ClipElement.FORMAT)
-                .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                .withPrimitiveTopology(topology)
                 .withCull(false);
         if (textured) {
             builder.withBindGroupLayout(BindGroupLayouts.SAMPLER0);

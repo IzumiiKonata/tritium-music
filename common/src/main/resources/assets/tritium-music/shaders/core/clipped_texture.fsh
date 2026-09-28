@@ -6,18 +6,16 @@ uniform sampler2D Sampler0;
 layout(location = 0) in vec2 texCoord;
 layout(location = 1) in vec4 vertexColor;
 layout(location = 2) in vec2 guiPosition;
-layout(location = 3) flat in ivec4 clipRectFixed;
+layout(location = 3) flat in vec4 clipRect;
 
 layout(location = 0) out vec4 fragColor;
 
 void main() {
+    vec2 outside = max(clipRect.xy - guiPosition, guiPosition - clipRect.zw);
+    float distance = max(outside.x, outside.y);
+    float aa = max(fwidth(distance), 0.0001);
     vec4 color = texture(Sampler0, texCoord) * vertexColor;
-    vec4 clipRect = vec4(clipRectFixed) / 8.0;
-    vec2 inside = min(guiPosition - clipRect.xy, clipRect.zw - guiPosition);
-    float distance = min(inside.x, inside.y);
-    if (distance < 0.0) {
-        discard;
-    }
+    color.a *= clamp(0.5 - distance / aa, 0.0, 1.0);
     if (color.a <= 0.0) {
         discard;
     }
