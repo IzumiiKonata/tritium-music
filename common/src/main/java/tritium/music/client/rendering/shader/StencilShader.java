@@ -4,14 +4,16 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import net.minecraft.client.gui.render.TextureSetup;
-import org.joml.Matrix3x2f;
-import tritium.music.client.render.MeshElement;
+import tritium.music.client.render.ClipElement;
+import tritium.music.client.render.ClipRect;
 import tritium.music.client.render.RenderContext;
+import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.TRenderTarget;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class StencilShader {
 
@@ -39,20 +41,20 @@ public class StencilShader {
         float v1 = (float) vMax;
         int quadColor = (Math.round(alpha * 255f) << 24) | 0x00FFFFFF;
 
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex((float) x, (float) y, 0f, 0f, quadColor));
-        verts.add(new MeshElement.Vertex((float) x, y1, 0f, v1, quadColor));
-        verts.add(new MeshElement.Vertex(x1, y1, u1, v1, quadColor));
-        verts.add(new MeshElement.Vertex(x1, (float) y, u1, 0f, quadColor));
+        List<ClipElement.Vertex> verts = new ArrayList<>(4);
+        verts.add(new ClipElement.Vertex((float) x, (float) y, 0f, 0f, quadColor));
+        verts.add(new ClipElement.Vertex((float) x, y1, 0f, v1, quadColor));
+        verts.add(new ClipElement.Vertex(x1, y1, u1, v1, quadColor));
+        verts.add(new ClipElement.Vertex(x1, (float) y, u1, 0f, quadColor));
 
         var g = RenderContext.graphics();
-        RenderContext.graphics().guiRenderState.submitGuiElement(new MeshElement(
+        ClipRect clip = Objects.requireNonNullElse(StencilClipManager.currentClip(), ClipRect.UNBOUNDED);
+        g.guiRenderState.addGuiElement(ClipElement.clipped(
                 StencilCompositePipeline.PIPELINE,
                 textureSetup,
-                new Matrix3x2f(g.pose()),
+                g.pose(),
                 verts,
-                true,
-                false,
+                clip,
                 (float) x, (float) y, x1, y1,
                 g.scissorStack.peek()
         ));

@@ -1,9 +1,10 @@
 package tritium.music.client.render;
 
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.shaders.UniformType;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -25,19 +26,12 @@ public final class RoundedPipeline {
                 .withFragmentShader(id("core/" + name))
                 .withUniform("Globals", UniformType.UNIFORM_BUFFER)
                 .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-                .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
                 .withBlend(BlendFunction.TRANSLUCENT)
-                .withVertexFormat(RoundedElement.FORMAT, VertexFormat.Mode.QUADS)
-//                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-//                .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-//                .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
-//                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-//                .withVertexBinding(0, RoundedElement.FORMAT)
-//                .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                .withVertexFormat(ClipElement.FORMAT, VertexFormat.Mode.QUADS)
                 .withCull(false);
         if (textured) {
             builder.withSampler("Sampler0");
-//            builder.withBindGroupLayout(BindGroupLayouts.SAMPLER0);
         }
         return RenderPipelines.register(builder.build());
     }

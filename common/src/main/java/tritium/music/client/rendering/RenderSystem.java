@@ -188,7 +188,10 @@ public class RenderSystem {
     }
 
     public static void doScissor(double x, double y, double width, double height) {
-        doScissor((int) x, (int) y, (int) width, (int) height);
+        if (forceDisableScissor) {
+            return;
+        }
+        StencilClipManager.beginClip(x, y, width, height);
     }
 
     public static void doScissor(double x, double y, double width, double height, double shrink) {
@@ -198,17 +201,14 @@ public class RenderSystem {
     public static volatile boolean forceDisableScissor = false;
 
     public static void doScissor(int x, int y, int width, int height) {
-        if (forceDisableScissor) {
-            return;
-        }
-        g().enableScissor(x, y, x + width, y + height);
+        doScissor((double) x, (double) y, (double) width, (double) height);
     }
 
     public static void endScissor() {
         if (forceDisableScissor) {
             return;
         }
-        g().disableScissor();
+        StencilClipManager.endClip();
     }
 
     public static Color getOppositeColor(Color colorIn) {

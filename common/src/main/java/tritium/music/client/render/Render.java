@@ -1,7 +1,6 @@
 package tritium.music.client.render;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import net.minecraft.client.Minecraft;
@@ -35,6 +34,24 @@ public final class Render {
 
     private static @Nullable ScreenRectangle scissor(GuiGraphicsExtractor g) {
         return g.scissorStack.peek();
+    }
+
+    private static ClipRect clip() {
+        ClipRect clip = StencilClipManager.currentClip();
+        return clip == null ? ClipRect.UNBOUNDED : clip;
+    }
+
+    private static @Nullable RenderPipeline clippedPipeline(RenderPipeline pipeline) {
+        if (pipeline == RenderPipelines.GUI) {
+            return ClipPipeline.SOLID;
+        }
+        if (pipeline == RenderPipelines.GUI_TEXTURED) {
+            return ClipPipeline.TEXTURED;
+        }
+        if (pipeline == LinePipeline.PIPELINE) {
+            return ClipPipeline.LINES;
+        }
+        return null;
     }
 
     private static Matrix3x2f pose(GuiGraphicsExtractor g) {
@@ -177,12 +194,13 @@ public final class Render {
         TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
         int a = (int) (clamp01(alpha) * 255f) & 0xFF;
         int color = (a << 24) | 0xFFFFFF;
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(x, y, 0f, 0f, color, controlPercent, 0f, 0f));
-        verts.add(new MeshElement.Vertex(x, y + h, 0f, 1f, color, controlPercent, 0f, 0f));
-        verts.add(new MeshElement.Vertex(x + w, y + h, 1f, 1f, color, controlPercent, 0f, 0f));
-        verts.add(new MeshElement.Vertex(x + w, y, 1f, 0f, color, controlPercent, 0f, 0f));
-        submit(g, VerticalFadePipeline.PIPELINE, setup, verts, true, true, x, y, x + w, y + h);
+        List<ClipElement.Vertex> verts = new ArrayList<>(4);
+        verts.add(new ClipElement.Vertex(x, y, 0f, 0f, color));
+        verts.add(new ClipElement.Vertex(x, y + h, 0f, 1f, color));
+        verts.add(new ClipElement.Vertex(x + w, y + h, 1f, 1f, color));
+        verts.add(new ClipElement.Vertex(x + w, y, 1f, 0f, color));
+        state(g).addGuiElement(ClipElement.faded(VerticalFadePipeline.PIPELINE, setup, g.pose(), verts, clip(),
+                controlPercent, x, y, x + w, y + h, scissor(g)));
     }
 
     public static void colorQuad(GuiGraphicsExtractor g,
@@ -227,18 +245,18 @@ public final class Render {
             maxY = Math.max(maxY, quad.y() + quad.height());
         }
 
-        StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
+        ClipRect clip = StencilClipManager.currentClip();
         if (clip != null) {
             List<ClipElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
             for (GlyphQuad quad : quads) {
                 float x1 = quad.x() + quad.width();
                 float y1 = quad.y() + quad.height();
-                verts.add(clipVertex(quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor(), clip));
-                verts.add(clipVertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor(), clip));
-                verts.add(clipVertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor(), clip));
-                verts.add(clipVertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor(), clip));
+                verts.add(new ClipElement.Vertex(quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor()));
+                verts.add(new ClipElement.Vertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor()));
+                verts.add(new ClipElement.Vertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor()));
+                verts.add(new ClipElement.Vertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor()));
             }
-            state(g).addGuiElement(new ClipElement(ClipPipeline.TEXTURED, setup, g.pose(), verts,
+            state(g).addGuiElement(ClipElement.clipped(ClipPipeline.TEXTURED, setup, g.pose(), verts, clip,
                     minX, minY, maxX, maxY, scissor(g)));
             return;
         }
@@ -253,12 +271,7 @@ public final class Render {
             verts.add(new MeshElement.Vertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor()));
         }
         state(g).addGuiElement(new MeshElement(RenderPipelines.GUI_TEXTURED, setup, g.pose(), verts,
-                true, false, minX, minY, maxX, maxY, scissor(g)));
-    }
-
-    private static ClipElement.Vertex clipVertex(float x, float y, float u, float v, int color,
-                                                 StencilClipManager.ClipRect clip) {
-        return new ClipElement.Vertex(x, y, u, v, color, clip.left(), clip.top(), clip.right(), clip.bottom());
+                true, minX, minY, maxX, maxY, scissor(g)));
     }
 
     public record GlyphQuad(float x, float y, float width, float height,
@@ -316,18 +329,14 @@ public final class Render {
             u0 *= radiusScale;
             u1 *= radiusScale;
         }
-        StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
-        float clipLeft = clip == null ? -4096.0f : clip.left();
-        float clipTop = clip == null ? -4096.0f : clip.top();
-        float clipRight = clip == null ? 4095.0f : clip.right();
-        float clipBottom = clip == null ? 4095.0f : clip.bottom();
-        List<RoundedElement.Vertex> vertices = new ArrayList<>(4);
-        vertices.add(new RoundedElement.Vertex(0f, 0f, u0, v0, topLeft, radius, clipLeft, clipTop, clipRight, clipBottom));
-        vertices.add(new RoundedElement.Vertex(0f, dimensions.height(), u0, v1, bottomLeft, radius, clipLeft, clipTop, clipRight, clipBottom));
-        vertices.add(new RoundedElement.Vertex(dimensions.width(), dimensions.height(), u1, v1, bottomRight, radius, clipLeft, clipTop, clipRight, clipBottom));
-        vertices.add(new RoundedElement.Vertex(dimensions.width(), 0f, u1, v0, topRight, radius, clipLeft, clipTop, clipRight, clipBottom));
-        state(g).addGuiElement(RoundedElement.of(
-                pipeline, setup, localPose, vertices, dimensions.width(), dimensions.height(), scissor(g)
+        List<ClipElement.Vertex> vertices = new ArrayList<>(4);
+        vertices.add(new ClipElement.Vertex(0f, 0f, u0, v0, topLeft));
+        vertices.add(new ClipElement.Vertex(0f, dimensions.height(), u0, v1, bottomLeft));
+        vertices.add(new ClipElement.Vertex(dimensions.width(), dimensions.height(), u1, v1, bottomRight));
+        vertices.add(new ClipElement.Vertex(dimensions.width(), 0f, u1, v0, topRight));
+        state(g).addGuiElement(ClipElement.rounded(
+                pipeline, setup, localPose, vertices, clip(), radius,
+                dimensions.width(), dimensions.height(), scissor(g)
         ));
     }
 
@@ -357,33 +366,26 @@ public final class Render {
 
     private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
                                List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1) {
-        submit(g, pipeline, setup, verts, false, false, x0, y0, x1, y1);
+        submit(g, pipeline, setup, verts, false, x0, y0, x1, y1);
     }
 
     private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
-                               List<MeshElement.Vertex> verts, boolean writeUv, float x0, float y0, float x1, float y1) {
-        submit(g, pipeline, setup, verts, writeUv, false, x0, y0, x1, y1);
-    }
-
-    private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
-                               List<MeshElement.Vertex> verts, boolean writeUv, boolean writeNormal,
+                               List<MeshElement.Vertex> verts, boolean writeUv,
                                float x0, float y0, float x1, float y1) {
-        StencilClipManager.ClipRect clip = StencilClipManager.currentClip();
-        if (clip != null && (pipeline == RenderPipelines.GUI || pipeline == RenderPipelines.GUI_TEXTURED)) {
-            RenderPipeline clippedPipeline = pipeline == RenderPipelines.GUI ? ClipPipeline.SOLID : ClipPipeline.TEXTURED;
+        RenderPipeline clippedPipeline = clippedPipeline(pipeline);
+        ClipRect clip = StencilClipManager.currentClip();
+        if (clip != null && clippedPipeline != null) {
             List<ClipElement.Vertex> clippedVertices = new ArrayList<>(verts.size());
             for (MeshElement.Vertex vertex : verts) {
                 clippedVertices.add(new ClipElement.Vertex(
-                        vertex.x(), vertex.y(), vertex.u(), vertex.v(), vertex.color(),
-                        clip.left(), clip.top(), clip.right(), clip.bottom()
+                        vertex.x(), vertex.y(), vertex.u(), vertex.v(), vertex.color()
                 ));
             }
-            state(g).addGuiElement(new ClipElement(
-                    clippedPipeline, setup, g.pose(), clippedVertices, x0, y0, x1, y1, scissor(g)
-            ));
+            state(g).addGuiElement(ClipElement.clipped(clippedPipeline, setup, g.pose(), clippedVertices, clip,
+                    x0, y0, x1, y1, scissor(g)));
             return;
         }
-        state(g).addGuiElement(new MeshElement(pipeline, setup, g.pose(), verts, writeUv, writeNormal, x0, y0, x1, y1, scissor(g)));
+        state(g).addGuiElement(new MeshElement(pipeline, setup, g.pose(), verts, writeUv, x0, y0, x1, y1, scissor(g)));
     }
 
     private static float clamp01(float v) {

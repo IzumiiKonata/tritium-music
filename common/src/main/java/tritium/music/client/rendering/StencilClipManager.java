@@ -1,18 +1,13 @@
 package tritium.music.client.rendering;
 
 import org.joml.Matrix3x2fc;
-import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
+import tritium.music.client.render.ClipRect;
 import tritium.music.client.render.RenderContext;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/**
- * In the original client this used GL stencil buffers; every clip region the
- * music UI uses is rectangular, so on the deferred Blaze3D pipeline it is
- * implemented with the scissor stack instead.
- */
 public class StencilClipManager {
 
     private static final ThreadLocal<double[]> CAPTURE = new ThreadLocal<>();
@@ -42,29 +37,9 @@ public class StencilClipManager {
 
     public static void beginClip(double x, double y, double width, double height) {
         Matrix3x2fc pose = RenderContext.graphics().pose();
-        double scaleX = Math.sqrt((double) pose.m00() * pose.m00() + (double) pose.m01() * pose.m01());
-        double scaleY = Math.sqrt((double) pose.m10() * pose.m10() + (double) pose.m11() * pose.m11());
-        double slackX = 1.0 / Math.max(scaleX, 1e-6);
-        double slackY = 1.0 / Math.max(scaleY, 1e-6);
-
-        int x0 = (int) Math.floor(x - slackX);
-        int y0 = (int) Math.floor(y - slackY);
-        int x1 = (int) Math.ceil(x + width + slackX);
-        int y1 = (int) Math.ceil(y + height + slackY);
-
-        Vector2f p0 = pose.transformPosition((float) x, (float) y, new Vector2f());
-        Vector2f p1 = pose.transformPosition((float) (x + width), (float) y, new Vector2f());
-        Vector2f p2 = pose.transformPosition((float) (x + width), (float) (y + height), new Vector2f());
-        Vector2f p3 = pose.transformPosition((float) x, (float) (y + height), new Vector2f());
-        ClipRect clip = new ClipRect(
-                Math.min(Math.min(p0.x, p1.x), Math.min(p2.x, p3.x)),
-                Math.min(Math.min(p0.y, p1.y), Math.min(p2.y, p3.y)),
-                Math.max(Math.max(p0.x, p1.x), Math.max(p2.x, p3.x)),
-                Math.max(Math.max(p0.y, p1.y), Math.max(p2.y, p3.y))
-        );
+        ClipRect clip = ClipRect.of(pose, x, y, width, height);
         ClipRect parent = stack.peek();
         stack.push(parent == null ? clip : parent.intersection(clip));
-        RenderContext.graphics().enableScissor(x0, y0, x1, y1);
     }
 
     public static void beginClip(Runnable drawClipShape) {
@@ -81,7 +56,6 @@ public class StencilClipManager {
     public static void endClip() {
         if (!stack.isEmpty()) {
             stack.pop();
-            RenderContext.graphics().disableScissor();
         }
     }
 
@@ -90,20 +64,6 @@ public class StencilClipManager {
     }
 
     public static void clear() {
-        while (!stack.isEmpty()) {
-            stack.pop();
-            RenderContext.graphics().disableScissor();
-        }
-    }
-
-    public record ClipRect(float left, float top, float right, float bottom) {
-        private ClipRect intersection(ClipRect other) {
-            return new ClipRect(
-                    Math.max(left, other.left),
-                    Math.max(top, other.top),
-                    Math.min(right, other.right),
-                    Math.min(bottom, other.bottom)
-            );
-        }
+        stack.clear();
     }
 }
