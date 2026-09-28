@@ -26,7 +26,9 @@ import tritium.music.client.render.VerticalFadePipeline;
 import tritium.music.client.rendering.LyricOffscreen;
 import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.StencilCompositePipeline;
+import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.font.SystemFontIndex;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -110,6 +112,8 @@ public final class TritiumMusicNeoForge {
     @SubscribeEvent
     private static void onClientStarted(ClientStartedEvent event) {
         FontManager.loadFonts();
+        FontCatalog.preload();
+        SystemFontIndex.preload(FontManager::retryShaping);
         WidgetConfig.get();
         AsyncUtil.runAsync(CloudMusic::initNCM);
     }
@@ -118,6 +122,7 @@ public final class TritiumMusicNeoForge {
     private static void onClientStopping(ClientStoppingEvent event) {
         CloudMusic.shutdownPlayback();
         CloudMusic.onStop();
+        FontManager.dispose();
     }
 
     @SubscribeEvent
