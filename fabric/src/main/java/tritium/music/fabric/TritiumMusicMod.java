@@ -14,6 +14,7 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tritium.music.client.config.WidgetConfig;
+import tritium.music.client.AssetBootstrap;
 import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.render.ClipPipeline;
 import tritium.music.client.render.LinePipeline;
@@ -67,6 +68,7 @@ public class TritiumMusicMod implements ClientModInitializer {
             FontCatalog.preload();
             SystemFontIndex.preload(FontManager::retryShaping);
             WidgetConfig.get();
+            AssetBootstrap.start();
             AsyncUtil.runAsync(CloudMusic::initNCM);
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {

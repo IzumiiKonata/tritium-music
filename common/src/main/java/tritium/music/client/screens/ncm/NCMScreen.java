@@ -10,6 +10,7 @@ import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.animation.Interpolations;
+import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.widgets.RectWidget;
@@ -20,8 +21,12 @@ import tritium.music.client.screens.ncm.panels.NavigateBar;
 import tritium.music.client.screens.ncm.panels.PlaylistPanel;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
+import tritium.music.core.assets.AssetFormat;
+import tritium.music.core.assets.AssetManager;
+import tritium.music.core.assets.AssetRoute;
 import tritium.music.core.ncm.OptionsUtil;
 import tritium.music.core.util.AsyncUtil;
+import tritium.music.platform.Platform;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -256,6 +261,118 @@ public class NCMScreen extends BaseScreen {
     private float downloadPanelAlpha = 0.0f;
 
     private void renderDownloadingPanel() {
+        double assetPanelHeight = this.renderAssetDownloadPanel();
+        this.renderSongDownloadPanel(8 + assetPanelHeight);
+    }
+
+    private static final double PROGRESS_BAR_HEIGHT = 8;
+    private static final double PROGRESS_PADDING = 8;
+    private static final double PROGRESS_PANEL_WIDTH = 240;
+
+    private float assetPanelAlpha = 0.0f;
+    private double assetPanelX;
+    private double assetPanelY;
+    private double assetPanelWidth;
+    private double assetPanelHeight;
+    private boolean assetPanelFailed;
+    private boolean assetPanelLogged;
+
+    private double renderAssetDownloadPanel() {
+        AssetManager.Snapshot snapshot = AssetManager.get().snapshot();
+        boolean failed = snapshot.failed();
+        boolean visible = snapshot.active() || failed;
+
+        this.assetPanelAlpha = Interpolations.interpolate(this.assetPanelAlpha, visible ? 1f : 0f, 0.3f);
+        this.assetPanelFailed = failed;
+
+        if (this.assetPanelAlpha <= 0.02f)
+            return 0;
+
+        if (!this.assetPanelLogged) {
+            this.assetPanelLogged = true;
+            Platform.log("[asset] progress panel rendered, phase " + snapshot.phase()
+                    + ", " + snapshot.readyCount() + "/" + snapshot.files().size() + " ready");
+        }
+
+        CFontRenderer titleFont = FontManager.pf34bold;
+        CFontRenderer detailFont = FontManager.pf25bold;
+        CFontRenderer hintFont = FontManager.pf20;
+        if (titleFont == null || detailFont == null || hintFont == null)
+            return 0;
+
+        String title;
+        String detail;
+        String hint;
+        if (failed) {
+            title = I18n.get("tritium-music.ui.assets.failed");
+            detail = I18n.get("tritium-music.ui.assets.route.unreachable");
+            hint = I18n.get("tritium-music.ui.assets.retry_hint");
+        } else if (snapshot.phase() == AssetManager.Phase.RESOLVING) {
+            title = I18n.get("tritium-music.ui.assets.title");
+            detail = I18n.get("tritium-music.ui.assets.resolving");
+            hint = I18n.get("tritium-music.ui.assets.route.pending");
+        } else {
+            title = I18n.get("tritium-music.ui.assets.title");
+            detail = Math.round(snapshot.fraction() * 100) + "%  ·  " + AssetFormat.speed(snapshot.bytesPerSecond());
+            hint = transitionText(snapshot);
+        }
+
+        float alpha = this.assetPanelAlpha * this.alpha;
+        double textHeight = titleFont.getHeight() + detailFont.getHeight() + hintFont.getHeight();
+        double panelHeight = PROGRESS_PADDING + textHeight + PROGRESS_PADDING
+                + PROGRESS_BAR_HEIGHT + PROGRESS_PADDING;
+
+        this.assetPanelWidth = PROGRESS_PANEL_WIDTH;
+        this.assetPanelHeight = panelHeight;
+        this.assetPanelX = RenderSystem.getWidth() * .5 - PROGRESS_PANEL_WIDTH * .5;
+        this.assetPanelY = 8 + -(8 + panelHeight) * (1 - this.assetPanelAlpha);
+
+        Rect.draw(this.assetPanelX, this.assetPanelY, PROGRESS_PANEL_WIDTH, panelHeight, RenderSystem.reAlpha(0x202020, alpha));
+
+        double centerX = RenderSystem.getWidth() * .5;
+        double textY = this.assetPanelY + PROGRESS_PADDING;
+
+        titleFont.drawCenteredString(title, centerX, textY, hexColor(1f, 1f, 1f, alpha));
+        textY += titleFont.getHeight();
+        detailFont.drawCenteredString(detail, centerX, textY, hexColor(1f, 1f, 1f, alpha));
+        textY += detailFont.getHeight();
+        hintFont.drawCenteredString(hint, centerX, textY, hexColor(1f, 1f, 1f, alpha * 0.65f));
+
+        double barX = this.assetPanelX + PROGRESS_PADDING;
+        double barWidth = PROGRESS_PANEL_WIDTH - PROGRESS_PADDING * 2;
+        double barY = this.assetPanelY + panelHeight - PROGRESS_PADDING - PROGRESS_BAR_HEIGHT;
+        roundedRect(barX, barY, barWidth, PROGRESS_BAR_HEIGHT, 3, hexColor(1f, 1f, 1f, 0.5f * alpha));
+
+        double progress = snapshot.fraction();
+        if (progress > 0.001) {
+            StencilClipManager.beginClip(barX, barY, barWidth * progress, PROGRESS_BAR_HEIGHT);
+            roundedRect(barX, barY, barWidth, PROGRESS_BAR_HEIGHT, 3, hexColor(1f, 1f, 1f, alpha));
+            StencilClipManager.endClip();
+        }
+
+        return panelHeight + 6;
+    }
+
+    private String transitionText(AssetManager.Snapshot snapshot) {
+        String route;
+        AssetRoute resolved = snapshot.route();
+        if (resolved == null) {
+            route = I18n.get("tritium-music.ui.assets.route.pending");
+        } else if (resolved.mirror()) {
+            route = I18n.get("tritium-music.ui.assets.route.mirror", resolved.host());
+        } else {
+            route = I18n.get("tritium-music.ui.assets.route.direct");
+        }
+
+        for (AssetManager.FileStatus status : snapshot.files()) {
+            if (status.state() == AssetManager.State.DOWNLOADING || status.state() == AssetManager.State.VERIFYING) {
+                return status.asset().fileName() + "  ·  " + route;
+            }
+        }
+        return route;
+    }
+
+    private void renderSongDownloadPanel(double topOffset) {
         MusicState state = MusicState.get();
         this.downloadPanelAlpha = Interpolations.interpolate(this.downloadPanelAlpha, state.isDownloading() ? 1f : 0f, 0.3f);
 
@@ -265,20 +382,20 @@ public class NCMScreen extends BaseScreen {
         double downloadProgress = state.getDownloadProgress();
         String downloadSpeed = state.getDownloadSpeed();
 
-        double downloadPanelWidth = 240;
+        double downloadPanelWidth = PROGRESS_PANEL_WIDTH;
         double downloadPanelHeight = 60;
-        double progressBarWidth = downloadPanelWidth - 16;
-        double progressBarHeight = 8;
+        double progressBarWidth = downloadPanelWidth - PROGRESS_PADDING * 2;
+        double progressBarHeight = PROGRESS_BAR_HEIGHT;
 
-        double offsetY = 8 + -(8 + downloadPanelHeight) * (1 - downloadPanelAlpha);
+        double offsetY = topOffset + -(8 + downloadPanelHeight) * (1 - this.downloadPanelAlpha);
         Rect.draw(RenderSystem.getWidth() * .5 - downloadPanelWidth * .5, offsetY, downloadPanelWidth, downloadPanelHeight, RenderSystem.reAlpha(0x202020, downloadPanelAlpha * alpha));
-        FontManager.pf34bold.drawCenteredString(I18n.get("tritium-music.ui.download.downloading"), RenderSystem.getWidth() * .5, offsetY + 8, hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
-        FontManager.pf25bold.drawCenteredString(String.valueOf(downloadSpeed), RenderSystem.getWidth() * .5, offsetY + 8 + FontManager.pf34bold.getHeight(), hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
-        roundedRect(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth, progressBarHeight, 3, hexColor(1f, 1f, 1f, .5f * downloadPanelAlpha * alpha));
+        FontManager.pf34bold.drawCenteredString(I18n.get("tritium-music.ui.download.downloading"), RenderSystem.getWidth() * .5, offsetY + PROGRESS_PADDING, hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
+        FontManager.pf25bold.drawCenteredString(String.valueOf(downloadSpeed), RenderSystem.getWidth() * .5, offsetY + PROGRESS_PADDING + FontManager.pf34bold.getHeight(), hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
+        roundedRect(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - PROGRESS_PADDING - progressBarHeight, progressBarWidth, progressBarHeight, 3, hexColor(1f, 1f, 1f, .5f * downloadPanelAlpha * alpha));
 
         StencilClipManager.beginClip(RenderSystem.getWidth() * .5 - progressBarWidth * .5,
-                offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth * downloadProgress, progressBarHeight);
-        roundedRect(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - 8 - progressBarHeight, progressBarWidth, progressBarHeight, 3, hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
+                offsetY + downloadPanelHeight - PROGRESS_PADDING - progressBarHeight, progressBarWidth * downloadProgress, progressBarHeight);
+        roundedRect(RenderSystem.getWidth() * .5 - progressBarWidth * .5, offsetY + downloadPanelHeight - PROGRESS_PADDING - progressBarHeight, progressBarWidth, progressBarHeight, 3, hexColor(1f, 1f, 1f, downloadPanelAlpha * alpha));
         StencilClipManager.endClip();
     }
 
@@ -386,6 +503,12 @@ public class NCMScreen extends BaseScreen {
 
     @Override
     public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
+        if (this.assetPanelFailed && this.assetPanelAlpha > 0.5f
+                && RenderSystem.isHovered(mouseX, mouseY, assetPanelX, assetPanelY, assetPanelWidth, assetPanelHeight)) {
+            AssetManager.get().retry();
+            return;
+        }
+
         if (musicLyricsPanel == null) {
             if (this.playlistsPanel != null && this.playlistsPanel.handleSuggestionClick(mouseX, mouseY, mouseButton)) {
                 return;
