@@ -1,7 +1,7 @@
 package tritium.music.client.rendering.hud;
 
 import lombok.Setter;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
@@ -11,10 +11,7 @@ import tritium.music.client.rendering.animation.Interpolations;
 
 public abstract class HudWidget implements SharedRenderingConstants {
 
-    /**
-     * Wraps a render callback in the per-frame RenderContext + frame-delta setup shared by the HUD and editor.
-     */
-    public static void renderInFrame(GuiGraphics graphics, float partialTick, Runnable render) {
+    public static void renderInFrame(GuiGraphicsExtractor graphics, float partialTick, Runnable render) {
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
         try {
@@ -48,10 +45,6 @@ public abstract class HudWidget implements SharedRenderingConstants {
         return I18n.get(nameKey);
     }
 
-    /**
-     * Per-widget config slice (position fraction, scale, enabled). Subclasses bind it
-     * so the base can resolve absolute position and the editor can mutate it.
-     */
     public abstract WidgetConfig.WidgetSettings settings();
 
     public boolean isEnabled() {
@@ -92,9 +85,6 @@ public abstract class HudWidget implements SharedRenderingConstants {
         settings().y = y / RenderSystem.getHeight();
     }
 
-    /**
-     * Last-rendered width/height in pixels, for editor hit-testing and outlines.
-     */
     public double editorWidth() {
         return getWidth();
     }

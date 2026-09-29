@@ -182,7 +182,7 @@ public class NavigateBar extends NCMPanel {
         }
 
         {
-            PlaylistItem item = new PlaylistItem("", Color.GRAY::getRGB, () -> I18n.get("tritium-music.ui.navigation.hud_settings"),
+            PlaylistItem item = new PlaylistItem("", Color.GRAY::getRGB, () -> "    " + I18n.get("tritium-music.ui.navigation.hud_settings"),
                     () -> NCMScreen.getInstance().setCurrentPanel(new HudSettingsPanel()));
             item.setShouldOverrideMouseCursor(true);
             this.playlistPanel.addChild(item);

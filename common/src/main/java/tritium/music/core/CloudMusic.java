@@ -169,16 +169,10 @@ public class CloudMusic {
         return false;
     }
 
-    /**
-     * 播放到长间隔时才会显示的过渡行, 不参与歌词列表与索引
-     */
     public static LyricLine findLongBreakLine() {
         return activeLongBreak.isEmpty() ? null : activeLongBreak.getFirst();
     }
 
-    /**
-     * 间隔已结束但仍在淡出的过渡行
-     */
     public static LyricLine findLingeringLongBreakLine() {
         synchronized (longBreakAnimation) {
             if (longBreakAnimation.lingeringLine == null) return null;
@@ -188,9 +182,6 @@ public class CloudMusic {
         }
     }
 
-    /**
-     * 正在显示或正在淡出的过渡行, 渲染层用这个查询
-     */
     public static LyricLine findDisplayedLongBreakLine() {
         LyricLine breakLine = findLongBreakLine();
         return breakLine != null ? breakLine : findLingeringLongBreakLine();
@@ -200,32 +191,20 @@ public class CloudMusic {
         return !activeLongBreak.isEmpty();
     }
 
-    /**
-     * 过渡行应插入到歌词列表中的位置, 无间隔时为 -1
-     */
     public static int breakInsertIndex() {
         if (activeLongBreak.isEmpty()) return -1;
 
         return isLongBreakLeadIn() ? 0 : currentLyricIndex() + 1;
     }
 
-    /**
-     * 间隔是否位于第一句歌词之前 (前奏)
-     */
     public static boolean isLongBreakLeadIn() {
         return !activeLongBreak.isEmpty() && isIntroBreak(activeLongBreak.getFirst());
     }
 
-    /**
-     * 间隔是否位于当前歌词之后
-     */
     public static boolean isLongBreakAfterCurrent() {
         return !activeLongBreak.isEmpty() && !isIntroBreak(activeLongBreak.getFirst());
     }
 
-    /**
-     * 间隔刚结束时过渡行的插入位置, 用于淡出期间保持占位
-     */
     public static int breakInsertIndexAfterLastInterval() {
         synchronized (longBreakAnimation) {
             LyricLine lingering = longBreakAnimation.lingeringLine;
@@ -240,9 +219,6 @@ public class CloudMusic {
         }
     }
 
-    /**
-     * 当前间隔的结束时刻, 无间隔时为 -1
-     */
     public static long activeLongBreakEndMillis() {
         synchronized (activeLongBreak) {
             return activeLongBreak.isEmpty() ? -1 : longBreakAnimation.breakEnd;
@@ -348,13 +324,6 @@ public class CloudMusic {
         return line;
     }
 
-    /**
-     * 推进过渡行的淡入 / 呼吸 / 淡出, 每帧由渲染层调用
-     */
-    /**
-     * 推进过渡行的淡入 / 呼吸 / 淡出, 每帧由渲染层调用。
-     * 淡出必须由这里驱动到最后, 否则强度会停在最后一帧的值上不再归零
-     */
     public static void updateLongBreakAnimation() {
         LyricLine active = findLongBreakLine();
         LyricLine lingering = findLingeringLongBreakLine();

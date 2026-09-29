@@ -15,7 +15,7 @@ import java.nio.file.Files;
 
 public class WidgetConfig {
 
-    private static WidgetConfig instance;
+    private static volatile WidgetConfig instance;
 
     public static WidgetConfig get() {
         if (instance == null) {
@@ -36,10 +36,17 @@ public class WidgetConfig {
     public boolean autoMix = false;
     public boolean autoMixTuneWheneverPossible = false;
     public PlaylistViewMode playlistViewMode = PlaylistViewMode.GRID;
+    public MusicToastMode musicToastMode = MusicToastMode.ON;
 
     public enum PlaylistViewMode {
         LIST,
         GRID
+    }
+
+    public enum MusicToastMode {
+        ON,
+        OFF,
+        FOLLOW_GAME
     }
 
     public static class WidgetSettings {
@@ -149,6 +156,7 @@ public class WidgetConfig {
         if (spectrum == null) spectrum = new Spectrum();
         if (quality == null) quality = Quality.STANDARD;
         if (playlistViewMode == null) playlistViewMode = PlaylistViewMode.GRID;
+        if (musicToastMode == null) musicToastMode = MusicToastMode.ON;
     }
 
     public void applyToState() {

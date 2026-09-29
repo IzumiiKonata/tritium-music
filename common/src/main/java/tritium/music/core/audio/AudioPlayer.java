@@ -25,18 +25,9 @@ public class AudioPlayer {
         thread.setPriority(Math.max(Thread.MIN_PRIORITY, Thread.NORM_PRIORITY - 1));
         return thread;
     });
-    /**
-     * Spectrum band magnitudes, updated by the FFT analysis. Empty until the first FFT frame.
-     */
+
     public static volatile float[] bandValues = new float[0];
-    /**
-     * Gate for the FFT callback so analysis only runs when something consumes the bands
-     * (spectrum widget visible or a lyrics/now-playing surface open). Set by the client.
-     */
     public static volatile boolean spectrumEnabled = false;
-    /**
-     * Spectrum visualizer tuning, set by the client from config.
-     */
     public static volatile float spectrumTilt = 3.0f;
     public static volatile boolean absoluteVolume = true;
     private static volatile AudioPlayer spectrumSource;

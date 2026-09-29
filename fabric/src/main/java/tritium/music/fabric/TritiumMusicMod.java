@@ -4,19 +4,18 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.render.ClipPipeline;
-//import tritium.music.client.render.LinePipeline;
+import tritium.music.client.render.LinePipeline;
 import tritium.music.client.render.RoundedPipeline;
 import tritium.music.client.render.VerticalFadePipeline;
 import tritium.music.client.rendering.LyricOffscreen;
@@ -45,7 +44,7 @@ public class TritiumMusicMod implements ClientModInitializer {
 
     public static final KeyMapping.Category KEY_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "ncm"));
 
-    public static final KeyMapping openNcmScreen = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, KEY_CATEGORY));
+    public static final KeyMapping openNcmScreen = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYBOARD, InputConstants.KEY_M, KEY_CATEGORY));
 
     private final MusicInfoWidget musicInfo = new MusicInfoWidget();
     private final MusicLyricsWidget musicLyrics = new MusicLyricsWidget();
@@ -55,7 +54,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     public void onInitializeClient() {
         EffectPipelines.initialize();
         ClipPipeline.initialize();
-//        LinePipeline.initialize();
+        LinePipeline.initialize();
         RoundedPipeline.initialize();
         VerticalFadePipeline.initialize();
         StencilCompositePipeline.initialize();
@@ -78,9 +77,7 @@ public class TritiumMusicMod implements ClientModInitializer {
         CloudMusic.addListener(new MusicListener() {
             @Override
             public void onSongStart(Music music) {
-                MusicToastState.set(music.getArtistsName() + " - " + music.getName());
-                Minecraft mc = Minecraft.getInstance();
-                mc.execute(() -> mc.getToastManager().showNowPlayingToast());
+                MusicToastState.push(music.getArtistsName() + " - " + music.getName());
             }
 
             @Override
@@ -112,7 +109,7 @@ public class TritiumMusicMod implements ClientModInitializer {
             AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
             AudioPlayer.absoluteVolume = spectrum.absVol;
 
-            if (!widget.isEnabled() || Minecraft.getInstance().screen instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
 
@@ -121,7 +118,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     }
 
     private void onClientTick(Minecraft client) {
-        if (client.screen != null) {
+        if (client.gui.screen() != null) {
             return;
         }
 
