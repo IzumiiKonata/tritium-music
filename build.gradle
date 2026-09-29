@@ -3,6 +3,61 @@ plugins {
 	id 'net.neoforged.moddev' version "${moddev_version}" apply false
 }
 
+def slimNestedJar = { InputStream input ->
+	def buffer = new java.io.ByteArrayOutputStream()
+	new java.util.zip.ZipInputStream(input).withCloseable { zipIn ->
+		new java.util.zip.ZipOutputStream(buffer).withCloseable { zipOut ->
+			def entry
+			while ((entry = zipIn.nextEntry) != null) {
+				if (entry.name.startsWith('ai/onnxruntime/native/')) {
+					continue
+				}
+				def copy = new java.util.zip.ZipEntry(entry.name)
+				copy.time = entry.time
+				zipOut.putNextEntry(copy)
+				zipIn.transferTo(zipOut)
+				zipOut.closeEntry()
+			}
+		}
+	}
+	buffer.toByteArray()
+}
+
+ext.stripOnnxRuntimeNatives = { File jarFile ->
+	if (jarFile == null || !jarFile.isFile()) {
+		return
+	}
+	def temporary = new File(jarFile.parentFile, jarFile.name + '.slim.tmp')
+	def stripped = false
+	try {
+		new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+			new java.util.zip.ZipOutputStream(new java.io.BufferedOutputStream(new java.io.FileOutputStream(temporary))).withCloseable { out ->
+				def entries = zip.entries()
+				while (entries.hasMoreElements()) {
+					def entry = entries.nextElement()
+					def payload
+					if (entry.name ==~ /META-INF\/(jars|jarjar)\/onnxruntime-.*\.jar/) {
+						payload = slimNestedJar(zip.getInputStream(entry))
+						stripped = true
+					} else {
+						payload = zip.getInputStream(entry).bytes
+					}
+					def copy = new java.util.zip.ZipEntry(entry.name)
+					copy.time = entry.time
+					out.putNextEntry(copy)
+					out.write(payload)
+					out.closeEntry()
+				}
+			}
+		}
+		if (stripped) {
+			java.nio.file.Files.move(temporary.toPath(), jarFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+		}
+	} finally {
+		temporary.delete()
+	}
+}
+
 allprojects {
 	version = project.mod_version
 	group = project.maven_group

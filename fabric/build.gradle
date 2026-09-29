@@ -80,6 +80,10 @@ jar {
 			'LICENSE_SOUNDTOUCH', 'LICENSE_SOUNDTOUCH_JNI')) {
 		rename { "${it}_${rootProject.name}" }
 	}
+
+	doLast {
+		rootProject.stripOnnxRuntimeNatives(archiveFile.get().asFile)
+	}
 }
 
 publishing {

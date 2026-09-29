@@ -12,4 +12,7 @@
 *.onnx.sha256   text eol=lf
 *.ttf           binary
 *.otf           binary
+*.dll           binary
+*.so            binary
+*.dylib         binary
 
