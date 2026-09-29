@@ -78,9 +78,7 @@ public class TritiumMusicMod implements ClientModInitializer {
         CloudMusic.addListener(new MusicListener() {
             @Override
             public void onSongStart(Music music) {
-                MusicToastState.set(music.getArtistsName() + " - " + music.getName());
-                Minecraft mc = Minecraft.getInstance();
-                mc.execute(() -> mc.gui.toastManager().showNowPlayingToast());
+                MusicToastState.push(music.getArtistsName() + " - " + music.getName());
             }
 
             @Override

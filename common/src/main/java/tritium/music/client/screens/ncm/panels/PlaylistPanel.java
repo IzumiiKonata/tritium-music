@@ -37,6 +37,8 @@ public class PlaylistPanel extends NCMPanel {
     private ScrollPanel musicsPanel;
     private List<Music> loadedMusics = List.of();
     private RoundedButtonWidget searchViewModeAnchor;
+    private LoadingIndicatorWidget loadingIndicator;
+    private volatile boolean musicsLoading;
 
     private static boolean isCtrlDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
@@ -246,8 +248,19 @@ public class PlaylistPanel extends NCMPanel {
 
         musicsPanel.setBeforeRenderCallback(() -> musicsPanel.setMargin(0));
 
+        loadingIndicator = new LoadingIndicatorWidget();
+        loadingIndicator.setLabel(I18n.get("tritium-music.ui.playlist.loading"));
+        loadingIndicator.setColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
+        loadingIndicator.setBeforeRenderCallback(() -> {
+            loadingIndicator.setHidden(!musicsLoading);
+            loadingIndicator.setMargin(0);
+        });
+        rwMusicsContainer.addChild(loadingIndicator);
+
+        musicsLoading = !playList.musicsLoaded;
         playList.loadMusicsWithCallback(musics -> {
             loadedMusics = List.copyOf(musics);
+            musicsLoading = false;
             rebuildMusicWidgets();
         });
 

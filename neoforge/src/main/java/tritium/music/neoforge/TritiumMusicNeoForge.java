@@ -69,9 +69,7 @@ public final class TritiumMusicNeoForge {
         CloudMusic.addListener(new MusicListener() {
             @Override
             public void onSongStart(Music music) {
-                MusicToastState.set(music.getArtistsName() + " - " + music.getName());
-                Minecraft minecraft = Minecraft.getInstance();
-                minecraft.execute(() -> minecraft.gui.toastManager().showNowPlayingToast());
+                MusicToastState.push(music.getArtistsName() + " - " + music.getName());
             }
 
             @Override

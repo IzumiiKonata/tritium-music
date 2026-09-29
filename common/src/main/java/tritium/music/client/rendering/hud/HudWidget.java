@@ -11,9 +11,6 @@ import tritium.music.client.rendering.animation.Interpolations;
 
 public abstract class HudWidget implements SharedRenderingConstants {
 
-    /**
-     * Wraps a render callback in the per-frame RenderContext + frame-delta setup shared by the HUD and editor.
-     */
     public static void renderInFrame(GuiGraphicsExtractor graphics, float partialTick, Runnable render) {
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
@@ -48,10 +45,6 @@ public abstract class HudWidget implements SharedRenderingConstants {
         return I18n.get(nameKey);
     }
 
-    /**
-     * Per-widget config slice (position fraction, scale, enabled). Subclasses bind it
-     * so the base can resolve absolute position and the editor can mutate it.
-     */
     public abstract WidgetConfig.WidgetSettings settings();
 
     public boolean isEnabled() {
@@ -92,9 +85,6 @@ public abstract class HudWidget implements SharedRenderingConstants {
         settings().y = y / RenderSystem.getHeight();
     }
 
-    /**
-     * Last-rendered width/height in pixels, for editor hit-testing and outlines.
-     */
     public double editorWidth() {
         return getWidth();
     }
