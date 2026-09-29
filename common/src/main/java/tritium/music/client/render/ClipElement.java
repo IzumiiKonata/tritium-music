@@ -34,7 +34,7 @@ public record ClipElement(
             .addAttribute("UV0", GpuFormat.RG32_FLOAT)
             .addAttribute("Color", GpuFormat.RGBA8_UNORM)
             .addAttribute("UV1", GpuFormat.RG16_SINT)
-            .addAttribute("UV3", GpuFormat.RG32_FLOAT)
+            .addAttribute("UV2", GpuFormat.RG16_SINT)
             .addAttribute("LineWidth", GpuFormat.R32_FLOAT)
             .build();
 
@@ -74,6 +74,10 @@ public record ClipElement(
         return rounded < Short.MIN_VALUE ? Short.MIN_VALUE : Math.min(rounded, Short.MAX_VALUE);
     }
 
+    private static int encodeClip(float coordinate) {
+        return Math.clamp(Math.round(coordinate * 8.0f), Short.MIN_VALUE, Short.MAX_VALUE);
+    }
+
     @Override
     public void buildVertices(VertexConsumer consumer) {
         Vector2f position = new Vector2f();
@@ -83,7 +87,7 @@ public record ClipElement(
                     .setUv(vertex.u(), vertex.v())
                     .setColor(vertex.color())
                     .setUv1(radiusFixed, controlFixed)
-                    .setUv3(clip.left(), clip.top())
+                    .setUv2(encodeClip(clip.left()), encodeClip(clip.top()))
                     .setLineWidth(clip.bottom());
         }
     }
