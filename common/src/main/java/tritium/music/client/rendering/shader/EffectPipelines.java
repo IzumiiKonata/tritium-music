@@ -50,6 +50,7 @@ public final class EffectPipelines {
             .withFragmentShader(id("post/bloom_mask"))
 //            .withBindGroupLayout(SHAPE_LAYOUT)
             .withUniform("ShapeInfo", UniformType.UNIFORM_BUFFER)
+            .withBlend(BlendFunction.TRANSLUCENT)
             .build());
     public static final RenderPipeline BLOOM_COMPOSITE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POST_PROCESSING_SNIPPET)
             .withLocation(id("pipeline/bloom_composite"))

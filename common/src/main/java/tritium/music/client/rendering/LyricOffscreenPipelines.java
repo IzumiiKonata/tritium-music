@@ -1,5 +1,6 @@
 package tritium.music.client.rendering;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -17,6 +18,7 @@ public final class LyricOffscreenPipelines {
             .withVertexShader(id("core/lyric_offscreen_mask"))
             .withFragmentShader(id("core/lyric_offscreen_mask"))
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withBlend(BlendFunction.TRANSLUCENT)
 //            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
 //            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withCull(false)
@@ -29,6 +31,7 @@ public final class LyricOffscreenPipelines {
 //            .withBindGroupLayout(SAMPLER)
             .withSampler("Sampler0")
             .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withBlend(BlendFunction.TRANSLUCENT)
 //            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
 //            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withCull(false)
