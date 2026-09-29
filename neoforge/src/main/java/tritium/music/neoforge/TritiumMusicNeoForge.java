@@ -17,6 +17,7 @@ import net.neoforged.neoforge.client.event.lifecycle.ClientStoppingEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import tritium.music.client.config.WidgetConfig;
+import tritium.music.client.AssetBootstrap;
 import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.render.ClipPipeline;
 import tritium.music.client.render.LinePipeline;
@@ -112,6 +113,7 @@ public final class TritiumMusicNeoForge {
         FontCatalog.preload();
         SystemFontIndex.preload(FontManager::retryShaping);
         WidgetConfig.get();
+        AssetBootstrap.start();
         AsyncUtil.runAsync(CloudMusic::initNCM);
     }
 

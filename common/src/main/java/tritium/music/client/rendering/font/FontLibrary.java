@@ -1,6 +1,8 @@
 package tritium.music.client.rendering.font;
 
 import tritium.music.client.config.FontConfig;
+import tritium.music.core.assets.AssetCatalog;
+import tritium.music.core.assets.AssetManager;
 
 import java.awt.Font;
 import java.io.ByteArrayInputStream;
@@ -53,6 +55,24 @@ public final class FontLibrary {
             List<Key> doomed = new ArrayList<>();
             for (Map.Entry<Key, Entry> cached : CACHE.entrySet()) {
                 if (cached.getValue().shaper == null) {
+                    doomed.add(cached.getKey());
+                }
+            }
+            for (Key key : doomed) {
+                Entry entry = CACHE.remove(key);
+                if (entry != null) {
+                    entry.dispose();
+                }
+            }
+            return doomed.size();
+        }
+    }
+
+    public static int invalidateUnavailable() {
+        synchronized (LOCK) {
+            List<Key> doomed = new ArrayList<>();
+            for (Map.Entry<Key, Entry> cached : CACHE.entrySet()) {
+                if (!cached.getValue().available()) {
                     doomed.add(cached.getKey());
                 }
             }
@@ -148,6 +168,10 @@ public final class FontLibrary {
 
     private static byte[] readBytes(Key key) {
         if (FontConfig.SOURCE_BUILTIN.equals(key.source())) {
+            byte[] managed = readManaged(key.value());
+            if (managed != null) {
+                return managed;
+            }
             try (InputStream stream = FontLibrary.class.getResourceAsStream(FONT_PATH + key.value())) {
                 return stream == null ? null : stream.readAllBytes();
             } catch (Throwable throwable) {
@@ -159,6 +183,19 @@ public final class FontLibrary {
             return readFile(new File(key.value()));
         }
         return null;
+    }
+
+    private static byte[] readManaged(String fileName) {
+        String path = AssetCatalog.relativePathOf(fileName);
+        if (path == null) {
+            return null;
+        }
+        AssetManager manager = AssetManager.get();
+        if (!manager.isReady(path)) {
+            return null;
+        }
+        File file = manager.file(path);
+        return file == null ? null : readFile(file);
     }
 
     private static byte[] readFile(File file) {

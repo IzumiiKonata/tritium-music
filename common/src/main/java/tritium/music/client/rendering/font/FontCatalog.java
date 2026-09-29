@@ -1,6 +1,9 @@
 package tritium.music.client.rendering.font;
 
 import tritium.music.client.config.FontConfig;
+import tritium.music.core.assets.AssetCatalog;
+import tritium.music.core.assets.AssetManager;
+import tritium.music.core.assets.RemoteAsset;
 import tritium.music.core.util.AsyncUtil;
 import tritium.music.platform.Platform;
 
@@ -146,27 +149,11 @@ public final class FontCatalog {
 
     private static List<FontOption> scanBuiltins() {
         Set<String> names = new LinkedHashSet<>();
-        URL url = FontCatalog.class.getResource(FONT_PATH);
-        if (url != null && "file".equals(url.getProtocol())) {
-            try {
-                File[] files = new File(url.toURI()).listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        String name = file.getName().toLowerCase(Locale.ROOT);
-                        if (file.isFile() && hasFontExtension(name) && !ICON_FONTS.contains(name)) {
-                            names.add(file.getName());
-                        }
-                    }
-                }
-            } catch (Throwable throwable) {
-                throwable.printStackTrace();
-            }
+        for (String name : FALLBACK_BUILTINS) {
+            names.add(name);
         }
-        if (names.isEmpty()) {
-            for (String name : FALLBACK_BUILTINS) {
-                names.add(name);
-            }
-        }
+        names.addAll(scanBundledFonts());
+        names.addAll(scanManagedFonts());
 
         List<FontOption> options = new ArrayList<>();
         for (String name : names) {
@@ -174,6 +161,39 @@ public final class FontCatalog {
         }
         options.sort(Comparator.comparing(FontOption::displayName, String.CASE_INSENSITIVE_ORDER));
         return List.copyOf(options);
+    }
+
+    private static List<String> scanBundledFonts() {
+        URL url = FontCatalog.class.getResource(FONT_PATH);
+        if (url == null || !"file".equals(url.getProtocol())) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        try {
+            File[] files = new File(url.toURI()).listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    String name = file.getName().toLowerCase(Locale.ROOT);
+                    if (file.isFile() && hasFontExtension(name) && !ICON_FONTS.contains(name)) {
+                        names.add(file.getName());
+                    }
+                }
+            }
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
+        }
+        return names;
+    }
+
+    private static List<String> scanManagedFonts() {
+        List<String> names = new ArrayList<>();
+        AssetManager manager = AssetManager.get();
+        for (RemoteAsset asset : AssetCatalog.all()) {
+            if (asset.essential() && manager.isReady(asset.path())) {
+                names.add(asset.fileName());
+            }
+        }
+        return names;
     }
 
     private static List<FontOption> scanUserFonts() {

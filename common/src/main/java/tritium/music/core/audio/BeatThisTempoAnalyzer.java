@@ -4,11 +4,14 @@ import ai.onnxruntime.OnnxTensor;
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
+import tritium.music.core.assets.AssetCatalog;
+import tritium.music.core.assets.AssetManager;
 
 import javax.sound.sampled.AudioFormat;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.FloatBuffer;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -22,8 +25,9 @@ final class BeatThisTempoAnalyzer {
     private static final int STRIDE = CHUNK_SIZE - BORDER_SIZE * 2;
     private static final int RESAMPLE_PHASES = 2_048;
     private static final int RESAMPLE_TAPS = 48;
-    private static final String MODEL_PATH = "/assets/tritium-music/automix/beat_this.onnx";
-    private static final String MEL_MODEL_PATH = "/assets/tritium-music/automix/mel_spectrogram.onnx";
+    private static final long MODEL_WAIT_MILLIS = 300_000L;
+    private static final String MODEL_PATH = AssetCatalog.MODEL_BEAT_THIS;
+    private static final String MEL_MODEL_PATH = AssetCatalog.MODEL_MEL_SPECTROGRAM;
 
     private float[] samples = new float[TARGET_RATE * 8];
     private int sampleCount;
@@ -119,10 +123,19 @@ final class BeatThisTempoAnalyzer {
         return analysis == null ? null : analysis.beatGrid();
     }
 
+    private static void ensureModelsAvailable() throws IOException {
+        AssetManager manager = AssetManager.get();
+        if (!manager.awaitReady(MEL_MODEL_PATH, MODEL_WAIT_MILLIS)
+                || !manager.awaitReady(MODEL_PATH, MODEL_WAIT_MILLIS)) {
+            throw new IOException("AutoMix models are not available");
+        }
+    }
+
     AudioAnalysis analyzeDetailed(long timelineOffsetMillis) throws OrtException, IOException {
         if (sampleRate <= 0 || sampleCount < sampleRate * 4) {
             return null;
         }
+        ensureModelsAvailable();
         float[] mono = Arrays.copyOf(samples, sampleCount);
         float[] resampled = Math.abs(sampleRate - TARGET_RATE) < 0.5 ? mono : resample(mono, sampleRate, TARGET_RATE);
         BeatGrid beatGrid = Models.INSTANCE.analyze(resampled, timelineOffsetMillis);
@@ -293,12 +306,11 @@ final class BeatThisTempoAnalyzer {
         }
 
         private static byte[] readResource(String path) throws IOException {
-            try (InputStream input = BeatThisTempoAnalyzer.class.getResourceAsStream(path)) {
-                if (input == null) {
-                    throw new IOException("Missing resource " + path);
-                }
-                return input.readAllBytes();
+            File file = AssetManager.get().file(path);
+            if (file == null || !file.isFile()) {
+                throw new IOException("Missing asset " + path);
             }
+            return Files.readAllBytes(file.toPath());
         }
 
         private synchronized BeatGrid analyze(float[] audio, long timelineOffsetMillis) throws OrtException {
