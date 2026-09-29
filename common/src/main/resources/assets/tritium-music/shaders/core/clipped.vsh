@@ -11,8 +11,10 @@ layout(std140) uniform Projection {
 };
 
 in vec3 Position;
+in vec2 UV0;
 in vec4 Color;
-in vec2 UV3;
+in ivec2 UV1;
+in ivec2 UV2;
 in float LineWidth;
 
 out vec4 vertexColor;
@@ -23,5 +25,5 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position.xy, 0.0, 1.0);
     vertexColor = Color * ColorModulator;
     guiPosition = Position.xy;
-    clipRect = vec4(UV3, Position.z, LineWidth);
+    clipRect = vec4(vec2(UV2) / 8.0, Position.z, LineWidth);
 }

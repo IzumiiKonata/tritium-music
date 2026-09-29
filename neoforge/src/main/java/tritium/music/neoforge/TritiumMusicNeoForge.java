@@ -50,7 +50,7 @@ public final class TritiumMusicNeoForge {
     public static final String MOD_ID = "tritium_music";
     private static final String ASSET_NAMESPACE = "tritium-music";
     private static final KeyMapping.Category KEY_CATEGORY = new KeyMapping.Category(Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "ncm"));
-    private static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYBOARD, InputConstants.KEY_M, KEY_CATEGORY);
+    private static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, InputConstants.KEY_M, KEY_CATEGORY);
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
@@ -127,7 +127,7 @@ public final class TritiumMusicNeoForge {
     @SubscribeEvent
     private static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.gui.screen() == null && OPEN_NCM_SCREEN.consumeClick()) {
+        if (minecraft.screen == null && OPEN_NCM_SCREEN.consumeClick()) {
             NCMScreen.open();
         }
     }
@@ -135,7 +135,7 @@ public final class TritiumMusicNeoForge {
     private static void registerWidgetBelow(RegisterGuiLayersEvent event, Identifier anchor, Identifier id, HudWidget widget) {
         event.registerBelow(anchor, id, (graphics, deltaTracker) -> {
             updateSpectrumSettings();
-            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || Minecraft.getInstance().screen instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
             HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::onRender);
@@ -145,7 +145,7 @@ public final class TritiumMusicNeoForge {
     private static void registerWidgetAbove(RegisterGuiLayersEvent event, Identifier anchor, Identifier id, HudWidget widget) {
         event.registerAbove(anchor, id, (graphics, deltaTracker) -> {
             updateSpectrumSettings();
-            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || Minecraft.getInstance().screen instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
             HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::onRender);

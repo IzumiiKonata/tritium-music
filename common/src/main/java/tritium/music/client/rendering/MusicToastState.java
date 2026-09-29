@@ -48,7 +48,7 @@ public final class MusicToastState {
                 return;
             }
 
-            ToastManager toastManager = minecraft.gui.toastManager();
+            ToastManager toastManager = minecraft.getToastManager();
             if (!gameState.renderToast()) {
                 toastManager.setMusicToastDisplayState(MusicToastDisplayState.PAUSE);
             }

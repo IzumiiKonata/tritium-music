@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.KeyMapping;
@@ -45,7 +45,7 @@ public class TritiumMusicMod implements ClientModInitializer {
 
     public static final KeyMapping.Category KEY_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "ncm"));
 
-    public static final KeyMapping openNcmScreen = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYBOARD, InputConstants.KEY_M, KEY_CATEGORY));
+    public static final KeyMapping openNcmScreen = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, InputConstants.KEY_M, KEY_CATEGORY));
 
     private final MusicInfoWidget musicInfo = new MusicInfoWidget();
     private final MusicLyricsWidget musicLyrics = new MusicLyricsWidget();
@@ -111,7 +111,7 @@ public class TritiumMusicMod implements ClientModInitializer {
             AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
             AudioPlayer.absoluteVolume = spectrum.absVol;
 
-            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || Minecraft.getInstance().screen instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
 
@@ -120,7 +120,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     }
 
     private void onClientTick(Minecraft client) {
-        if (client.gui.screen() != null) {
+        if (client.screen != null) {
             return;
         }
 

@@ -1,7 +1,7 @@
 package tritium.music.client.rendering.hud;
 
 import lombok.Setter;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
@@ -11,7 +11,7 @@ import tritium.music.client.rendering.animation.Interpolations;
 
 public abstract class HudWidget implements SharedRenderingConstants {
 
-    public static void renderInFrame(GuiGraphicsExtractor graphics, float partialTick, Runnable render) {
+    public static void renderInFrame(GuiGraphics graphics, float partialTick, Runnable render) {
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
         try {

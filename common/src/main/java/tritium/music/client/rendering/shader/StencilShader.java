@@ -49,7 +49,7 @@ public class StencilShader {
 
         var g = RenderContext.graphics();
         ClipRect clip = Objects.requireNonNullElse(StencilClipManager.currentClip(), ClipRect.UNBOUNDED);
-        g.guiRenderState.addGuiElement(ClipElement.clipped(
+        g.guiRenderState.submitGuiElement(ClipElement.clipped(
                 StencilCompositePipeline.PIPELINE,
                 textureSetup,
                 g.pose(),

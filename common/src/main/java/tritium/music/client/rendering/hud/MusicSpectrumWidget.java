@@ -37,7 +37,7 @@ public class MusicSpectrumWidget extends HudWidget {
 
     @Override
     public void onRender() {
-        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
+        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
 
         if (CloudMusic.player != null) {
             this.updateSpectrum();

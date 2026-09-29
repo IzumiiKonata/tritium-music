@@ -1,9 +1,9 @@
 package tritium.music.client.render;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.gui.render.state.GuiElementRenderState;
@@ -29,13 +29,13 @@ public record ClipElement(
     private static final float RADIUS_STEP = 32.0f;
     private static final float CONTROL_STEP = 1024.0f;
 
-    public static final VertexFormat FORMAT = VertexFormat.builder(0)
-            .addAttribute("Position", GpuFormat.RGB32_FLOAT)
-            .addAttribute("UV0", GpuFormat.RG32_FLOAT)
-            .addAttribute("Color", TextureFormat.RGBA8)
-            .addAttribute("UV1", GpuFormat.RG16_SINT)
-            .addAttribute("UV3", GpuFormat.RG32_FLOAT)
-            .addAttribute("LineWidth", GpuFormat.R32_FLOAT)
+    public static final VertexFormat FORMAT = VertexFormat.builder()
+            .add("Position", VertexFormatElement.POSITION)
+            .add("UV0", VertexFormatElement.UV0)
+            .add("Color", VertexFormatElement.COLOR)
+            .add("UV1", VertexFormatElement.UV1)
+            .add("UV2", VertexFormatElement.UV2)
+            .add("LineWidth", VertexFormatElement.LINE_WIDTH)
             .build();
 
     public static ClipElement clipped(RenderPipeline pipeline, TextureSetup textureSetup, Matrix3x2fc pose,
@@ -74,6 +74,10 @@ public record ClipElement(
         return rounded < Short.MIN_VALUE ? Short.MIN_VALUE : Math.min(rounded, Short.MAX_VALUE);
     }
 
+    private static int encodeClip(float coordinate) {
+        return Math.clamp(Math.round(coordinate * 8.0f), Short.MIN_VALUE, Short.MAX_VALUE);
+    }
+
     @Override
     public void buildVertices(VertexConsumer consumer) {
         Vector2f position = new Vector2f();
@@ -83,7 +87,7 @@ public record ClipElement(
                     .setUv(vertex.u(), vertex.v())
                     .setColor(vertex.color())
                     .setUv1(radiusFixed, controlFixed)
-                    .setUv3(clip.left(), clip.top())
+                    .setUv2(encodeClip(clip.left()), encodeClip(clip.top()))
                     .setLineWidth(clip.bottom());
         }
     }
