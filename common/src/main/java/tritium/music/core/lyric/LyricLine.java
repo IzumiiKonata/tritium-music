@@ -14,6 +14,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class LyricLine {
 
+    /**
+     * 长间隔过渡行显示的内容
+     */
+    public static final String BREAK_TEXT = "● ● ●";
+
     @Getter
     public long timestamp;
 
@@ -35,7 +40,19 @@ public class LyricLine {
     public long duration;
     public boolean shouldUpdatePosition = false;
     public Timer delayTimer = new Timer();
+
+    /**
+     * 该行是否为长间隔过渡行, 过渡行不属于歌词列表, 只在间隔期间渲染
+     */
     public boolean isBreakLine = false;
+    /**
+     * 过渡行淡入进度 (0 ~ 1)
+     */
+    public float intensity = 0f;
+    /**
+     * 过渡行呼吸动画相位 (单位: 周期)
+     */
+    public float pulse = 0f;
 
     public double scrollWidth = 0;
     public double offsetX = 0;

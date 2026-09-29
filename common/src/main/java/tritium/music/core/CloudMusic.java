@@ -37,6 +37,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,6 +52,16 @@ public class CloudMusic {
 
     public static final List<LyricLine> lyrics = new CopyOnWriteArrayList<>();
     static final float JUMP_TO_NEXT_MILLIS = 300.0f;
+    public static final long LONG_BREAK_MILLIS = 3000L;
+    private static final double LONG_BREAK_PULSE_MILLIS = 1200.0;
+    private static final double LONG_BREAK_DOT_DELAY = .45f;
+    private static final long LONG_BREAK_FADE_IN_MILLIS = 320L;
+    private static final long LONG_BREAK_FADE_OUT_MILLIS = 160L;
+    private static final long LONG_BREAK_LEAD_OUT_MILLIS = 180L;
+    private static final long LONG_BREAK_LEAD_OUT_MARGIN_MILLIS = 40L;
+    private static final List<LyricLine> activeLongBreak = new ArrayList<>();
+    private static final LongBreakAnimation longBreakAnimation = new LongBreakAnimation();
+    private static volatile float lastSongProgress = 0f;
     @Getter
     private static final Map<String, String> headers = new HashMap<>();
     private static final List<MusicListener> listeners = new CopyOnWriteArrayList<>();
@@ -109,7 +120,7 @@ public class CloudMusic {
             updateLyricsList(parsedLyrics);
             currentLyric = lyrics.getFirst();
             haveNoWords = lyricsHaveNoWords();
-            addLongBreaks();
+            resetLongBreak();
         }
 
         for (MusicListener listener : listeners) {
@@ -120,6 +131,15 @@ public class CloudMusic {
     private static void resetLyricFlags() {
         hasTransLyrics = false;
         hasRomanization = false;
+    }
+
+    /**
+     * 歌词是否不为逐字歌词
+     *
+     * @return true 表示不为逐字歌词
+     */
+    private static boolean lyricsHaveNoWords() {
+        return lyrics.stream().allMatch(l -> l.words.isEmpty());
     }
 
     private static void updateLyricsList(List<LyricLine> parsedLyrics) {
@@ -150,68 +170,271 @@ public class CloudMusic {
     }
 
     /**
-     * 为歌词添加长间隔时的 "● ● ●"
+     * 播放到长间隔时才会显示的过渡行, 不参与歌词列表与索引
      */
-    private static void addLongBreaks() {
-        final long longBreaksDuration = 3000L;
-
-        if (haveNoWords) {
-            addInitialBreakIfNeeded(longBreaksDuration);
-            return;
-        }
-
-        addBreaksBetweenLyrics(longBreaksDuration);
+    public static LyricLine findLongBreakLine() {
+        return activeLongBreak.isEmpty() ? null : activeLongBreak.getFirst();
     }
 
     /**
-     * 歌词是否不为逐字歌词
-     *
-     * @return true 表示不为逐字歌词
+     * 间隔已结束但仍在淡出的过渡行
      */
-    private static boolean lyricsHaveNoWords() {
-        return lyrics.stream().allMatch(l -> l.words.isEmpty());
-    }
+    public static LyricLine findLingeringLongBreakLine() {
+        synchronized (longBreakAnimation) {
+            if (longBreakAnimation.lingeringLine == null) return null;
+            if (longBreakAnimation.lingeringTimer.isDelayed(LONG_BREAK_FADE_OUT_MILLIS)) return null;
 
-    private static void addInitialBreakIfNeeded(long duration) {
-        long firstTimestamp = lyrics.getFirst().getTimestamp();
-        if (firstTimestamp >= duration) {
-            addBreakLine(0L, firstTimestamp);
+            return longBreakAnimation.lingeringLine;
         }
     }
 
-    private static void addBreaksBetweenLyrics(long duration) {
-        long lastTimestamp = 0L;
-        List<LyricLine> breaksToAdd = new ArrayList<>();
+    /**
+     * 正在显示或正在淡出的过渡行, 渲染层用这个查询
+     */
+    public static LyricLine findDisplayedLongBreakLine() {
+        LyricLine breakLine = findLongBreakLine();
+        return breakLine != null ? breakLine : findLingeringLongBreakLine();
+    }
 
-        for (LyricLine line : lyrics) {
-            long lineDuration = line.duration;
-            long gap = line.getTimestamp() - lastTimestamp;
+    public static boolean isLongBreakActive() {
+        return !activeLongBreak.isEmpty();
+    }
 
-            if (gap >= duration) {
-                breaksToAdd.add(createBreakLine(lastTimestamp, gap));
+    /**
+     * 过渡行应插入到歌词列表中的位置, 无间隔时为 -1
+     */
+    public static int breakInsertIndex() {
+        if (activeLongBreak.isEmpty()) return -1;
+
+        return isLongBreakLeadIn() ? 0 : currentLyricIndex() + 1;
+    }
+
+    /**
+     * 间隔是否位于第一句歌词之前 (前奏)
+     */
+    public static boolean isLongBreakLeadIn() {
+        return !activeLongBreak.isEmpty() && isIntroBreak(activeLongBreak.getFirst());
+    }
+
+    /**
+     * 间隔是否位于当前歌词之后
+     */
+    public static boolean isLongBreakAfterCurrent() {
+        return !activeLongBreak.isEmpty() && !isIntroBreak(activeLongBreak.getFirst());
+    }
+
+    /**
+     * 间隔刚结束时过渡行的插入位置, 用于淡出期间保持占位
+     */
+    public static int breakInsertIndexAfterLastInterval() {
+        synchronized (longBreakAnimation) {
+            LyricLine lingering = longBreakAnimation.lingeringLine;
+            if (lingering == null) return lyrics.size();
+
+            long end = lingering.getTimestamp() + lingering.duration;
+            for (int i = 0; i < lyrics.size(); i++) {
+                if (lyrics.get(i).getTimestamp() >= end) return i;
             }
 
-            lastTimestamp = line.getTimestamp() + lineDuration;
+            return lyrics.size();
+        }
+    }
+
+    /**
+     * 当前间隔的结束时刻, 无间隔时为 -1
+     */
+    public static long activeLongBreakEndMillis() {
+        synchronized (activeLongBreak) {
+            return activeLongBreak.isEmpty() ? -1 : longBreakAnimation.breakEnd;
+        }
+    }
+
+    private static int currentLyricIndex() {
+        int currentIndex = lyrics.indexOf(currentLyric);
+        return currentIndex < 0 ? 0 : currentIndex;
+    }
+
+    private static boolean isIntroBreak(LyricLine breakLine) {
+        return !lyrics.isEmpty() && breakLine.getTimestamp() < lyrics.getFirst().getTimestamp();
+    }
+
+    public static void resetLongBreak() {
+        synchronized (activeLongBreak) {
+            activeLongBreak.clear();
         }
 
-        addAndSortBreaks(breaksToAdd);
+        synchronized (longBreakAnimation) {
+            longBreakAnimation.clear();
+        }
+    }
+
+    private static void updateLongBreak(float songProgress) {
+        if (lyrics.isEmpty()) {
+            resetLongBreak();
+            return;
+        }
+
+        LyricLine breakLine = findLongBreakLine(songProgress);
+
+        synchronized (activeLongBreak) {
+            if (breakLine != null) {
+                long breakEnd = breakEndOf(breakLine);
+
+                if (!activeLongBreak.isEmpty() && activeLongBreak.getFirst().getTimestamp() == breakLine.getTimestamp()) {
+                    synchronized (longBreakAnimation) {
+                        longBreakAnimation.breakEnd = breakEnd;
+                    }
+                    return;
+                }
+
+                activeLongBreak.clear();
+                activeLongBreak.add(breakLine);
+                synchronized (longBreakAnimation) {
+                    longBreakAnimation.breakEnd = breakEnd;
+                }
+                return;
+            }
+
+            if (activeLongBreak.isEmpty()) return;
+
+            synchronized (longBreakAnimation) {
+                longBreakAnimation.linger(activeLongBreak.getFirst());
+            }
+
+            activeLongBreak.clear();
+        }
+    }
+
+    private static long breakEndOf(LyricLine breakLine) {
+        return breakLine.getTimestamp() + breakLine.duration;
+    }
+
+    private static LyricLine findLongBreakLine(double songProgress) {
+        LyricLine leadIn = findLeadInLongBreakLine(songProgress);
+        if (leadIn != null) return leadIn;
+
+        LyricLine previous = null;
+
+        for (LyricLine line : lyrics) {
+            if (previous != null) {
+                long breakStart = previous.getTimestamp() + previous.duration;
+                long breakEnd = line.getTimestamp();
+                if (isLongBreakInterval(breakStart, breakEnd, songProgress)) {
+                    return createBreakLine(breakStart, breakEnd - breakStart);
+                }
+            }
+
+            previous = line;
+        }
+
+        return null;
+    }
+
+    private static LyricLine findLeadInLongBreakLine(double songProgress) {
+        long firstTimestamp = lyrics.getFirst().getTimestamp();
+        return isLongBreakInterval(0L, firstTimestamp, songProgress)
+                ? createBreakLine(0L, firstTimestamp)
+                : null;
+    }
+
+    private static boolean isLongBreakInterval(long start, long end, double songProgress) {
+        return end - start >= LONG_BREAK_MILLIS && songProgress >= start && songProgress < end;
     }
 
     private static LyricLine createBreakLine(long timestamp, long duration) {
-        LyricLine line = new LyricLine(timestamp, "● ● ●");
+        LyricLine line = new LyricLine(timestamp, LyricLine.BREAK_TEXT);
         line.isBreakLine = true;
-        line.words.add(new LyricLine.Word("● ● ●", timestamp, duration));
+        line.duration = duration;
         return line;
     }
 
-    private static void addBreakLine(long timestamp, long duration) {
-        lyrics.add(createBreakLine(timestamp, duration));
-        lyrics.sort(Comparator.comparingLong(LyricLine::getTimestamp));
+    /**
+     * 推进过渡行的淡入 / 呼吸 / 淡出, 每帧由渲染层调用
+     */
+    /**
+     * 推进过渡行的淡入 / 呼吸 / 淡出, 每帧由渲染层调用。
+     * 淡出必须由这里驱动到最后, 否则强度会停在最后一帧的值上不再归零
+     */
+    public static void updateLongBreakAnimation() {
+        LyricLine active = findLongBreakLine();
+        LyricLine lingering = findLingeringLongBreakLine();
+
+        synchronized (longBreakAnimation) {
+            if (active == null && longBreakAnimation.lingeringLine == null) return;
+
+            LyricLine breakLine = active != null ? active : longBreakAnimation.lingeringLine;
+            if (!longBreakAnimation.isCurrent(breakLine)) longBreakAnimation.arm(breakLine);
+
+            Duration elapsed = longBreakAnimation.timer.delayed();
+            breakLine.pulse = (float) (elapsed.toNanos() / 1_000_000.0 / LONG_BREAK_PULSE_MILLIS);
+
+            if (active != null) {
+                breakLine.intensity = Math.min(fadeIn(elapsed.toMillis()), leadOut());
+                return;
+            }
+
+            long lingeringElapsed = longBreakAnimation.lingeringTimer.delayed().toMillis();
+            breakLine.intensity = Math.min(fadeIn(elapsed.toMillis()),
+                    (float) Math.max(0, Math.min(1, 1 - lingeringElapsed / (double) LONG_BREAK_FADE_OUT_MILLIS)));
+
+            if (lingering == null) {
+                breakLine.intensity = 0f;
+                longBreakAnimation.lingeringLine = null;
+            }
+        }
     }
 
-    private static void addAndSortBreaks(List<LyricLine> breaks) {
-        lyrics.addAll(breaks);
-        lyrics.sort(Comparator.comparingLong(LyricLine::getTimestamp));
+    /**
+     * 提前淡出: 下一句在间隔结束的那一刻就开始上移, 所以过渡行必须在那之前就淡完。
+     * margin 保证间隔结束时它已经彻底不可见, 不会和下一句的动画重叠
+     */
+    private static float leadOut() {
+        long end = longBreakAnimation.breakEnd;
+        if (end < 0) return 1f;
+
+        long remaining = end - LONG_BREAK_LEAD_OUT_MARGIN_MILLIS - (long) lastSongProgress;
+        return (float) Math.max(0, Math.min(1, remaining / (double) LONG_BREAK_LEAD_OUT_MILLIS));
+    }
+
+    private static float fadeIn(long elapsedMillis) {
+        return (float) Math.max(0, Math.min(1, elapsedMillis / (double) LONG_BREAK_FADE_IN_MILLIS));
+    }
+
+    public static float breakDotPulse(LyricLine breakLine, int index) {
+        double phase = (breakLine.pulse - index * LONG_BREAK_DOT_DELAY) * 2 * Math.PI;
+        return .5f + .5f * (float) Math.sin(phase);
+    }
+
+    private static final class LongBreakAnimation {
+        private final tritium.music.core.util.Timer timer = new tritium.music.core.util.Timer();
+        private final tritium.music.core.util.Timer lingeringTimer = new tritium.music.core.util.Timer();
+        private LyricLine line;
+        private LyricLine lingeringLine;
+        private long timestamp = Long.MIN_VALUE;
+        private long breakEnd = -1L;
+
+        private boolean isCurrent(LyricLine breakLine) {
+            return lingeringLine != breakLine && breakLine.getTimestamp() == timestamp;
+        }
+
+        private void arm(LyricLine breakLine) {
+            line = breakLine;
+            lingeringLine = null;
+            timestamp = breakLine.getTimestamp();
+            timer.reset();
+        }
+
+        private void linger(LyricLine breakLine) {
+            lingeringLine = breakLine;
+            lingeringTimer.reset();
+        }
+
+        private void clear() {
+            line = null;
+            lingeringLine = null;
+            timestamp = Long.MIN_VALUE;
+            breakEnd = -1L;
+        }
     }
 
     /**
@@ -221,8 +444,10 @@ public class CloudMusic {
      */
     public static void updateCurrentLyric(float songProgress) {
         LyricLine previousLyric = currentLyric;
+        lastSongProgress = songProgress;
         currentLyric = findCurrentLyric(songProgress);
         currentLyricNoEarlyJump = findCurrentLyric(songProgress, false);
+        updateLongBreak(songProgress);
 
         if (previousLyric != currentLyric) {
             resetLyricPositionUpdate();

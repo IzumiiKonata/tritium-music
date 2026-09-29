@@ -34,6 +34,7 @@ public class MusicLyricsWidget extends HudWidget {
     private static final double TEXT_BOX_TOP_OFFSET = 2;
 
     private static double scrollOffset = 0;
+    private static double breakRowOffset = 0;
     private static final SpringAnimation scrollSpring = createSpring();
     private static LyricLine scrollLyricsFirst;
     private static LyricLine scrollLyricsLast;
@@ -338,8 +339,16 @@ public class MusicLyricsWidget extends HudWidget {
             return;
         }
 
-        double offsetY = this.getY() + this.getHeight() / 2.0 - fontH / 2.0 - scrollOffset;
+        CloudMusic.updateLongBreakAnimation();
+
         int indexOf = CloudMusic.lyrics.indexOf(currentLyric());
+        LyricLine breakLine = CloudMusic.findDisplayedLongBreakLine();
+        boolean breakActive = CloudMusic.isLongBreakActive();
+        boolean breakLeadIn = breakActive && CloudMusic.isLongBreakLeadIn();
+        double breakOffset = updateBreakRowOffset(breakActive && indexOf >= 0);
+        int breakShiftRow = breakLine == null ? Integer.MAX_VALUE : breakLeadIn ? -1 : indexOf;
+
+        double offsetY = this.getY() + this.getHeight() / 2.0 - fontH / 2.0 - scrollOffset;
 
         double pivotX = alignPivotX(cfg().alignMode);
 
@@ -353,7 +362,7 @@ public class MusicLyricsWidget extends HudWidget {
                 }
 
                 LyricRenderInfo renderInfo = calculateLyricPosition(
-                        line, i, indexOf, offsetY, shouldNotDisplayOtherLyrics
+                        line, i, indexOf, offsetY, shouldNotDisplayOtherLyrics, breakShiftRow, breakOffset
                 );
 
                 if (renderInfo.shouldSkip) {
@@ -367,19 +376,63 @@ public class MusicLyricsWidget extends HudWidget {
 
                 updateLyricAnimation(line, i == indexOf);
 
-                if (shouldNotDisplayOtherLyrics) {
-                    renderLyricLine(line, renderInfo, i, indexOf, songProgress);
-                } else {
-                    double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
+                boolean holdsBreak = line == currentLyric() && breakLine != null;
+                boolean hideLyric = holdsBreak && shouldNotDisplayOtherLyrics;
 
-                    RenderContext.graphics().pose().pushMatrix();
-                    scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
-                    renderLyricLine(line, renderInfo, i, indexOf, songProgress);
-                    RenderContext.graphics().pose().popMatrix();
+                if (holdsBreak && breakLeadIn) {
+                    renderBreakLineAt(breakLine, renderInfo.yPosition - breakOffset);
+                }
+
+                if (!hideLyric) {
+                    if (shouldNotDisplayOtherLyrics) {
+                        renderLyricLine(line, renderInfo, i, indexOf, songProgress);
+                    } else {
+                        double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
+
+                        RenderContext.graphics().pose().pushMatrix();
+                        scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+                        renderLyricLine(line, renderInfo, i, indexOf, songProgress);
+                        RenderContext.graphics().pose().popMatrix();
+                    }
                 }
 
                 offsetY += lyricH;
+
+                if (holdsBreak && !breakLeadIn && !shouldNotDisplayOtherLyrics) {
+                    renderBreakLineAt(breakLine, offsetY);
+                    offsetY += lyricH;
+                }
             }
+        }
+    }
+
+    private void renderBreakLineAt(LyricLine breakLine, double yPosition) {
+        LyricRenderInfo breakInfo = new LyricRenderInfo();
+        breakInfo.yPosition = yPosition;
+        breakInfo.fade = computeEdgeFade(breakInfo.yPosition);
+
+        updateLyricAnimation(breakLine, false);
+        breakLine.offsetY = breakInfo.yPosition;
+        renderLongBreakLine(breakLine, breakInfo);
+    }
+
+    private void renderLongBreakLine(LyricLine breakLine, LyricRenderInfo renderInfo) {
+        if (renderInfo.fade <= 0.0) return;
+
+        CFontRenderer font = getFontRenderer();
+        String text = LyricLine.BREAK_TEXT;
+        double width = font.getStringWidthD(text);
+        double dotWidth = width / text.length();
+        double x = calculateAlignmentX(text, cfg().alignMode);
+
+        for (int i = 0; i < text.length(); i++) {
+            float pulse = CloudMusic.breakDotPulse(breakLine, i);
+            float dotAlpha = (float) (renderInfo.fade * breakLine.intensity * Mth.limit(.18 + .82 * pulse, 0, 1));
+            if (dotAlpha <= 0.004f) continue;
+
+            bigFrString(String.valueOf(text.charAt(i)), x, renderInfo.yPosition - pulse * 2f,
+                    RGBA.color(255, 255, 255, (int) (dotAlpha * 255)));
+            x += dotWidth;
         }
     }
 
@@ -397,6 +450,8 @@ public class MusicLyricsWidget extends HudWidget {
     }
 
     private void renderKaraokeLyrics(boolean singleLineMode, float songProgress) {
+        CloudMusic.updateLongBreakAnimation();
+
         int indexOf = CloudMusic.lyrics.indexOf(currentLyric());
         LyricLine current;
         LyricLine preview;
@@ -409,28 +464,40 @@ public class MusicLyricsWidget extends HudWidget {
             }
         }
 
+        boolean breakActive = CloudMusic.isLongBreakActive() && current != null;
+        if (breakActive) preview = CloudMusic.findLongBreakLine();
+
         boolean currentOnLeft = indexOf >= 0 && indexOf % 2 == 0;
         boolean hasSecondary = hasSecondaryLyrics();
         double margin = karaokeMargin(hasSecondary);
         double smallFontHeight = getSmallFontRenderer().getHeight();
 
         if (current != null) {
-            updateLyricAnimation(current, true);
             karaokeRightAligned = !currentOnLeft;
-            LyricRenderInfo info = new LyricRenderInfo();
-            info.yPosition = karaokeY(currentOnLeft, hasSecondary, smallFontHeight, margin);
-            info.fade = computeEdgeFade(info.yPosition);
-            renderKaraokeCurrentLine(current, info, songProgress, currentOnLeft, hasSecondary ? getSecondaryLyrics(current) : "", singleLineMode);
+
+            if (!breakActive) {
+                updateLyricAnimation(current, true);
+                LyricRenderInfo info = new LyricRenderInfo();
+                info.yPosition = karaokeY(currentOnLeft, hasSecondary, smallFontHeight, margin);
+                info.fade = computeEdgeFade(info.yPosition);
+                renderKaraokeCurrentLine(current, info, songProgress, currentOnLeft, hasSecondary ? getSecondaryLyrics(current) : "", singleLineMode);
+            }
         }
 
         if (preview != null && !singleLineMode) {
-            updateLyricAnimation(preview, false);
-            preview.auroraGlow = Interpolations.interpolate(preview.auroraGlow, 0f, 0.06f);
             boolean previewOnLeft = !currentOnLeft;
             LyricRenderInfo info = new LyricRenderInfo();
             info.yPosition = karaokeY(previewOnLeft, hasSecondary, smallFontHeight, margin);
             info.fade = computeEdgeFade(info.yPosition);
-            renderKaraokeLine(preview, info, previewOnLeft, false, hasSecondary ? getSecondaryLyrics(preview) : "");
+
+            if (preview.isBreakLine) {
+                updateLyricAnimation(preview, false);
+                renderLongBreakLine(preview, info);
+            } else {
+                updateLyricAnimation(preview, false);
+                preview.auroraGlow = Interpolations.interpolate(preview.auroraGlow, 0f, 0.06f);
+                renderKaraokeLine(preview, info, previewOnLeft, false, hasSecondary ? getSecondaryLyrics(preview) : "");
+            }
         }
     }
 
@@ -515,13 +582,30 @@ public class MusicLyricsWidget extends HudWidget {
         return RGBA.color(color & 0xFFFFFF, alpha);
     }
 
+    /**
+     * 过渡行占位造成的位移, 用小步插值推进而不是直接跳一格
+     */
+    private static double updateBreakRowOffset(boolean breakActive) {
+        double target = breakActive ? lyricHeightStatic() : 0;
+        breakRowOffset = Interpolations.interpolate(breakRowOffset, target, .5f);
+
+        if (Math.abs(breakRowOffset) < 0.01) breakRowOffset = 0;
+        return breakRowOffset;
+    }
+
+    private static double lyricHeightStatic() {
+        return getLyricHeight();
+    }
+
     private LyricRenderInfo calculateLyricPosition(LyricLine line, int index, int currentIndex,
-                                                   double offsetY, boolean singleLineMode) {
+                                                   double offsetY, boolean singleLineMode,
+                                                   int breakRow, double breakOffset) {
         LyricRenderInfo info = new LyricRenderInfo();
 
         if (!singleLineMode) {
+            double rowShift = breakRow >= 0 && index > breakRow ? breakOffset : 0;
             double dest = this.getY() + this.getHeight() / 2.0 - fontH / 2.0 +
-                    index * lyricH - (currentIndex * lyricH);
+                    index * lyricH - (currentIndex * lyricH) + rowShift;
 
             if (line.offsetY == Double.MIN_VALUE || Math.abs(line.offsetY - dest) > 100) {
                 line.offsetY = dest;
