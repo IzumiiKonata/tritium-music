@@ -100,19 +100,24 @@ public final class PostEffectRenderer {
             pass.bindTexture("InSampler", from.getColorTextureView(), linearSampler());
             pass.setUniform("BlurInfo", uniform);
             bounds.apply(pass);
-            pass.draw(3, 1);
+            pass.draw(0, 3);
         }
     }
 
     private static void compositeBlur(RenderTarget main, List<EffectQueue.Region> regions, int guiScale) {
+        EffectInfo[] infos = new EffectInfo[regions.size()];
+        for (int i = 0; i < infos.length; i++) {
+            infos[i] = new EffectInfo(regions.get(i).alpha());
+        }
+        GpuBufferSlice[] uniforms = effectUniforms.writeUniforms(infos);
         try (RenderPass pass = pass("Tritium blur composite", main)) {
             pass.setPipeline(EffectPipelines.BLUR_COMPOSITE);
             RenderSystem.bindDefaultUniforms(pass);
             pass.bindTexture("InSampler", output.getColorTextureView(), linearSampler());
-            for (EffectQueue.Region region : regions) {
-                pass.setUniform("EffectInfo", effectUniforms.writeUniform(new EffectInfo(region.alpha())));
-                applyScissor(pass, region, guiScale, main.width, main.height, BLUR_COMPOSITE_PADDING);
-                pass.draw(3, 1);
+            for (int i = 0; i < regions.size(); i++) {
+                pass.setUniform("EffectInfo", uniforms[i]);
+                applyScissor(pass, regions.get(i), guiScale, main.width, main.height, BLUR_COMPOSITE_PADDING);
+                pass.draw(0, 3);
             }
         }
     }
@@ -125,7 +130,7 @@ public final class PostEffectRenderer {
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("ShapeInfo", shape);
             bounds(List.of(region), guiScale, main.width, main.height, 1).apply(pass);
-            pass.draw(3, 1);
+            pass.draw(0, 3);
         }
         ScissorBounds bloomBounds = bounds(List.of(region), guiScale, main.width, main.height, BLOOM_KERNEL_PADDING);
         gaussian(source, scratch, BLOOM_RADIUS, BLOOM_STEP_WIDTH, 1f, 0f, bloomBounds);
@@ -136,7 +141,7 @@ public final class PostEffectRenderer {
             pass.bindTexture("InSampler", output.getColorTextureView(), linearSampler());
             pass.setUniform("ShapeInfo", shape);
             applyScissor(pass, region, guiScale, main.width, main.height, BLOOM_COMPOSITE_PADDING);
-            pass.draw(3, 1);
+            pass.draw(0, 3);
         }
     }
 
