@@ -11,10 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/**
- * Client-side lyric layout/measurement. Kept out of the engine-agnostic core so
- * {@link LyricLine} carries only numeric render state, not font/animation deps.
- */
 public final class LyricLayout {
 
     private static final Map<LyricLine, WordLayout> WORD_LAYOUT_CACHE = new WeakHashMap<>();

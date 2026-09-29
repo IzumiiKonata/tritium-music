@@ -14,9 +14,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class LyricLine {
 
-    /**
-     * 长间隔过渡行显示的内容
-     */
     public static final String BREAK_TEXT = "● ● ●";
 
     @Getter
@@ -41,17 +38,8 @@ public class LyricLine {
     public boolean shouldUpdatePosition = false;
     public Timer delayTimer = new Timer();
 
-    /**
-     * 该行是否为长间隔过渡行, 过渡行不属于歌词列表, 只在间隔期间渲染
-     */
     public boolean isBreakLine = false;
-    /**
-     * 过渡行淡入进度 (0 ~ 1)
-     */
     public float intensity = 0f;
-    /**
-     * 过渡行呼吸动画相位 (单位: 周期)
-     */
     public float pulse = 0f;
 
     public double scrollWidth = 0;
@@ -70,10 +58,6 @@ public class LyricLine {
     public float lineAlpha = .25f;
     public float auroraGlow = 0f;
 
-    /**
-     * Opaque per-line animation/layout state owned by the UI layer (e.g. a spring).
-     * Kept as Object so the engine-agnostic core does not depend on the renderer.
-     */
     public Object spring;
 
     public final List<Word> words = new CopyOnWriteArrayList<>();

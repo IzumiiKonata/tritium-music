@@ -177,6 +177,16 @@ public class HudSettingsPanel extends NCMPanel {
                 text("scale.title"),
                 text("music_info.scale.description"),
                 slider(() -> config.musicInfo.scale, value -> config.musicInfo.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
+
+        content.addChild(new SectionRow(text("section.notifications")));
+        content.addChild(row(
+                text("music_toast.title"),
+                text("music_toast.description"),
+                dropdown(
+                        () -> config.musicToastMode,
+                        value -> config.musicToastMode = value,
+                        WidgetConfig.MusicToastMode.values(),
+                        HudSettingsPanel::musicToastModeName)));
     }
 
     private void buildLyricsPage() {
@@ -313,6 +323,7 @@ public class HudSettingsPanel extends NCMPanel {
                 config.quality = Quality.STANDARD;
                 config.autoMix = false;
                 config.musicInfo = new WidgetConfig.WidgetSettings(8f / 1920f, 8f / 1080f, 1, true);
+                config.musicToastMode = WidgetConfig.MusicToastMode.ON;
             }
             case LYRICS -> {
                 config.musicLyrics = new WidgetConfig.WidgetSettings(0.5f - 225f / 1920f, 1f - 140f / 1080f, 1, false);
@@ -431,6 +442,14 @@ public class HudSettingsPanel extends NCMPanel {
             case Center -> text("alignment.center");
             case Right -> text("alignment.right");
             case Karaoke -> text("alignment.karaoke");
+        };
+    }
+
+    private static String musicToastModeName(WidgetConfig.MusicToastMode mode) {
+        return switch (mode) {
+            case ON -> text("music_toast.on");
+            case OFF -> text("music_toast.off");
+            case FOLLOW_GAME -> text("music_toast.follow_game");
         };
     }
 

@@ -36,9 +36,6 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         super(Component.empty());
     }
 
-    /**
-     * Screen-wide fade alpha (1 = fully open). Subclasses with an open/close animation override this.
-     */
     protected float screenAlpha() {
         return 1f;
     }

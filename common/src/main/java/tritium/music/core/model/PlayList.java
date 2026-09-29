@@ -49,6 +49,7 @@ public class PlayList {
     public transient List<Music> musics;
     private transient boolean searchMode = false;
     public transient boolean musicsQueried = false, musicsLoaded = false;
+    private transient List<MusicsLoadedCallback> pendingCallbacks;
     private transient TextureHandle coverLocation;
 
     public final TextureHandle getCoverLocation() {
@@ -56,6 +57,13 @@ public class PlayList {
             coverLocation = TextureHandle.of("textures/playlist/" + this.id + "/cover.png");
         }
         return coverLocation;
+    }
+
+    public List<MusicsLoadedCallback> getPendingCallbacks() {
+        if (this.pendingCallbacks == null) {
+            this.pendingCallbacks = new CopyOnWriteArrayList<>();
+        }
+        return this.pendingCallbacks;
     }
 
     public List<Music> getMusics() {
@@ -70,7 +78,10 @@ public class PlayList {
         if (!this.musicsQueried && !searchMode) {
             this.musicsQueried = true;
 
-            AsyncUtil.runAsync(this::queryMusics);
+            AsyncUtil.runAsync(() -> {
+                queryMusics();
+                notifyMusicsLoaded();
+            });
         }
 
         return this.musics;
@@ -78,22 +89,40 @@ public class PlayList {
 
     public void loadMusicsWithCallback(MusicsLoadedCallback callback) {
 
+        if (callback == null)
+            return;
+
         if (this.musics == null)
             this.musics = new CopyOnWriteArrayList<>();
 
-        if (!musics.isEmpty() && (this.musicsQueried || searchMode)) {
+        if (searchMode || musicsLoaded || (!musics.isEmpty() && this.musicsQueried)) {
             callback.onMusicsLoaded(musics);
             return;
         }
 
-        if (!this.musicsQueried && !searchMode) {
-            this.musicsQueried = true;
+        this.getPendingCallbacks().add(callback);
 
-            AsyncUtil.runAsync(() -> {
-                queryMusics();
-                callback.onMusicsLoaded(musics);
-            });
-        }
+        if (this.musicsQueried)
+            return;
+
+        this.musicsQueried = true;
+
+        AsyncUtil.runAsync(() -> {
+            queryMusics();
+            notifyMusicsLoaded();
+        });
+    }
+
+    private void notifyMusicsLoaded() {
+        List<MusicsLoadedCallback> callbacks = this.getPendingCallbacks();
+
+        if (callbacks.isEmpty())
+            return;
+
+        List<MusicsLoadedCallback> pending = List.copyOf(callbacks);
+        List<Music> loaded = this.musics;
+        callbacks.clear();
+        pending.forEach(callback -> callback.onMusicsLoaded(loaded));
     }
 
     private void queryMusics() {
