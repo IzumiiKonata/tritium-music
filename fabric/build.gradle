@@ -86,6 +86,12 @@ jar {
 	}
 }
 
+tasks.matching { it.name == 'remapJar' }.configureEach {
+	doLast {
+		rootProject.stripOnnxRuntimeNatives(archiveFile.get().asFile)
+	}
+}
+
 publishing {
 	publications {
 		create('mavenJava', MavenPublication) {
