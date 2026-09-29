@@ -15,6 +15,7 @@ import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.screens.widget.ColorPickerWidget;
+import tritium.music.core.audio.AutoMixSupport;
 import tritium.music.core.audio.AutoMixTempoPolicy;
 import tritium.music.core.model.Quality;
 
@@ -150,15 +151,18 @@ public class HudSettingsPanel extends NCMPanel {
 
     private void buildGeneralPage() {
         WidgetConfig config = WidgetConfig.get();
+        boolean autoMixAvailable = AutoMixSupport.isAvailable();
         content.addChild(new SectionRow(text("section.playback")));
         content.addChild(row(
                 text("automix.title"),
-                text("automix.description"),
-                toggle(() -> config.autoMix, value -> config.autoMix = value)));
+                autoMixAvailable ? text("automix.description") : autoMixUnavailableDescription(),
+                autoMixToggle(autoMixAvailable, () -> config.autoMix, value -> config.autoMix = value)));
         content.addChild(row(
                 text("automix.tune_whenever_possible.title"),
                 text("automix.tune_whenever_possible.description"),
-                toggle(() -> config.autoMixTuneWheneverPossible, value -> config.autoMixTuneWheneverPossible = value)));
+                autoMixToggle(autoMixAvailable,
+                        () -> config.autoMixTuneWheneverPossible,
+                        value -> config.autoMixTuneWheneverPossible = value)));
         content.addChild(row(
                 text("quality.title"),
                 text("quality.description"),
@@ -279,6 +283,27 @@ public class HudSettingsPanel extends NCMPanel {
             setter.accept(value);
             save();
         });
+    }
+
+    private ToggleWidget autoMixToggle(boolean available, BooleanSupplier getter, Consumer<Boolean> setter) {
+        ToggleWidget widget = toggle(getter, value -> {
+            if (available) {
+                setter.accept(value);
+            }
+        });
+        if (!available) {
+            widget.setClickable(false);
+            widget.setAlpha(0.4f);
+        }
+        return widget;
+    }
+
+    private String autoMixUnavailableDescription() {
+        AutoMixSupport.State state = AutoMixSupport.state();
+        String reason = state.reasonKey() == null
+                ? text("automix.unavailable.unknown")
+                : I18n.get(state.reasonKey(), state.detail() == null || state.detail().isBlank() ? "-" : state.detail());
+        return text("automix.description") + "  " + I18n.get("tritium-music.ui.settings.automix.unavailable", reason);
     }
 
     private SliderWidget slider(

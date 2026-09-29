@@ -26,7 +26,8 @@ public final class AssetManager {
         RESOLVING,
         DOWNLOADING,
         COMPLETE,
-        FAILED
+        FAILED,
+        UNAVAILABLE
     }
 
     public enum State {
@@ -34,7 +35,8 @@ public final class AssetManager {
         DOWNLOADING,
         VERIFYING,
         READY,
-        FAILED
+        FAILED,
+        UNAVAILABLE
     }
 
     public record FileStatus(RemoteAsset asset, State state, long downloaded, long total, String error) {
@@ -50,7 +52,8 @@ public final class AssetManager {
 
     public record Snapshot(Phase phase, List<FileStatus> files, long bytesDone, long bytesTotal,
                            double bytesPerSecond, AssetRoute route, String failure,
-                           boolean essentialReady, boolean complete) {
+                           boolean essentialReady, boolean complete,
+                           int attempt, int maxAttempts, long retrySeconds) {
 
         public double fraction() {
             if (bytesTotal <= 0) {
@@ -72,7 +75,19 @@ public final class AssetManager {
         }
 
         public boolean failed() {
+            return phase == Phase.FAILED || phase == Phase.UNAVAILABLE;
+        }
+
+        public boolean retrying() {
             return phase == Phase.FAILED;
+        }
+
+        public boolean unavailable() {
+            return phase == Phase.UNAVAILABLE;
+        }
+
+        public boolean interrupted() {
+            return phase == Phase.FAILED || phase == Phase.UNAVAILABLE || phase == Phase.COMPLETE;
         }
 
         public int readyCount() {
@@ -93,6 +108,11 @@ public final class AssetManager {
     private static final long RETRY_COOLDOWN_MILLIS = 60_000L;
     private static final long POLL_INTERVAL_MILLIS = 120L;
     private static final long SCAN_INTERVAL_MILLIS = 1000L;
+    private static final long[] DEFAULT_RETRY_DELAYS_MILLIS = {0L, 30_000L, 120_000L, 300_000L};
+    private static final String RETRY_DELAYS_PROPERTY = "tritium.assets.retryDelays";
+
+    private static final long[] RETRY_DELAYS_MILLIS = retryDelays();
+    private static final int MAX_ATTEMPTS = RETRY_DELAYS_MILLIS.length;
     private static final long SLOW_ROUTE_GRACE_NANOS = 20_000_000_000L;
     private static final long SLOW_ROUTE_MIN_BYTES = 1_000_000L;
     private static final double SLOW_ROUTE_BYTES_PER_SECOND = 10_000;
@@ -114,6 +134,8 @@ public final class AssetManager {
     private long slowRouteStartNanos = System.nanoTime();
     private boolean slowRouteAbortAllowed;
     private volatile long lastScanMillis;
+    private volatile int attempts;
+    private volatile long nextRetryMillis;
 
     private AssetManager() {
         for (RemoteAsset asset : AssetCatalog.all()) {
@@ -127,7 +149,7 @@ public final class AssetManager {
 
     public void start() {
         if (!ensureScanned()) {
-            setFailure("asset storage unavailable");
+            setUnavailable("asset storage unavailable");
             return;
         }
         if (!needsDownload()) {
@@ -147,15 +169,29 @@ public final class AssetManager {
             return;
         }
         for (Entry entry : entries) {
-            if (entry.state == State.FAILED) {
+            if (entry.state == State.FAILED || entry.state == State.UNAVAILABLE) {
                 entry.state = State.PENDING;
                 entry.error = null;
             }
         }
         failure = null;
+        attempts = 0;
+        nextRetryMillis = 0;
         phase = Phase.IDLE;
         notifyListeners();
         start();
+    }
+
+    public boolean isUnavailable() {
+        return phase == Phase.UNAVAILABLE;
+    }
+
+    public int attempts() {
+        return attempts;
+    }
+
+    public int maxAttempts() {
+        return MAX_ATTEMPTS;
     }
 
     public boolean needsDownload() {
@@ -198,6 +234,9 @@ public final class AssetManager {
         if (isReady(asset)) {
             return true;
         }
+        if (isUnavailable()) {
+            return false;
+        }
         if (needsDownload()) {
             start();
         }
@@ -206,22 +245,48 @@ public final class AssetManager {
             if (isReady(asset)) {
                 return true;
             }
+            if (isUnavailable()) {
+                return false;
+            }
             long remaining = deadline - System.nanoTime();
             if (remaining <= 0) {
                 break;
             }
             if (phase == Phase.FAILED) {
                 long sinceFailure = System.currentTimeMillis() - lastFailureMillis;
-                if (sinceFailure >= RETRY_COOLDOWN_MILLIS) {
+                if (sinceFailure >= RETRY_COOLDOWN_MILLIS && !running.get()) {
                     retry();
                 } else {
-                    sleep(Math.min(RETRY_COOLDOWN_MILLIS - sinceFailure, TimeUnit.NANOSECONDS.toMillis(remaining)));
+                    sleep(Math.min(POLL_INTERVAL_MILLIS, TimeUnit.NANOSECONDS.toMillis(remaining)));
                 }
                 continue;
             }
             sleep(Math.min(POLL_INTERVAL_MILLIS, TimeUnit.NANOSECONDS.toMillis(remaining)));
         }
         return isReady(asset);
+    }
+
+    public File directoryOf(List<RemoteAsset> group) {
+        if (group == null || group.isEmpty() || !ensureScanned()) {
+            return null;
+        }
+        File directory = null;
+        for (RemoteAsset asset : group) {
+            if (!store.isReady(asset)) {
+                return null;
+            }
+            File file = store.file(asset);
+            if (file == null) {
+                return null;
+            }
+            File parent = file.getParentFile();
+            if (directory == null) {
+                directory = parent;
+            } else if (!directory.equals(parent)) {
+                return null;
+            }
+        }
+        return directory;
     }
 
     public void addListener(Consumer<Snapshot> listener) {
@@ -250,8 +315,10 @@ public final class AssetManager {
                 }
             }
         }
+        long retryAt = nextRetryMillis;
+        long retrySeconds = retryAt <= 0 ? 0 : Math.max(0, (retryAt - System.currentTimeMillis() + 999) / 1000);
         return new Snapshot(phase, List.copyOf(files), done, total, bytesPerSecond, route, failure,
-                essentialReady, complete);
+                essentialReady, complete, attempts, MAX_ATTEMPTS, retrySeconds);
     }
 
     private void run() {
@@ -267,8 +334,11 @@ public final class AssetManager {
                 setPhase(Phase.RESOLVING);
                 AssetRoute resolved = resolveRoute(missing.getFirst().asset, excluded);
                 if (resolved == null) {
-                    setFailure("all download routes failed");
-                    return;
+                    if (!awaitRetry("all download routes failed")) {
+                        return;
+                    }
+                    excluded.clear();
+                    continue;
                 }
                 route = resolved;
                 failure = null;
@@ -292,15 +362,48 @@ public final class AssetManager {
                 }
                 excluded.add(resolved.prefix());
                 if (excluded.size() >= AssetRoute.candidates().size()) {
-                    setFailure("all download routes failed");
-                    return;
+                    if (!awaitRetry(failure == null ? "all download routes failed" : failure)) {
+                        return;
+                    }
+                    excluded.clear();
                 }
             }
         } catch (Throwable throwable) {
-            setFailure(messageOf(throwable));
+            setUnavailable(messageOf(throwable));
         } finally {
             running.set(false);
         }
+    }
+
+    private boolean awaitRetry(String message) {
+        failure = message;
+        attempts++;
+        if (attempts >= MAX_ATTEMPTS) {
+            setUnavailable(message);
+            return false;
+        }
+
+        long delay = RETRY_DELAYS_MILLIS[Math.min(attempts, RETRY_DELAYS_MILLIS.length - 1)];
+        nextRetryMillis = System.currentTimeMillis() + delay;
+        for (Entry entry : entries) {
+            if (entry.state != State.READY) {
+                entry.state = State.FAILED;
+                entry.error = message;
+            }
+        }
+        phase = Phase.FAILED;
+        log("attempt " + (attempts + 1) + "/" + MAX_ATTEMPTS + " in " + (delay / 1000L) + "s: " + message);
+        notifyListeners();
+
+        long deadline = System.currentTimeMillis() + delay;
+        while (System.currentTimeMillis() < deadline && !Thread.currentThread().isInterrupted()) {
+            if (!needsDownload()) {
+                break;
+            }
+            sleep(Math.min(250L, Math.max(1L, deadline - System.currentTimeMillis())));
+        }
+        nextRetryMillis = 0;
+        return !Thread.currentThread().isInterrupted();
     }
 
     private boolean download(Entry entry, AssetRoute resolved, boolean slowAbortAllowed) {
@@ -475,6 +578,21 @@ public final class AssetManager {
         notifyListeners();
     }
 
+    private void setUnavailable(String message) {
+        failure = message;
+        lastFailureMillis = System.currentTimeMillis();
+        nextRetryMillis = 0;
+        for (Entry entry : entries) {
+            if (entry.state != State.READY) {
+                entry.state = State.UNAVAILABLE;
+                entry.error = message;
+            }
+        }
+        phase = Phase.UNAVAILABLE;
+        log("giving up after " + attempts + " attempt(s), dependent features disabled: " + message);
+        notifyListeners();
+    }
+
     private long missingBytes(List<Entry> missing) {
         long bytes = 0;
         for (Entry entry : missing) {
@@ -538,6 +656,23 @@ public final class AssetManager {
             }
         }
         return true;
+    }
+
+    private static long[] retryDelays() {
+        String override = System.getProperty(RETRY_DELAYS_PROPERTY, "").trim();
+        if (override.isEmpty()) {
+            return DEFAULT_RETRY_DELAYS_MILLIS;
+        }
+        String[] parts = override.split(",");
+        long[] delays = new long[parts.length];
+        for (int index = 0; index < parts.length; index++) {
+            try {
+                delays[index] = Math.max(0L, Math.round(Double.parseDouble(parts[index].trim()) * 1000.0));
+            } catch (NumberFormatException exception) {
+                return DEFAULT_RETRY_DELAYS_MILLIS;
+            }
+        }
+        return delays.length == 0 ? DEFAULT_RETRY_DELAYS_MILLIS : delays;
     }
 
     private static void sleep(long millis) {
