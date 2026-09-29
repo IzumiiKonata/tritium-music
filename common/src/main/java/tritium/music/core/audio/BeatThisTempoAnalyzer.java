@@ -124,10 +124,11 @@ final class BeatThisTempoAnalyzer {
     }
 
     private static void ensureModelsAvailable() throws IOException {
-        AssetManager manager = AssetManager.get();
-        if (!manager.awaitReady(MEL_MODEL_PATH, MODEL_WAIT_MILLIS)
-                || !manager.awaitReady(MODEL_PATH, MODEL_WAIT_MILLIS)) {
-            throw new IOException("AutoMix models are not available");
+        if (!AutoMixSupport.prepare(MODEL_WAIT_MILLIS)) {
+            AutoMixSupport.State state = AutoMixSupport.state();
+            throw new IOException("AutoMix is disabled"
+                    + (state.reasonKey() == null ? "" : " (" + state.reasonKey() + ")")
+                    + (state.detail() == null ? "" : ": " + state.detail()));
         }
     }
 
@@ -184,8 +185,9 @@ final class BeatThisTempoAnalyzer {
                 OrtSession beat = environment.createSession(readResource(MODEL_PATH), options);
                 options.close();
                 return new Models(environment, mel, beat);
-            } catch (Exception e) {
-                throw new IllegalStateException("Unable to initialize Beat This!", e);
+            } catch (Throwable throwable) {
+                AutoMixSupport.reportRuntimeFailure(throwable);
+                throw new IllegalStateException("Unable to initialize Beat This!", throwable);
             }
         }
 

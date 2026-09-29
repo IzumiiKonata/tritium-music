@@ -24,6 +24,7 @@ import tritium.music.core.MusicState;
 import tritium.music.core.assets.AssetFormat;
 import tritium.music.core.assets.AssetManager;
 import tritium.music.core.assets.AssetRoute;
+import tritium.music.core.audio.AutoMixSupport;
 import tritium.music.core.ncm.OptionsUtil;
 import tritium.music.core.util.AsyncUtil;
 import tritium.music.platform.Platform;
@@ -303,10 +304,15 @@ public class NCMScreen extends BaseScreen {
         String title;
         String detail;
         String hint;
-        if (failed) {
+        if (snapshot.unavailable()) {
             title = I18n.get("tritium-music.ui.assets.failed");
             detail = I18n.get("tritium-music.ui.assets.route.unreachable");
-            hint = I18n.get("tritium-music.ui.assets.retry_hint");
+            hint = I18n.get("tritium-music.ui.assets.unavailable_hint", disabledFeatures());
+        } else if (snapshot.retrying()) {
+            title = I18n.get("tritium-music.ui.assets.failed");
+            detail = I18n.get("tritium-music.ui.assets.retry_in",
+                    AssetFormat.duration(snapshot.retrySeconds()), (snapshot.attempt() + 1) + "/" + snapshot.maxAttempts());
+            hint = I18n.get("tritium-music.ui.assets.route.unreachable");
         } else if (snapshot.phase() == AssetManager.Phase.RESOLVING) {
             title = I18n.get("tritium-music.ui.assets.title");
             detail = I18n.get("tritium-music.ui.assets.resolving");
@@ -351,6 +357,17 @@ public class NCMScreen extends BaseScreen {
         }
 
         return panelHeight + 6;
+    }
+
+    private String disabledFeatures() {
+        List<String> disabled = new ArrayList<>();
+        if (!AutoMixSupport.isAvailable()) {
+            disabled.add(I18n.get("tritium-music.ui.feature.automix.name"));
+        }
+        if (!AutoMixSupport.isAvailable() || !AssetManager.get().snapshot().essentialReady()) {
+            disabled.add(I18n.get("tritium-music.ui.feature.fonts.name"));
+        }
+        return disabled.isEmpty() ? I18n.get("tritium-music.ui.common.none") : String.join(" / ", disabled);
     }
 
     private String transitionText(AssetManager.Snapshot snapshot) {
