@@ -51,6 +51,7 @@
   "tritium-music.ui.playlist.grid_view": "平铺",
   "tritium-music.ui.playlist.song_count": "%s 首歌曲",
   "tritium-music.ui.playlist.loading": "正在加载歌单...",
+  "tritium-music.ui.playlist.loading_progress": "正在加载 %s / %s 首",
   "tritium-music.ui.menu.play": "播放",
   "tritium-music.ui.menu.play_next": "下一首播放",
   "tritium-music.ui.menu.like": "喜欢",

@@ -3,7 +3,6 @@ package tritium.music.core.model;
 import com.google.gson.JsonArray;
 import com.google.gson.annotations.SerializedName;
 import lombok.Data;
-import tritium.music.core.ncm.RequestUtil;
 import tritium.music.core.ncm.api.CloudMusicApi;
 import tritium.music.core.util.AsyncUtil;
 import tritium.music.core.util.JsonUtils;
@@ -18,6 +17,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 @Data
 public class PlayList {
+
+    private static final int TRACK_BATCH_SIZE = 500;
 
     @SerializedName("id")
     private final long id;
@@ -49,6 +50,7 @@ public class PlayList {
     public transient List<Music> musics;
     private transient boolean searchMode = false;
     public transient boolean musicsQueried = false, musicsLoaded = false;
+    public transient int musicsTotal;
     private transient List<MusicsLoadedCallback> pendingCallbacks;
     private transient TextureHandle coverLocation;
 
@@ -64,6 +66,10 @@ public class PlayList {
             this.pendingCallbacks = new CopyOnWriteArrayList<>();
         }
         return this.pendingCallbacks;
+    }
+
+    public int getLoadedCount() {
+        return this.musics == null ? 0 : this.musics.size();
     }
 
     public List<Music> getMusics() {
@@ -126,19 +132,23 @@ public class PlayList {
     }
 
     private void queryMusics() {
-        RequestUtil.RequestAnswer requestAnswer;
         try {
-            requestAnswer = CloudMusicApi.playlistTrackAll(id, 8);
+            List<Long> trackIds = CloudMusicApi.playlistTrackIds(id);
+
+            this.musicsTotal = trackIds.size();
+            this.musics.clear();
+
+            for (int offset = 0; offset < trackIds.size(); offset += TRACK_BATCH_SIZE) {
+                List<Long> batch = trackIds.subList(offset, Math.min(trackIds.size(), offset + TRACK_BATCH_SIZE));
+                JsonArray songs = CloudMusicApi.songDetail(batch).toJsonObject().getAsJsonArray("songs");
+                songs.forEach(element -> this.musics.add(JsonUtils.parse(element.getAsJsonObject(), Music.class)));
+            }
+
+            musicsLoaded = true;
         } catch (Exception e) {
             this.musicsQueried = false;
             e.printStackTrace();
-            return;
         }
-
-        JsonArray songs = requestAnswer.toJsonObject().getAsJsonArray("songs");
-        songs.forEach(element -> this.musics.add(JsonUtils.parse(element.getAsJsonObject(), Music.class)));
-
-        musicsLoaded = true;
     }
 
     public interface MusicsLoadedCallback {

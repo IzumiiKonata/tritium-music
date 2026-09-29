@@ -248,10 +248,16 @@ public class PlaylistPanel extends NCMPanel {
         musicsPanel.setBeforeRenderCallback(() -> musicsPanel.setMargin(0));
 
         loadingIndicator = new LoadingIndicatorWidget();
-        loadingIndicator.setLabel(I18n.get("tritium-music.ui.playlist.loading"));
         loadingIndicator.setColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         loadingIndicator.setBeforeRenderCallback(() -> {
+            int loaded = playList.getLoadedCount();
+            int total = Math.max(playList.musicsTotal, playList.getCount());
+
             loadingIndicator.setLoading(musicsLoading);
+            loadingIndicator.setProgress(total > 0 ? (double) loaded / total : 0);
+            loadingIndicator.setLabel(total > 0
+                    ? I18n.get("tritium-music.ui.playlist.loading_progress", loaded, total)
+                    : I18n.get("tritium-music.ui.playlist.loading"));
             loadingIndicator.setMargin(0);
         });
         rwMusicsContainer.addChild(loadingIndicator);

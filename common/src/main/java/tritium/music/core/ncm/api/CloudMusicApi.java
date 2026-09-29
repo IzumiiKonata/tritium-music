@@ -142,16 +142,17 @@ public class CloudMusicApi {
         return RequestUtil.createRequest("/api/radio/like", data, OptionsUtil.createOptions("weapi"));
     }
 
-    public RequestUtil.RequestAnswer playlistTrackAll(long id, int s) {
+    public List<Long> playlistTrackIds(long id) {
 
         Map<String, Object> data = new HashMap<>();
         data.put("id", id);
         data.put("n", 100000);
-        data.put("s", s);
+        data.put("s", 8);
 
-        RequestUtil.RequestAnswer v6Detail = RequestUtil.createRequest("/api/v6/playlist/detail", data, OptionsUtil.createOptions());
+        RequestUtil.RequestAnswer answer = RequestUtil.createRequest("/api/v6/playlist/detail", data, OptionsUtil.createOptions());
+        answer.requireSuccessful("Query playlist tracks");
 
-        JsonObject v6Obj = v6Detail.toJsonObject();
+        JsonObject v6Obj = answer.toJsonObject();
         List<Long> ids = new ArrayList<>();
 
         JsonObject playlist = v6Obj.getAsJsonObject("playlist");
@@ -161,12 +162,20 @@ public class CloudMusicApi {
             ids.add(trackId.getAsJsonObject().get("id").getAsLong());
         }
 
-        List<String> collected = ids.stream().map(pId -> "{\"id\":" + pId + "}").collect(Collectors.toList());
+        return ids;
+    }
 
-        Map<String, Object> dataV3 = new HashMap<>();
-        dataV3.put("c", "[" + String.join(",", collected) + "]");
+    public RequestUtil.RequestAnswer songDetail(List<Long> ids) {
 
-        return RequestUtil.createRequest("/api/v3/song/detail", dataV3, OptionsUtil.createOptions());
+        List<String> collected = ids.stream().map(songId -> "{\"id\":" + songId + "}").collect(Collectors.toList());
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("c", "[" + String.join(",", collected) + "]");
+
+        RequestUtil.RequestAnswer answer = RequestUtil.createRequest("/api/v3/song/detail", data, OptionsUtil.createOptions());
+        answer.requireSuccessful("Query song details");
+
+        return answer;
     }
 
     public RequestUtil.RequestAnswer playlistUpdatePlaycount(long id) {
@@ -274,23 +283,6 @@ public class CloudMusicApi {
 
     public RequestUtil.RequestAnswer songDetail(long id) {
         return songDetail(Collections.singletonList(id));
-    }
-
-    public RequestUtil.RequestAnswer songDetail(List<Long> ids) {
-
-        Map<String, Object> data = new HashMap<>();
-
-        StringBuilder sb = new StringBuilder();
-
-        for (Long id : ids) {
-            if (!sb.isEmpty())
-                sb.append(",");
-            sb.append("{\"id\":").append(id).append("}");
-        }
-
-        data.put("c", "[" + sb + "]");
-
-        return RequestUtil.createRequest("/api/v3/song/detail", data, OptionsUtil.createOptions("weapi"));
     }
 
     /**

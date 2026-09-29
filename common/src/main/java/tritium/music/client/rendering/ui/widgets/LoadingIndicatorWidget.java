@@ -11,12 +11,17 @@ public class LoadingIndicatorWidget extends AbstractWidget<LoadingIndicatorWidge
     private static final double RADIUS = 14;
     private static final double DOT_SIZE = 5.6;
     private static final long CYCLE_MS = 900L;
-    private static final double LABEL_GAP = 19;
+    private static final double SPINNER_OFFSET = -22;
+    private static final double BAR_WIDTH = 190;
+    private static final double BAR_HEIGHT = 5;
+    private static final double BAR_OFFSET = 10;
+    private static final double LABEL_OFFSET = 22;
     private static final float FADE_SPEED = 0.24f;
     private static final float FADE_EPSILON = 0.015f;
 
     private String label = "";
     private boolean loading;
+    private double progress;
     private float visibility;
 
     public LoadingIndicatorWidget() {
@@ -33,6 +38,11 @@ public class LoadingIndicatorWidget extends AbstractWidget<LoadingIndicatorWidge
         return this;
     }
 
+    public LoadingIndicatorWidget setProgress(double progress) {
+        this.progress = Math.max(0, Math.min(1, progress));
+        return this;
+    }
+
     @Override
     public void onRender(double mouseX, double mouseY) {
         this.visibility = Interpolations.interpolate(this.visibility, this.loading ? 1f : 0f, FADE_SPEED);
@@ -41,34 +51,53 @@ public class LoadingIndicatorWidget extends AbstractWidget<LoadingIndicatorWidge
             return;
 
         CFontRenderer font = FontManager.pf12;
-        boolean hasLabel = !this.label.isEmpty() && font != null;
 
         double centerX = this.getX() + this.getWidth() * .5;
-        double centerY = this.getY() + this.getHeight() * .5 - (hasLabel ? LABEL_GAP * .5 : 0);
+        double centerY = this.getY() + this.getHeight() * .5;
 
+        this.renderSpinner(centerX, centerY + SPINNER_OFFSET);
+        this.renderProgressBar(centerX, centerY + BAR_OFFSET);
+
+        if (!this.label.isEmpty() && font != null) {
+            font.drawCenteredString(
+                    this.label,
+                    centerX,
+                    centerY + LABEL_OFFSET,
+                    this.reAlpha(this.getHexColor(), this.getAlpha() * this.visibility * .7f));
+        }
+    }
+
+    private void renderSpinner(double centerX, double centerY) {
         double phase = (System.currentTimeMillis() % CYCLE_MS) / (double) CYCLE_MS;
 
         for (int i = 0; i < DOT_COUNT; i++) {
-            double progress = (i / (double) DOT_COUNT - phase + 1.0) % 1.0;
+            double tail = (i / (double) DOT_COUNT - phase + 1.0) % 1.0;
             double angle = i / (double) DOT_COUNT * Math.PI * 2 - Math.PI * .5;
-            double size = DOT_SIZE * (.55 + .45 * progress);
-            double dotVisibility = this.visibility * (.15 + .85 * progress);
+            double size = DOT_SIZE * (.55 + .45 * tail);
 
             this.roundedRect(
                     centerX + Math.cos(angle) * RADIUS - size * .5,
                     centerY + Math.sin(angle) * RADIUS - size * .5,
                     size,
                     size,
-                    size * .5 - .5,
-                    this.reAlpha(this.getHexColor(), (float) dotVisibility));
+                    size * .5 - .75,
+                    this.reAlpha(this.getHexColor(), this.getAlpha() * (float) (this.visibility * (.15 + .85 * tail))));
         }
+    }
 
-        if (hasLabel) {
-            font.drawCenteredString(
-                    this.label,
-                    centerX,
-                    centerY + RADIUS + LABEL_GAP * .5,
-                    this.reAlpha(this.getHexColor(), this.getAlpha() * this.visibility * .7f));
-        }
+    private void renderProgressBar(double centerX, double barY) {
+        double barX = centerX - BAR_WIDTH * .5;
+        double barRadius = BAR_HEIGHT * .5;
+
+        this.roundedRect(barX, barY, BAR_WIDTH, BAR_HEIGHT, barRadius,
+                this.reAlpha(this.getHexColor(), this.getAlpha() * this.visibility * .16f));
+
+        double fillWidth = BAR_WIDTH * this.progress;
+
+        if (fillWidth < .5)
+            return;
+
+        this.roundedRect(barX, barY, fillWidth, BAR_HEIGHT, barRadius,
+                this.reAlpha(this.getHexColor(), this.getAlpha() * this.visibility * .9f));
     }
 }
