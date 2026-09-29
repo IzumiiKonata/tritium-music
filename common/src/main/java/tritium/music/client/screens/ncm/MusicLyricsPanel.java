@@ -103,35 +103,81 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         return .25;
     }
 
+    /**
+     * 歌词行与过渡行的布局顺序, 过渡行仅在间隔期间出现且不占用歌词索引。
+     * 间隔结束后的淡出期间仍然占位, 否则下面的歌词会立刻压上来把点盖住
+     */
+    private static List<LyricLine> layoutRows() {
+        LyricLine breakLine = CloudMusic.findDisplayedLongBreakLine();
+        List<LyricLine> rows = new ArrayList<>(CloudMusic.lyrics.size() + 1);
+
+        if (breakLine == null) {
+            rows.addAll(CloudMusic.lyrics);
+            return rows;
+        }
+
+        int breakIndex = CloudMusic.isLongBreakActive()
+                ? CloudMusic.breakInsertIndex()
+                : CloudMusic.breakInsertIndexAfterLastInterval();
+        for (int i = 0; i < CloudMusic.lyrics.size(); i++) {
+            if (i == breakIndex) rows.add(breakLine);
+            rows.add(CloudMusic.lyrics.get(i));
+        }
+        if (breakIndex >= CloudMusic.lyrics.size()) rows.add(breakLine);
+
+        return rows;
+    }
+
+    /**
+     * 新出现的过渡行的 spring 尚未定位过, 必须直接落到目标位置,
+     * 否则会从 spring 的初始位置 (0) 滑入, 看起来像从屏幕上方飞下来
+     */
+    private static void positionLyric(LyricLine lyric, double offsetY) {
+        lyric.posY = offsetY;
+        LyricLayout.spring(lyric).setPosition(offsetY);
+    }
+
     public static void updateLyricPositionsImmediate(double width) {
+        positionRowsImmediate(CloudMusic.currentLyric, width, false);
+    }
+
+    public static void updateLyricPositionsImmediate(double width, double playbackProgress) {
+        positionRowsImmediate(CloudMusic.findCurrentLyric(playbackProgress), width, true);
+    }
+
+    /**
+     * @param instant true 时强制吸附所有行 (拖动进度条), false 时只定位尚未定位过的行,
+     *                以免抹掉正在进行的整体位移动画
+     */
+    private static void positionRowsImmediate(LyricLine currentLyric, double width, boolean instant) {
         if (CloudMusic.currentLyric == null) return;
 
-        double offsetY = RenderSystem.getHeight() * lyricFraction() - getLyricLineSpacing();
-        int toIndex = CloudMusic.lyrics.indexOf(CloudMusic.currentLyric);
+        List<LyricLine> rows = layoutRows();
+        int toIndex = rows.indexOf(currentLyric);
 
-        if (toIndex == -1 || toIndex >= CloudMusic.lyrics.size()) return;
+        if (toIndex == -1 || toIndex >= rows.size()) return;
+
+        double offsetY = RenderSystem.getHeight() * lyricFraction() - getLyricLineSpacing();
 
         synchronized (CloudMusic.lyrics) {
-            List<LyricLine> subList = CloudMusic.lyrics.subList(0, toIndex);
+            List<LyricLine> subList = rows.subList(0, toIndex);
             for (int i = subList.size() - 1; i >= 0; i--) {
                 LyricLine lyric = subList.get(i);
 
-                if (i == subList.size() - 1) {
+                if (i == subList.size() - 1 || (instant && i >= subList.size() - 2)) {
                     LyricLayout.computeHeight(lyric, width);
                     offsetY -= lyric.height;
                 }
 
-                lyric.posY = offsetY;
-                LyricLayout.spring(lyric).setPosition(offsetY);
+                positionLyricIfNew(lyric, offsetY, width, instant);
 
                 LyricLayout.computeHeight(lyric, width);
                 offsetY -= lyric.height + getLyricLineSpacing();
             }
 
             offsetY = RenderSystem.getHeight() * lyricFraction();
-            for (LyricLine lyric : CloudMusic.lyrics.subList(toIndex, CloudMusic.lyrics.size())) {
-                lyric.posY = offsetY;
-                LyricLayout.spring(lyric).setPosition(offsetY);
+            for (LyricLine lyric : rows.subList(toIndex, rows.size())) {
+                positionLyricIfNew(lyric, offsetY, width, instant);
 
                 LyricLayout.computeHeight(lyric, width);
                 offsetY += lyric.height + getLyricLineSpacing();
@@ -139,54 +185,25 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         }
     }
 
-    public static void updateLyricPositionsImmediate(double width, double playbackProgress) {
-        if (CloudMusic.currentLyric == null) return;
+    private static void positionLyricIfNew(LyricLine lyric, double offsetY, double width, boolean instant) {
+        if (!instant && lyric.spring != null && lyric.height > 0) return;
 
-        double offsetY = RenderSystem.getHeight() * lyricFraction() - getLyricLineSpacing();
-        int toIndex = CloudMusic.lyrics.indexOf(CloudMusic.findCurrentLyric(playbackProgress));
-
-        if (toIndex == -1 || toIndex >= CloudMusic.lyrics.size()) return;
-
-        synchronized (CloudMusic.lyrics) {
-            List<LyricLine> subList = CloudMusic.lyrics.subList(0, toIndex);
-            for (int i = subList.size() - 1; i >= 0; i--) {
-                LyricLine lyric = subList.get(i);
-
-                if (i >= subList.size() - 2) {
-                    LyricLayout.computeHeight(lyric, width);
-                    offsetY -= lyric.height;
-                }
-
-                lyric.posY = offsetY;
-                LyricLayout.spring(lyric).setPosition(offsetY);
-
-                LyricLayout.computeHeight(lyric, width);
-                offsetY -= lyric.height + getLyricLineSpacing();
-            }
-
-            offsetY = RenderSystem.getHeight() * lyricFraction();
-            for (LyricLine lyric : CloudMusic.lyrics.subList(toIndex, CloudMusic.lyrics.size())) {
-                lyric.posY = offsetY;
-                LyricLayout.spring(lyric).setPosition(offsetY);
-
-                LyricLayout.computeHeight(lyric, width);
-                offsetY += lyric.height + getLyricLineSpacing();
-            }
-        }
+        positionLyric(lyric, offsetY);
     }
 
     private static void updateLyricPositions(double width, double playbackProgress) {
         if (CloudMusic.currentLyric == null) return;
 
         LyricLine currentLyric = CloudMusic.findCurrentLyric(playbackProgress);
-        int toIndex = CloudMusic.lyrics.indexOf(currentLyric);
-        if (toIndex == -1 || toIndex >= CloudMusic.lyrics.size()) return;
+        List<LyricLine> rows = layoutRows();
+        int toIndex = rows.indexOf(currentLyric);
+        if (toIndex == -1 || toIndex >= rows.size()) return;
 
         double offsetY = RenderSystem.getHeight() * lyricFraction() - getLyricLineSpacing();
         float fraction = .4f;
 
         synchronized (CloudMusic.lyrics) {
-            List<LyricLine> subList = CloudMusic.lyrics.subList(0, toIndex);
+            List<LyricLine> subList = rows.subList(0, toIndex);
             for (int i = subList.size() - 1; i >= 0; i--) {
                 LyricLine lyric = subList.get(i);
 
@@ -204,7 +221,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             }
 
             offsetY = RenderSystem.getHeight() * lyricFraction();
-            for (LyricLine lyric : CloudMusic.lyrics.subList(toIndex, CloudMusic.lyrics.size())) {
+            for (LyricLine lyric : rows.subList(toIndex, rows.size())) {
                 SpringAnimation spring = LyricLayout.spring(lyric);
                 lyric.posY = Interpolations.interpolate(lyric.posY, offsetY, fraction);
                 spring.setPosition(Interpolations.interpolate(spring.getCurrentPosition(), offsetY, fraction));
@@ -300,24 +317,19 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                 : CloudMusic.currentLyric;
         if (layoutLyric == null || !CloudMusic.lyrics.contains(layoutLyric)) return;
 
-        boolean layoutRequired = false;
-        for (LyricLine lyric : CloudMusic.lyrics) {
+        boolean unpositionedRow = false;
+        for (LyricLine lyric : layoutRows()) {
             if (lyric.spring == null || lyric.height <= 0) {
-                layoutRequired = true;
+                unpositionedRow = true;
                 break;
-            }
-        }
-        if (layoutRequired) {
-            if (progressBarDragging) {
-                updateLyricPositionsImmediate(lyricsWidth, overridePlaybackProgress);
-            } else {
-                updateLyricPositionsImmediate(lyricsWidth);
             }
         }
 
         if (progressBarDragging) {
+            updateLyricPositionsImmediate(lyricsWidth, overridePlaybackProgress);
             updateLyricPositions(lyricsWidth, overridePlaybackProgress);
         } else {
+            if (unpositionedRow) updateLyricPositionsImmediate(lyricsWidth);
             this.updateLyricPositions(posY, height, lyricsWidth);
         }
 
@@ -351,18 +363,24 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         StencilClipManager.beginClip(posX + 2.5, posY + 2.5, width - 4.5, height);
 
         LyricLine currentLyric = progressBarDragging ? CloudMusic.findCurrentLyric(overridePlaybackProgress) : CloudMusic.currentLyric;
-        int currentIndex = CloudMusic.lyrics.indexOf(currentLyric);
+        List<LyricLine> rows = layoutRows();
+        int currentIndex = rows.indexOf(currentLyric);
         int renderTargetIndex = 0;
 
-        for (int k = 0; k < CloudMusic.lyrics.size(); k++) {
-            LyricLine lyric = CloudMusic.lyrics.get(k);
+        if (!progressBarDragging) CloudMusic.updateLongBreakAnimation();
+
+        float[] lyricDistances = new float[rows.size()];
+
+        for (int k = 0; k < rows.size(); k++) {
+            LyricLine lyric = rows.get(k);
             int lyricDistance = Math.abs(k - currentIndex);
+            lyricDistances[k] = lyricDistance;
             float blurTarget = !hoveringLyrics && lyricDistance > 0 ? Math.min(1f, .55f + (lyricDistance - 1) * .22f) : 0f;
             lyric.blurAlpha = Interpolations.interpolate(lyric.blurAlpha, blurTarget, 0.05f);
         }
 
-        for (int k = 0; k < CloudMusic.lyrics.size(); k++) {
-            LyricLine lyric = CloudMusic.lyrics.get(k);
+        for (int k = 0; k < rows.size(); k++) {
+            LyricLine lyric = rows.get(k);
 
             if (lyric.posY + lyric.height + getLyricLineSpacing() + scrollOffset < posY) {
                 continue;
@@ -373,10 +391,16 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             }
 
             boolean isCurrentLyric = lyric == currentLyric;
-            lyric.alpha = Interpolations.interpolate(lyric.alpha, isCurrentLyric ? 1f : 0f, isCurrentLyric ? 0.15f : .1f);
+            lyric.alpha = Interpolations.interpolate(lyric.alpha, isCurrentLyric ? 1f : lyric.isBreakLine ? .25f : 0f, isCurrentLyric ? 0.15f : .1f);
+
+            if (lyric.isBreakLine) {
+                this.renderLongBreakLine(lyric, lyricRenderOffsetX, lyric.posY + scrollOffset, lyricsWidth, alpha);
+                continue;
+            }
+
             boolean isHovering = isHovered(mouseX, mouseY - scrollOffset, lyricRenderOffsetX, lyric.posY, lyricsWidth, lyric.height);
             lyric.hoveringAlpha = Interpolations.interpolate(lyric.hoveringAlpha, isHovering ? 1f : 0f, 0.2f);
-            int lyricDistance = Math.abs(k - currentIndex);
+            float lyricDistance = lyricDistances[k];
 
             if (isHovering) {
                 CursorUtils.setOverride(CursorUtils.HAND);
@@ -576,7 +600,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
             if (Shaders.BLUR_SHADER.isAvailable() && alpha * lyric.blurAlpha > 0.004f) {
                 double by = lyric.posY + scrollOffset;
-                float blurRadius = Math.min(16f, 8f + Math.min(3, Math.max(0, lyricDistance - 1)) * 3f);
+                float blurRadius = Math.min(16f, 8f + Math.min(3, Math.max(0, (int) lyricDistance - 1)) * 3f);
                 blurRects.computeIfAbsent(blurRadius, ignored -> new ArrayList<>())
                         .add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1, 1, 1, alpha * lyric.blurAlpha)));
             }
@@ -590,18 +614,33 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         RenderContext.graphics().pose().popMatrix();
     }
 
-    private void updateLyricPositions(double posY, double height, double width) {
+    private void renderLongBreakLine(LyricLine breakLine, double renderX, double renderY, double width, float alpha) {
+        CFontRenderer font = FontManager.pf65bold;
+        String text = LyricLine.BREAK_TEXT;
+        double dotWidth = font.getStringWidthD(text) / text.length();
+        double x = renderX;
 
+        for (int i = 0; i < text.length(); i++) {
+            float pulse = CloudMusic.breakDotPulse(breakLine, i);
+            float dotAlpha = (float) (alpha * breakLine.intensity * Mth.limit(.18 + .82 * pulse, 0, 1));
+            font.drawString(String.valueOf(text.charAt(i)), x, renderY - pulse * 2f,
+                    hexColor(1f, 1f, 1f, dotAlpha));
+            x += dotWidth;
+        }
+    }
+
+    private void updateLyricPositions(double posY, double height, double width) {
         if (CloudMusic.currentLyric == null) return;
 
-        int idxCurrent = CloudMusic.lyrics.indexOf(CloudMusic.currentLyric);
+        List<LyricLine> rows = layoutRows();
+        int idxCurrent = rows.indexOf(CloudMusic.currentLyric);
 
-        if (idxCurrent < 0 || idxCurrent >= CloudMusic.lyrics.size()) return;
+        if (idxCurrent < 0 || idxCurrent >= rows.size()) return;
 
         double offsetY = RenderSystem.getHeight() * lyricFraction();
 
         synchronized (CloudMusic.lyrics) {
-            List<LyricLine> subList = CloudMusic.lyrics.subList(0, idxCurrent);
+            List<LyricLine> subList = rows.subList(0, idxCurrent);
             double frameDeltaTime = RenderSystem.getFrameDeltaTime() * .0125;
             for (int i = subList.size() - 1; i >= 0; i--) {
                 LyricLine lyric = subList.get(i);
@@ -619,15 +658,19 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             }
 
             offsetY = RenderSystem.getHeight() * lyricFraction();
-            List<LyricLine> list = CloudMusic.lyrics.subList(idxCurrent, CloudMusic.lyrics.size());
             int oobCounter = 0;
-            int j = idxCurrent - 1;
-            for (LyricLine lyric : list) {
-                j++;
+
+            for (int j = idxCurrent; j < rows.size(); j++) {
+                LyricLine lyric = rows.get(j);
+                LyricLine prevLine = j > 0 ? rows.get(j - 1) : null;
 
                 LyricLayout.computeHeight(lyric, width);
 
-                LyricLine prevLine = j > 0 ? CloudMusic.lyrics.get(j - 1) : null;
+                if (lyric.isBreakLine) {
+                    animateBreakLine(lyric, offsetY);
+                    offsetY += lyric.height + getLyricLineSpacing();
+                    continue;
+                }
 
                 if (prevLine != null) {
                     if (prevLine.delayTimer.isDelayed(getLyricInterpolationWaitTimeMillis()))
@@ -654,6 +697,14 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                 offsetY += lyric.height + getLyricLineSpacing();
             }
         }
+    }
+
+    /**
+     * 过渡行不参与 spring 的到达判定, 用插值推进, 避免它的出现打断后续歌词的位移动画
+     */
+    private static void animateBreakLine(LyricLine breakLine, double offsetY) {
+        breakLine.posY = Interpolations.interpolate(breakLine.posY, offsetY, .4f);
+        LyricLayout.spring(breakLine).setPosition(breakLine.posY);
     }
 
     private double getCoverSizeMax() {
