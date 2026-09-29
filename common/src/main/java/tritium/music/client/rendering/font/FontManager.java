@@ -18,6 +18,8 @@ public class FontManager {
 
     private static final String FONT_PATH = FontLibrary.FONT_PATH;
 
+    private static final String SYSTEM_FALLBACK_FAMILY = Font.SANS_SERIF;
+
     private static final AtomicBoolean RELOADING = new AtomicBoolean();
     private static final AtomicBoolean RELOAD_PENDING = new AtomicBoolean();
     private static volatile boolean loaded = false;
@@ -45,6 +47,10 @@ public class FontManager {
         return RELOADING.get();
     }
 
+    public static boolean isLoaded() {
+        return loaded;
+    }
+
     public static boolean isShapingActive() {
         return shapingActive;
     }
@@ -68,10 +74,10 @@ public class FontManager {
         config.normalize();
 
         apply(config,
-                acquire(config.main, FontConfig.DEFAULT_MAIN),
-                acquire(config.english, FontConfig.DEFAULT_ENGLISH),
-                acquire(config.mainBold, FontConfig.DEFAULT_MAIN_BOLD),
-                acquire(config.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD),
+                acquire(config.main, FontConfig.DEFAULT_MAIN, FontConfig.DEFAULT_ENGLISH),
+                acquire(config.english, FontConfig.DEFAULT_ENGLISH, FontConfig.DEFAULT_ENGLISH),
+                acquire(config.mainBold, FontConfig.DEFAULT_MAIN_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
+                acquire(config.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
                 true);
     }
 
@@ -94,10 +100,10 @@ public class FontManager {
             FontLibrary.Loaded mainBold;
             FontLibrary.Loaded englishBold;
             try {
-                main = acquire(config.main, FontConfig.DEFAULT_MAIN);
-                english = acquire(config.english, FontConfig.DEFAULT_ENGLISH);
-                mainBold = acquire(config.mainBold, FontConfig.DEFAULT_MAIN_BOLD);
-                englishBold = acquire(config.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD);
+                main = acquire(config.main, FontConfig.DEFAULT_MAIN, FontConfig.DEFAULT_ENGLISH);
+                english = acquire(config.english, FontConfig.DEFAULT_ENGLISH, FontConfig.DEFAULT_ENGLISH);
+                mainBold = acquire(config.mainBold, FontConfig.DEFAULT_MAIN_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD);
+                englishBold = acquire(config.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD);
             } catch (Throwable throwable) {
                 throwable.printStackTrace();
                 finishReload();
@@ -261,17 +267,30 @@ public class FontManager {
         }
     }
 
-    private static FontLibrary.Loaded acquire(FontConfig.Slot slot, String fallbackValue) {
+    private static FontLibrary.Loaded acquire(FontConfig.Slot slot, String fallbackValue, String latinFallback) {
         FontLibrary.Loaded resource = FontLibrary.acquire(slot.source, slot.value, slot.style);
         if (resource.available()) {
             return resource;
         }
         resource.close();
 
-        if (FontConfig.SOURCE_BUILTIN.equals(slot.source) && slot.value.equals(fallbackValue)) {
-            return FontLibrary.acquire(slot.source, slot.value, slot.style);
+        if (!slot.value.equals(fallbackValue)) {
+            resource = FontLibrary.acquire(FontConfig.SOURCE_BUILTIN, fallbackValue, slot.style);
+            if (resource.available()) {
+                return resource;
+            }
+            resource.close();
         }
-        return FontLibrary.acquire(FontConfig.SOURCE_BUILTIN, fallbackValue, slot.style);
+
+        if (latinFallback != null && !latinFallback.equals(slot.value) && !latinFallback.equals(fallbackValue)) {
+            resource = FontLibrary.acquire(FontConfig.SOURCE_BUILTIN, latinFallback, slot.style);
+            if (resource.available()) {
+                return resource;
+            }
+            resource.close();
+        }
+
+        return FontLibrary.acquire(FontConfig.SOURCE_SYSTEM, SYSTEM_FALLBACK_FAMILY, slot.style);
     }
 
     private static void releaseCurrentResources() {

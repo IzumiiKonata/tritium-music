@@ -7,3 +7,9 @@
 # These are Windows script files and should use crlf
 *.bat           text eol=crlf
 
+# Downloaded runtime assets, never convert them
+*.onnx          binary
+*.onnx.sha256   text eol=lf
+*.ttf           binary
+*.otf           binary
+
