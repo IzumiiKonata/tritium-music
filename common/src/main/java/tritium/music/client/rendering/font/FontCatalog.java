@@ -67,6 +67,7 @@ public final class FontCatalog {
                 loadSystemFonts();
             } finally {
                 SYSTEM_LOADED.set(true);
+                SYSTEM_LOADING.set(false);
             }
         });
     }
