@@ -251,7 +251,7 @@ public class PlaylistPanel extends NCMPanel {
         loadingIndicator.setLabel(I18n.get("tritium-music.ui.playlist.loading"));
         loadingIndicator.setColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         loadingIndicator.setBeforeRenderCallback(() -> {
-            loadingIndicator.setHidden(!musicsLoading);
+            loadingIndicator.setLoading(musicsLoading);
             loadingIndicator.setMargin(0);
         });
         rwMusicsContainer.addChild(loadingIndicator);
