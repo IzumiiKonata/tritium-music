@@ -51,6 +51,7 @@
   "tritium-music.ui.playlist.grid_view": "Grid",
   "tritium-music.ui.playlist.song_count": "%s songs",
   "tritium-music.ui.playlist.loading": "Loading playlist...",
+  "tritium-music.ui.playlist.loading_progress": "Loading %s / %s songs",
   "tritium-music.ui.menu.play": "Play",
   "tritium-music.ui.menu.play_next": "Play Next",
   "tritium-music.ui.menu.like": "Like",
