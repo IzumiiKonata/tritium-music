@@ -289,6 +289,9 @@ public class CloudMusic {
         LyricLine leadIn = findLeadInLongBreakLine(songProgress);
         if (leadIn != null) return leadIn;
 
+        // 非逐字歌词的 LRC 只有时间戳, 推算不出这一句何时唱完, 因此只认前奏间隔
+        if (haveNoWords) return null;
+
         LyricLine previous = null;
 
         for (LyricLine line : lyrics) {
