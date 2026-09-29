@@ -5,8 +5,8 @@ param(
 $ErrorActionPreference = "Stop"
 $branches = @(
 	[pscustomobject]@{ Name = "main"; Directory = "m" },
-	[pscustomobject]@{ Name = "26.1.2"; Directory = "a" },
-	[pscustomobject]@{ Name = "1.21.11"; Directory = "b" }
+	[pscustomobject]@{ Name = "1.21.11"; Directory = "a" },
+	[pscustomobject]@{ Name = "26.2"; Directory = "b" }
 )
 $repositoryRoot = (& git -C $PSScriptRoot rev-parse --show-toplevel).Trim()
 if ($LASTEXITCODE -ne 0) {
