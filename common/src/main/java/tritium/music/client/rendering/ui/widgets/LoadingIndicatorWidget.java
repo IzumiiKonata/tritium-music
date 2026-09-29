@@ -87,7 +87,7 @@ public class LoadingIndicatorWidget extends AbstractWidget<LoadingIndicatorWidge
 
     private void renderProgressBar(double centerX, double barY) {
         double barX = centerX - BAR_WIDTH * .5;
-        double barRadius = BAR_HEIGHT * .5;
+        double barRadius = BAR_HEIGHT * .5 - .5;
 
         this.roundedRect(barX, barY, BAR_WIDTH, BAR_HEIGHT, barRadius,
                 this.reAlpha(this.getHexColor(), this.getAlpha() * this.visibility * .16f));
