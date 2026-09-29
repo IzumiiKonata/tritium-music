@@ -35,8 +35,8 @@ public final class AutoMixRules {
         rule1.outgoingSongId = 2670863319L;
         rule1.incomingSongId = 2670863152L;
 
-        rule1.outgoingStartMillis = 232170;
-        rule1.incomingStartMillis = 4;
+        rule1.outgoingStartMillis = 232000;
+        rule1.incomingStartMillis = 100;
 
         rule1.durationMillis = 5186;
         rule1.style = Style.GAPLESS;
