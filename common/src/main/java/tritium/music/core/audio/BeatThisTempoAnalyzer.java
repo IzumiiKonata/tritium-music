@@ -243,7 +243,7 @@ final class BeatThisTempoAnalyzer {
                 return raw;
             }
             List<Double> merged = new ArrayList<>();
-            double peak = raw.getFirst();
+            double peak = raw.get(0);
             int count = 1;
             for (int i = 1; i < raw.size(); i++) {
                 double next = raw.get(i);
@@ -285,7 +285,7 @@ final class BeatThisTempoAnalyzer {
             double consistency = Math.max(0, 1 - relativeDeviation * 5);
             double coverage = Math.min(1, count / 12.0);
             double confidence = Math.min(1, consistency * 0.78 + coverage * 0.22);
-            double phaseSeconds = downbeats.isEmpty() ? beats.getFirst() : downbeats.getFirst();
+            double phaseSeconds = downbeats.isEmpty() ? beats.get(0) : downbeats.get(0);
             double downbeatIntervalMillis = 0;
             if (downbeats.size() >= 2) {
                 double[] downbeatIntervals = new double[downbeats.size() - 1];
@@ -294,7 +294,7 @@ final class BeatThisTempoAnalyzer {
                 }
                 downbeatIntervalMillis = median(downbeatIntervals) * 1_000;
             }
-            double downbeatPhaseMillis = downbeats.isEmpty() ? 0 : offsetMillis + downbeats.getFirst() * 1_000;
+            double downbeatPhaseMillis = downbeats.isEmpty() ? 0 : offsetMillis + downbeats.get(0) * 1_000;
             List<Long> beatTimesMillis = beats.stream().map(time -> Math.round(offsetMillis + time * 1_000)).toList();
             List<Long> downbeatTimesMillis = downbeats.stream().map(time -> Math.round(offsetMillis + time * 1_000)).toList();
             return new BeatGrid(median * 1_000, offsetMillis + phaseSeconds * 1_000, confidence, beats.size(), downbeats.size(), downbeatIntervalMillis, downbeatPhaseMillis, beatTimesMillis, downbeatTimesMillis);

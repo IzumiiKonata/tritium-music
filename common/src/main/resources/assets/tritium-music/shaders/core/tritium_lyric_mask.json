@@ -1,0 +1,12 @@
+{
+    "blend": {
+        "func": "add",
+        "srcrgb": "srcalpha",
+        "dstrgb": "1-srcalpha"
+    },
+    "vertex": "tritium_offscreen",
+    "fragment": "tritium_lyric_mask",
+    "attributes": [ "Position", "Color" ],
+    "samplers": [ ],
+    "uniforms": [ ]
+}

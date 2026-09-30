@@ -37,8 +37,8 @@ public record TextureHandle(String namespace, String path) {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof TextureHandle(String namespace1, String path1))) return false;
-        return namespace.equals(namespace1) && path.equals(path1);
+        if (!(o instanceof TextureHandle other)) return false;
+        return namespace.equals(other.namespace) && path.equals(other.path);
     }
 
     @Override

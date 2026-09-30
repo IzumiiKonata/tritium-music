@@ -1,6 +1,5 @@
 package tritium.music.client;
 
-import tritium.music.client.rendering.MusicToastState;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontLibrary;
 import tritium.music.client.rendering.font.FontManager;
@@ -71,9 +70,6 @@ public final class AssetBootstrap {
                 ? ""
                 : Platform.translate(reasonKey, detail == null || detail.isBlank() ? "-" : detail);
         Platform.log("[asset] " + title + " " + reason);
-        AsyncUtil.runOnRenderThread(() -> {
-            Platform.sendChatMessage("§6" + title + " §7" + reason);
-            MusicToastState.push(title);
-        });
+        AsyncUtil.runOnRenderThread(() -> Platform.sendChatMessage("§6" + title + " §7" + reason));
     }
 }

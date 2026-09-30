@@ -6,7 +6,7 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tritium.music.platform.MusicPlatform;
@@ -25,19 +25,19 @@ public class MinecraftMusicPlatform implements MusicPlatform {
 
     private final java.util.concurrent.ExecutorService executor;
     private final Set<TextureHandle> uploaded = ConcurrentHashMap.newKeySet();
-    private final Map<Identifier, DynamicTexture> textureCache = new ConcurrentHashMap<>();
-    private final Map<Identifier, NativeImage> imageCache = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, DynamicTexture> textureCache = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, NativeImage> imageCache = new ConcurrentHashMap<>();
 
     public MinecraftMusicPlatform() {
-        this.executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("tritium-music-worker-", 1).factory());
+        this.executor = Executors.newCachedThreadPool();
     }
 
     private Minecraft mc() {
         return Minecraft.getInstance();
     }
 
-    private Identifier toIdentifier(TextureHandle handle) {
-        return Identifier.fromNamespaceAndPath(handle.namespace(), handle.path());
+    private ResourceLocation toIdentifier(TextureHandle handle) {
+        return new ResourceLocation(handle.namespace(), handle.path());
     }
 
     @Override
@@ -70,7 +70,7 @@ public class MinecraftMusicPlatform implements MusicPlatform {
             return;
         }
 
-        Identifier id = toIdentifier(handle);
+        ResourceLocation id = toIdentifier(handle);
         TextureManager textureManager = mc().getTextureManager();
 
         DynamicTexture existing = textureCache.get(id);
@@ -82,11 +82,13 @@ public class MinecraftMusicPlatform implements MusicPlatform {
             copyPixels(nativeImage, existingImage);
             nativeImage.close();
             existing.upload();
+            existing.setFilter(true, false);
         } else {
             if (existing != null) {
                 textureManager.release(id);
             }
-            DynamicTexture dt = new DynamicTexture(id::toString, nativeImage);
+            DynamicTexture dt = new DynamicTexture(nativeImage);
+            dt.setFilter(true, false);
             textureManager.register(id, dt);
             textureCache.put(id, dt);
             imageCache.put(id, nativeImage);
@@ -97,12 +99,25 @@ public class MinecraftMusicPlatform implements MusicPlatform {
 
     @Override
     public boolean hasTexture(TextureHandle handle) {
-        return uploaded.contains(handle);
+        if (!uploaded.contains(handle)) {
+            return false;
+        }
+        if (!com.mojang.blaze3d.systems.RenderSystem.isOnRenderThread()) {
+            return true;
+        }
+        ResourceLocation id = toIdentifier(handle);
+        if (mc().getTextureManager().getTexture(id, null) instanceof DynamicTexture) {
+            return true;
+        }
+        textureCache.remove(id);
+        imageCache.remove(id);
+        uploaded.remove(handle);
+        return false;
     }
 
     @Override
     public void deleteTexture(TextureHandle handle) {
-        Identifier id = toIdentifier(handle);
+        ResourceLocation id = toIdentifier(handle);
         mc().getTextureManager().release(id);
         textureCache.remove(id);
         imageCache.remove(id);
@@ -133,7 +148,7 @@ public class MinecraftMusicPlatform implements MusicPlatform {
         int h = Math.min(src.getHeight(), dst.getHeight());
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                dst.setPixel(x, y, src.getPixel(x, y));
+                dst.setPixelRGBA(x, y, src.getPixelRGBA(x, y));
             }
         }
     }
@@ -146,7 +161,7 @@ public class MinecraftMusicPlatform implements MusicPlatform {
             for (int x = 0; x < w; x++) {
                 int argb = image.getRGB(x, y);
                 int abgr = (argb & 0xFF00FF00) | ((argb & 0xFF) << 16) | ((argb >> 16) & 0xFF);
-                ni.setPixelABGR(x, y, abgr);
+                ni.setPixelRGBA(x, y, abgr);
             }
         }
         return ni;

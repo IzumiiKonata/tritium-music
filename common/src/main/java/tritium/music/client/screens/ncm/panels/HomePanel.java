@@ -137,7 +137,7 @@ public class HomePanel extends NCMPanel {
 
             this.setTransformations(() -> {
                 float ep = this.entranceProgress();
-                RenderContext.graphics().pose().translate(0, (1f - ep) * (float) ENTRANCE_SLIDE);
+                RenderContext.graphics().pose().translate(0f, (1f - ep) * (float) ENTRANCE_SLIDE, 0f);
             });
 
             this.setBeforeRenderCallback(() -> {

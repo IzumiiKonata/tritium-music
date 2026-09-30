@@ -41,8 +41,8 @@ public class PlaylistPanel extends NCMPanel {
     private volatile boolean musicsLoading;
 
     private static boolean isCtrlDown() {
-        long handle = Minecraft.getInstance().getWindow().handle();
-        return Minecraft.getInstance().hasControlDown();
+        long handle = Minecraft.getInstance().getWindow().getWindow();
+        return net.minecraft.client.gui.screens.Screen.hasControlDown();
     }
 
     @Override

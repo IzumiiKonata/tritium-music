@@ -1,6 +1,6 @@
 plugins {
 	id 'java-library'
-	id 'net.neoforged.moddev'
+	id 'net.fabricmc.fabric-loom-remap'
 }
 
 base {
@@ -21,21 +21,20 @@ repositories {
 	}
 }
 
-neoForge {
-	neoFormVersion = project.neoform_version
-	accessTransformers.from(file('src/main/resources/META-INF/accesstransformer.cfg'))
-}
-
 dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+
 	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
 	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
-	compileOnly "org.spongepowered:mixin:${project.mixin_version}"
+	compileOnly "org.jspecify:jspecify:${project.jspecify_version}"
 
 	api "com.google.code.gson:gson:${project.gson_version}"
 	api "com.google.zxing:core:${project.zxing_version}"
 	api "net.java.dev.jna:jna:${project.jna_version}"
 	api "net.java.dev.jna:jna-platform:${project.jna_version}"
 	api "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}"
+	api "org.lwjgl:lwjgl-freetype:${project.lwjgl_version}"
 	api "com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}"
 	api "com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}"
 	runtimeOnly "com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}"
@@ -50,15 +49,16 @@ test {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	options.release = 25
+	options.release = 17
 	options.encoding = 'UTF-8'
+	options.compilerArgs << '-Xmaxerrs' << '2000'
 }
 
 java {
-	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	toolchain.languageVersion = JavaLanguageVersion.of(17)
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
 }
 
 jar {

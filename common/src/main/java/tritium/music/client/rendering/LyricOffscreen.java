@@ -1,29 +1,34 @@
 package tritium.music.client.rendering;
 
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.AbstractTexture;
-import net.minecraft.resources.Identifier;
-import org.joml.Vector4f;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
+import tritium.music.client.render.TritiumShaders;
 import tritium.music.client.rendering.font.Glyph;
 import tritium.music.client.rendering.font.TextureAtlas;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public final class LyricOffscreen {
+
+    private static final String SHADER_MASK = "tritium_lyric_mask";
+    private static final String SHADER_GLYPH = "tritium_lyric_glyph";
 
     private LyricOffscreen() {
     }
 
     public static void initialize() {
-        LyricOffscreenPipelines.initialize();
     }
 
     public static void renderStencilMask(TRenderTarget rt, int w, int h,
@@ -40,38 +45,36 @@ public final class LyricOffscreen {
                     maskAlpha(solidEnd, sungW, gradW), maskAlpha(fadeEnd, sungW, gradW)));
         }
 
-        if (quads.isEmpty()) {
-            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(rt.colorTexture(), new Vector4f(0f));
+        ShaderInstance shader = TritiumShaders.get(SHADER_MASK, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
             return;
         }
 
-        int vertexCount = quads.size() * 4;
-        try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(vertexCount * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
-            BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        StencilClipManager.suspendScissor();
+        try {
+            rt.clear();
+            if (quads.isEmpty()) {
+                return;
+            }
+            prepareStates();
+            RenderSystem.setShader(() -> shader);
+            BufferBuilder builder = Tesselator.getInstance().getBuilder();
+            builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
             for (MaskQuad quad : quads) {
                 int leftColor = alphaColor(quad.leftAlpha());
                 int rightColor = alphaColor(quad.rightAlpha());
                 float left = clipX(quad.left(), w);
                 float right = clipX(quad.right(), w);
-                builder.addVertex(left, -1f, 0f).setColor(leftColor);
-                builder.addVertex(left, 1f, 0f).setColor(leftColor);
-                builder.addVertex(right, 1f, 0f).setColor(rightColor);
-                builder.addVertex(right, -1f, 0f).setColor(rightColor);
+                builder.vertex(left, -1f, 0f).color(leftColor).endVertex();
+                builder.vertex(left, 1f, 0f).color(leftColor).endVertex();
+                builder.vertex(right, 1f, 0f).color(rightColor).endVertex();
+                builder.vertex(right, -1f, 0f).color(rightColor).endVertex();
             }
-
-            try (MeshData mesh = builder.buildOrThrow()) {
-                GpuBuffer vertices = rt.uploadVertices(mesh.vertexBuffer());
-                RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
-                GpuBuffer indexBuffer = indices.getBuffer(mesh.drawState().indexCount());
-                try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
-                        () -> "Tritium lyric stencil",
-                        rt.colorView(), Optional.of(new Vector4f(0f)))) {
-                    pass.setPipeline(RenderSystem.getCompiledPipeline(LyricOffscreenPipelines.MASK));
-                    pass.setVertexBuffer(0, vertices.slice());
-                    pass.setIndexBuffer(indexBuffer, indices.type());
-                    pass.drawIndexed(mesh.drawState().indexCount(), 1, 0, 0, 0);
-                }
-            }
+            BufferUploader.drawWithShader(builder.end());
+        } finally {
+            restoreStates();
+            StencilClipManager.resumeScissor();
+            TRenderTarget.rebindMainTarget();
         }
     }
 
@@ -79,8 +82,7 @@ public final class LyricOffscreen {
                                         int baseColor,
                                         List<GlyphCmd> glyphs, int blitScale) {
         TextureAtlas.flushAllDirty();
-        Map<Identifier, List<GlyphQuad>> batches = new LinkedHashMap<>();
-        int quadCount = 0;
+        Map<ResourceLocation, List<GlyphQuad>> batches = new LinkedHashMap<>();
 
         for (GlyphCmd cmd : glyphs) {
             Glyph glyph = cmd.glyph();
@@ -89,29 +91,34 @@ public final class LyricOffscreen {
             }
             batches.computeIfAbsent(glyph.atlasIdentifier, ignored -> new ArrayList<>())
                     .add(new GlyphQuad(glyph, cmd.x(), cmd.y()));
-            quadCount++;
         }
 
-        if (quadCount == 0) {
-            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(rt.colorTexture(), new Vector4f(0f));
+        ShaderInstance shader = TritiumShaders.get(SHADER_GLYPH, DefaultVertexFormat.POSITION_TEX_COLOR);
+        if (shader == null) {
             return;
         }
 
-        int color = (((baseColor >>> 24) & 0xFF) << 24) | 0x00FFFFFF;
-        List<GlyphBatch> draws = new ArrayList<>(batches.size());
-        int vertexCount = quadCount * 4;
+        StencilClipManager.suspendScissor();
+        try {
+            rt.clear();
+            if (batches.isEmpty()) {
+                return;
+            }
+            prepareStates();
+            RenderSystem.setShader(() -> shader);
+            int color = (((baseColor >>> 24) & 0xFF) << 24) | 0x00FFFFFF;
 
-        try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(vertexCount * DefaultVertexFormat.POSITION_TEX_COLOR.getVertexSize())) {
-            BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-            int firstQuad = 0;
-
-            for (Map.Entry<Identifier, List<GlyphQuad>> entry : batches.entrySet()) {
-                AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(entry.getKey());
-                float atlasWidth = texture.getTexture().getWidth(0);
-                float atlasHeight = texture.getTexture().getHeight(0);
-                float du = 0.5f / atlasWidth;
-                float dv = 0.5f / atlasHeight;
+            for (Map.Entry<ResourceLocation, List<GlyphQuad>> entry : batches.entrySet()) {
+                Glyph reference = entry.getValue().get(0).glyph();
+                float atlasWidth = reference.atlasImage == null ? 0f : reference.atlasImage.getWidth();
+                float atlasHeight = reference.atlasImage == null ? 0f : reference.atlasImage.getHeight();
+                float du = atlasWidth <= 0f ? 0f : 0.5f / atlasWidth;
+                float dv = atlasHeight <= 0f ? 0f : 0.5f / atlasHeight;
                 float pad = 0.5f * blitScale;
+
+                RenderSystem.setShaderTexture(0, entry.getKey());
+                BufferBuilder builder = Tesselator.getInstance().getBuilder();
+                builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
 
                 for (GlyphQuad quad : entry.getValue()) {
                     Glyph glyph = quad.glyph();
@@ -126,34 +133,35 @@ public final class LyricOffscreen {
                     float u1 = glyph.u1 + du;
                     float v1 = glyph.v1 + dv;
 
-                    builder.addVertex(clipX(left, w), clipY(top, h), 0f).setUv(u0, v0).setColor(color);
-                    builder.addVertex(clipX(left, w), clipY(bottom, h), 0f).setUv(u0, v1).setColor(color);
-                    builder.addVertex(clipX(right, w), clipY(bottom, h), 0f).setUv(u1, v1).setColor(color);
-                    builder.addVertex(clipX(right, w), clipY(top, h), 0f).setUv(u1, v0).setColor(color);
+                    builder.vertex(clipX(left, w), clipY(top, h), 0f).uv(u0, v0).color(color).endVertex();
+                    builder.vertex(clipX(left, w), clipY(bottom, h), 0f).uv(u0, v1).color(color).endVertex();
+                    builder.vertex(clipX(right, w), clipY(bottom, h), 0f).uv(u1, v1).color(color).endVertex();
+                    builder.vertex(clipX(right, w), clipY(top, h), 0f).uv(u1, v0).color(color).endVertex();
                 }
 
-                draws.add(new GlyphBatch(texture, firstQuad, entry.getValue().size()));
-                firstQuad += entry.getValue().size();
+                BufferUploader.drawWithShader(builder.end());
             }
-
-            try (MeshData mesh = builder.buildOrThrow()) {
-                GpuBuffer vertices = rt.uploadVertices(mesh.vertexBuffer());
-                RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
-                GpuBuffer indexBuffer = indices.getBuffer(mesh.drawState().indexCount());
-                try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
-                        () -> "Tritium lyric glyphs",
-                        rt.colorView(), Optional.of(new Vector4f(0f)))) {
-                    pass.setPipeline(RenderSystem.getCompiledPipeline(LyricOffscreenPipelines.GLYPH));
-                    pass.setVertexBuffer(0, vertices.slice());
-                    pass.setIndexBuffer(indexBuffer, indices.type());
-                    for (GlyphBatch draw : draws) {
-                        pass.setUniform("Sampler0", draw.texture().getTextureView(),
-                                com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(com.mojang.renderpearl.api.textures.FilterMode.LINEAR));
-                        pass.drawIndexed(draw.quadCount() * 6, 1, draw.firstQuad() * 6, 0, 0);
-                    }
-                }
-            }
+        } finally {
+            restoreStates();
+            StencilClipManager.resumeScissor();
+            TRenderTarget.rebindMainTarget();
         }
+    }
+
+    private static void prepareStates() {
+        GlStateManager._disableDepthTest();
+        GlStateManager._depthMask(false);
+        GlStateManager._disableCull();
+        GlStateManager._colorMask(true, true, true, true);
+        RenderSystem.enableBlend();
+        RenderSystem.blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    private static void restoreStates() {
+        GlStateManager._enableDepthTest();
+        GlStateManager._depthMask(true);
+        GlStateManager._enableCull();
+        GlStateManager._activeTexture(GL13.GL_TEXTURE0);
     }
 
     private static float maskAlpha(float x, double sungW, double gradW) {
@@ -170,7 +178,8 @@ public final class LyricOffscreen {
     }
 
     private static int alphaColor(float alpha) {
-        return (Math.clamp(Math.round(alpha * 255f), 0, 255) << 24) | 0x00FFFFFF;
+        int value = Math.round(clamp(alpha, 0f, 1f) * 255f);
+        return (value << 24) | 0x00FFFFFF;
     }
 
     private static float clipX(float x, int width) {
@@ -189,9 +198,6 @@ public final class LyricOffscreen {
     }
 
     private record GlyphQuad(Glyph glyph, float x, float y) {
-    }
-
-    private record GlyphBatch(AbstractTexture texture, int firstQuad, int quadCount) {
     }
 
     public record GlyphCmd(Glyph glyph, float x, float y) {

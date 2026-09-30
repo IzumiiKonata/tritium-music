@@ -74,7 +74,7 @@ public class NCMScreen extends BaseScreen {
         instance.pendingPanel = null;
         instance.returnScreen = null;
         instance.showLogin = true;
-        Minecraft.getInstance().setScreenAndShow(instance);
+        Minecraft.getInstance().setScreen(instance);
     }
 
     public static NCMScreen withPanel(NCMPanel panel, Screen returnScreen) {
@@ -154,7 +154,7 @@ public class NCMScreen extends BaseScreen {
         if (closing && alpha <= 0.02f) {
             Screen target = returnScreen;
             returnScreen = null;
-            Minecraft.getInstance().setScreenAndShow(target);
+            Minecraft.getInstance().setScreen(target);
         }
 
         alpha = Interpolations.interpolate(alpha, closing ? 0f : 1f, 0.4f);
@@ -171,7 +171,7 @@ public class NCMScreen extends BaseScreen {
         RenderSystem.drawGradientRectTopToBottom(bleedX, bleedY, bleedX + bleedW, vignetteH, hexColor(0f, 0f, 0f, alpha * 0.28f), hexColor(0f, 0f, 0f, 0f));
         RenderSystem.drawGradientRectTopToBottom(bleedX, screenH - vignetteH, bleedX + bleedW, bleedY + bleedH, hexColor(0f, 0f, 0f, 0f), hexColor(0f, 0f, 0f, alpha * 0.32f));
 
-        RenderContext.graphics().pose().pushMatrix();
+        RenderContext.graphics().pose().pushPose();
         this.scaleAtPos(RenderSystem.getWidth() * .5, RenderSystem.getHeight() * .5, 0.9 + (alpha * 0.1));
 
         this.basePanel.setBounds(this.getPanelWidth(), this.getPanelHeight());
@@ -185,10 +185,10 @@ public class NCMScreen extends BaseScreen {
                 this.prevAnimatingPanel.setAlpha(this.prevAnimatingPanelAlpha = Interpolations.interpolate(this.prevAnimatingPanelAlpha, 0f, alphaInterpolateSpeed));
                 this.prevAnimatingPanel.setBounds(this.currentPanelBg.getX(), this.currentPanelBg.getY(), this.currentPanelBg.getWidth(), this.currentPanelBg.getHeight());
 
-                RenderContext.graphics().pose().pushMatrix();
+                RenderContext.graphics().pose().pushPose();
                 this.scaleAtPos(this.currentPanelBg.getX() + this.currentPanelBg.getWidth() * .5, this.currentPanelBg.getY() + this.currentPanelBg.getHeight() * .5, 0.9 + (this.prevAnimatingPanel.getAlpha() * 0.1));
                 this.prevAnimatingPanel.renderWidget(mouseX, mouseY, dWheel);
-                RenderContext.graphics().pose().popMatrix();
+                RenderContext.graphics().pose().popPose();
 
                 if (this.prevAnimatingPanelAlpha <= 0.02f)
                     this.prevAnimatingPanel = null;
@@ -199,11 +199,11 @@ public class NCMScreen extends BaseScreen {
 
                 StencilClipManager.beginClip(this.currentPanelBg.getX(), this.currentPanelBg.getY(), this.currentPanelBg.getWidth(), this.currentPanelBg.getHeight());
 
-                RenderContext.graphics().pose().pushMatrix();
+                RenderContext.graphics().pose().pushPose();
                 this.scaleAtPos(this.currentPanelBg.getX() + this.currentPanelBg.getWidth() * .5, this.currentPanelBg.getY() + this.currentPanelBg.getHeight() * .5, 1.1 - (curPanelAlphaAnimation * 0.1));
 
                 this.currentPanel.renderWidget(mouseX, mouseY, dWheel);
-                RenderContext.graphics().pose().popMatrix();
+                RenderContext.graphics().pose().popPose();
 
                 StencilClipManager.endClip();
             }
@@ -256,7 +256,7 @@ public class NCMScreen extends BaseScreen {
 
         this.renderDownloadingPanel();
 
-        RenderContext.graphics().pose().popMatrix();
+        RenderContext.graphics().pose().popPose();
     }
 
     private float downloadPanelAlpha = 0.0f;
@@ -434,7 +434,7 @@ public class NCMScreen extends BaseScreen {
                 ++currentActionPointer;
 
                 while (actions.size() > currentActionPointer + 1)
-                    actions.removeLast();
+                    actions.remove(actions.size() - 1);
 
                 if (currentActionPointer < actions.size()) {
                     actions.set(currentActionPointer, action);
@@ -519,7 +519,7 @@ public class NCMScreen extends BaseScreen {
     }
 
     @Override
-    public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
+    public void onMouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (this.assetPanelFailed && this.assetPanelAlpha > 0.5f
                 && RenderSystem.isHovered(mouseX, mouseY, assetPanelX, assetPanelY, assetPanelWidth, assetPanelHeight)) {
             AssetManager.get().retry();
@@ -556,7 +556,7 @@ public class NCMScreen extends BaseScreen {
     }
 
     @Override
-    public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
+    public void onMouseReleased(double mouseX, double mouseY, int mouseButton) {
         if (musicLyricsPanel == null && currentPanel instanceof PlaylistPanel playlistPanel) {
             playlistPanel.onMouseReleased(mouseX, mouseY, mouseButton);
         }

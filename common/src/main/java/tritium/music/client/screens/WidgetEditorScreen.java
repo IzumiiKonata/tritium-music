@@ -38,7 +38,7 @@ public class WidgetEditorScreen extends BaseScreen {
 
     public static void open() {
         Minecraft minecraft = Minecraft.getInstance();
-        minecraft.setScreenAndShow(new WidgetEditorScreen(minecraft.gui.screen()));
+        minecraft.setScreen(new WidgetEditorScreen(minecraft.screen));
     }
 
     @Override
@@ -112,7 +112,7 @@ public class WidgetEditorScreen extends BaseScreen {
     }
 
     @Override
-    public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
+    public void onMouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (mouseButton == 0 && mouseX >= settingsBtnX() && mouseX <= settingsBtnX() + SETTINGS_BTN_W
                 && mouseY >= SETTINGS_BTN_Y && mouseY <= SETTINGS_BTN_Y + SETTINGS_BTN_H) {
             close();
@@ -137,7 +137,7 @@ public class WidgetEditorScreen extends BaseScreen {
     }
 
     @Override
-    public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
+    public void onMouseReleased(double mouseX, double mouseY, int mouseButton) {
         dragging = null;
     }
 
@@ -178,7 +178,7 @@ public class WidgetEditorScreen extends BaseScreen {
 
     private void close() {
         WidgetConfig.get().save();
-        minecraft.setScreenAndShow(parent == null ? NCMScreen.getInstance() : parent);
+        minecraft.setScreen(parent == null ? NCMScreen.getInstance() : parent);
     }
 
     @Override

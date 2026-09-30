@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 
 public final class LyricsFetcher {
     private static final Duration TIMEOUT = Duration.ofSeconds(8);
-    private static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
 
     private final List<LyricsProvider> providers;
     private final Map<LyricsQuery, CompletableFuture<Optional<LyricsResult>>> cache = new LinkedHashMap<>(32, .75f, true);

@@ -37,7 +37,7 @@ public class MusicSpectrumWidget extends HudWidget {
 
     @Override
     public void onRender() {
-        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
+        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
 
         if (CloudMusic.player != null) {
             this.updateSpectrum();
@@ -110,7 +110,7 @@ public class MusicSpectrumWidget extends HudWidget {
     }
 
     private float smoothing() {
-        return (float) Math.clamp(cfg().smoothing, 0.0, MAX_SMOOTHING);
+        return (float) Math.max(0.0, Math.min(MAX_SMOOTHING, cfg().smoothing));
     }
 
     private static float deltaSeconds() {

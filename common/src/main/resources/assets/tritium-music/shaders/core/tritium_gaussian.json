@@ -1,0 +1,14 @@
+{
+    "blend": {
+        "func": "add",
+        "srcrgb": "srcalpha",
+        "dstrgb": "1-srcalpha"
+    },
+    "vertex": "tritium_fullscreen",
+    "fragment": "tritium_gaussian",
+    "attributes": [ "Position" ],
+    "samplers": [ { "name": "Sampler0" } ],
+    "uniforms": [
+        { "name": "BlurInfo", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] }
+    ]
+}

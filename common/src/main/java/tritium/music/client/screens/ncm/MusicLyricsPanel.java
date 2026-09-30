@@ -84,6 +84,44 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
     private final Music music;
 
+    private final List<TRenderTarget> baseRenderTargets = new ArrayList<>();
+    private final List<TRenderTarget> stencilRenderTargets = new ArrayList<>();
+    private final String renderTargetName = Integer.toUnsignedString(System.identityHashCode(this));
+    StencilShader stencilShader = new StencilShader();
+
+    private RenderTargets acquireRenderTargets(int index, int w, int h) {
+        while (baseRenderTargets.size() <= index) {
+            int targetIndex = baseRenderTargets.size();
+            baseRenderTargets.add(TRenderTarget.create("lyric-base-" + renderTargetName + "-" + targetIndex, w, h));
+            stencilRenderTargets.add(TRenderTarget.create("lyric-stencil-" + renderTargetName + "-" + targetIndex, w, h));
+        }
+
+        TRenderTarget base = baseRenderTargets.get(index);
+        TRenderTarget stencil = stencilRenderTargets.get(index);
+        int targetWidth = Math.max(w, Math.max(base.width(), stencil.width()));
+        if (base.width() != targetWidth || base.height() != h) {
+            base.resize(targetWidth, h);
+        }
+        if (stencil.width() != targetWidth || stencil.height() != h) {
+            stencil.resize(targetWidth, h);
+        }
+        return new RenderTargets(base, stencil);
+    }
+
+    private record RenderTargets(TRenderTarget base, TRenderTarget stencil) {
+    }
+
+    public void dispose() {
+        for (TRenderTarget target : baseRenderTargets) {
+            target.close();
+        }
+        for (TRenderTarget target : stencilRenderTargets) {
+            target.close();
+        }
+        baseRenderTargets.clear();
+        stencilRenderTargets.clear();
+    }
+
     public MusicLyricsPanel(Music music) {
         this.music = music;
         updateLyricPositionsImmediate(NCMScreen.getInstance().getPanelWidth() * getLyricWidthFactor());
@@ -328,48 +366,20 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
 
         alpha = Interpolations.interpolate(alpha, closing ? 0.0f : 1f, 0.3f);
 
-        RenderContext.graphics().pose().pushMatrix();
+        RenderContext.graphics().pose().pushPose();
         scaleAtPos(posX + width * .5, posY + height * .5, 1.1 - (alpha * 0.1));
 
         this.renderBackground(posX, posY, width, height, alpha);
         this.renderControlsPart(mouseX, mouseY, posX, posY, width, height, alpha);
         this.renderLyrics(mouseX, mouseY, posX, posY, width, height, dWheel, alpha);
-        RenderContext.graphics().pose().popMatrix();
+        RenderContext.graphics().pose().popPose();
         contextMenu.setAlpha(alpha);
         contextMenu.renderWidget(mouseX, mouseY, 0);
     }
 
     private static boolean isShiftDown() {
-        long handle = Minecraft.getInstance().getWindow().handle();
-        return Minecraft.getInstance().hasShiftDown();
-    }
-
-    TRenderTarget rt = null;
-    private final List<TRenderTarget> baseRenderTargets = new ArrayList<>();
-    private final List<TRenderTarget> stencilRenderTargets = new ArrayList<>();
-    private final String renderTargetName = Integer.toUnsignedString(System.identityHashCode(this));
-    StencilShader stencilShader = new StencilShader();
-
-    private RenderTargets acquireRenderTargets(int index, int w, int h) {
-        while (baseRenderTargets.size() <= index) {
-            int targetIndex = baseRenderTargets.size();
-            baseRenderTargets.add(TRenderTarget.create("lyric-base-" + renderTargetName + "-" + targetIndex, w, h));
-            stencilRenderTargets.add(TRenderTarget.create("lyric-stencil-" + renderTargetName + "-" + targetIndex, w, h));
-        }
-
-        TRenderTarget base = baseRenderTargets.get(index);
-        TRenderTarget stencil = stencilRenderTargets.get(index);
-        int targetWidth = Math.max(w, Math.max(base.width(), stencil.width()));
-        if (base.width() != targetWidth || base.height() != h) {
-            base.resize(targetWidth, h);
-        }
-        if (stencil.width() != targetWidth || stencil.height() != h) {
-            stencil.resize(targetWidth, h);
-        }
-        return new RenderTargets(base, stencil);
-    }
-
-    private record RenderTargets(TRenderTarget base, TRenderTarget stencil) {
+        long handle = Minecraft.getInstance().getWindow().getWindow();
+        return net.minecraft.client.gui.screens.Screen.hasShiftDown();
     }
 
     private void renderLyrics(double mouseX, double mouseY, double posX, double posY, double width, double height, int dWheel, float alpha) {
@@ -403,6 +413,7 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
             this.updateLyricPositions(posY, height, lyricsWidth);
         }
 
+
         Map<Float, List<Runnable>> blurRects = new LinkedHashMap<>();
 
         boolean hoveringLyrics = isHovered(mouseX, mouseY, posX + width * .5, posY, width * .5, height);
@@ -435,8 +446,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         LyricLine currentLyric = progressBarDragging ? CloudMusic.findCurrentLyric(overridePlaybackProgress) : CloudMusic.currentLyric;
         List<LyricLine> rows = layoutRows();
         int currentIndex = rows.indexOf(currentLyric);
-        int renderTargetIndex = 0;
         LyricLine clickedLyric = null;
+        int renderTargetIndex = 0;
 
         if (!progressBarDragging) CloudMusic.updateLongBreakAnimation();
 
@@ -665,16 +676,16 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                 double by = lyric.posY + scrollOffset;
                 float blurRadius = Math.min(16f, 8f + Math.min(3, Math.max(0, (int) lyricDistance - 1)) * 3f);
                 blurRects.computeIfAbsent(blurRadius, ignored -> new ArrayList<>())
-                        .add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1, 1, 1, alpha * lyric.blurAlpha)));
+                        .add(() -> Rect.draw(lyricRenderOffsetX - 4, by, lyricsWidth, lyric.height + 8, hexColor(1f, 1f, 1f, alpha * lyric.blurAlpha)));
             }
         }
 
         StencilClipManager.endClip();
 
-        RenderContext.graphics().pose().pushMatrix();
+        RenderContext.graphics().pose().pushPose();
         this.scaleAtPos(lyricRenderOffsetX, RenderSystem.getHeight() * .5, 1 / (1.1 - (alpha * 0.1)));
         blurRects.forEach((radius, rects) -> Shaders.BLUR_SHADER.runNoCaching(rects, radius));
-        RenderContext.graphics().pose().popMatrix();
+        RenderContext.graphics().pose().popPose();
 
         if (clickedLyric != null) jumpToLyric(clickedLyric, lyricsWidth);
     }

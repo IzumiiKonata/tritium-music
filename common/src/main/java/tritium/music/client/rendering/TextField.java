@@ -1,7 +1,6 @@
 package tritium.music.client.rendering;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.input.PreeditEvent;
 import org.joml.Vector2f;
 import com.mojang.blaze3d.platform.InputConstants;
 import tritium.music.client.render.RenderContext;
@@ -104,10 +103,6 @@ public class TextField {
             focusListener.onFocusChanged(this, focused);
         }
         return this;
-    }
-
-    public static boolean preeditUpdated(PreeditEvent event) {
-        return focusedTextField != null;
     }
 
     public static void clearFocus() {
@@ -231,11 +226,11 @@ public class TextField {
     }
 
     private static boolean isCtrlDown() {
-        return Minecraft.getInstance().hasControlDown();
+        return net.minecraft.client.gui.screens.Screen.hasControlDown();
     }
 
     private static boolean isShiftDown() {
-        return Minecraft.getInstance().hasShiftDown();
+        return net.minecraft.client.gui.screens.Screen.hasShiftDown();
     }
 
     public void charTyped(char character) {
@@ -383,27 +378,6 @@ public class TextField {
         color = RGBA.color(color, (int) (RGBA.alpha(color) * wholeAlpha));
 
         double textY = yPosition + (height - fontRenderer.getFontHeight()) * 0.5;
-
-        if (focused) {
-            double caretX = xPosition + fontRenderer.getStringWidthD(text.substring(0, cursorPosition)) - scrollOffset;
-            caretX = Math.max(xPosition, Math.min(xPosition + width, caretX));
-            Vector2f areaStart = RenderContext.graphics().pose().transformPosition(
-                    (float) caretX,
-                    (float) textY,
-                    new Vector2f()
-            );
-            Vector2f areaEnd = RenderContext.graphics().pose().transformPosition(
-                    (float) (caretX + 1),
-                    (float) (textY + fontRenderer.getFontHeight()),
-                    new Vector2f()
-            );
-            Minecraft.getInstance().textInputManager().setTextInputArea(
-                    (int) Math.floor(Math.min(areaStart.x, areaEnd.x)),
-                    (int) Math.floor(Math.min(areaStart.y, areaEnd.y)),
-                    (int) Math.ceil(Math.max(areaStart.x, areaEnd.x)),
-                    (int) Math.ceil(Math.max(areaStart.y, areaEnd.y))
-            );
-        }
 
         if (drawUnderline) {
             Rect.draw(xPosition, yPosition + height, width, 0.5, RGBA.color(lineColor.getRGB(), wholeAlpha));

@@ -118,7 +118,7 @@ public class CloudMusic {
 
         synchronized (lyrics) {
             updateLyricsList(parsedLyrics);
-            currentLyric = lyrics.getFirst();
+            currentLyric = lyrics.get(0);
             haveNoWords = lyricsHaveNoWords();
             resetLongBreak();
         }
@@ -170,7 +170,7 @@ public class CloudMusic {
     }
 
     public static LyricLine findLongBreakLine() {
-        return activeLongBreak.isEmpty() ? null : activeLongBreak.getFirst();
+        return activeLongBreak.isEmpty() ? null : activeLongBreak.get(0);
     }
 
     public static LyricLine findLingeringLongBreakLine() {
@@ -198,11 +198,11 @@ public class CloudMusic {
     }
 
     public static boolean isLongBreakLeadIn() {
-        return !activeLongBreak.isEmpty() && isIntroBreak(activeLongBreak.getFirst());
+        return !activeLongBreak.isEmpty() && isIntroBreak(activeLongBreak.get(0));
     }
 
     public static boolean isLongBreakAfterCurrent() {
-        return !activeLongBreak.isEmpty() && !isIntroBreak(activeLongBreak.getFirst());
+        return !activeLongBreak.isEmpty() && !isIntroBreak(activeLongBreak.get(0));
     }
 
     public static int breakInsertIndexAfterLastInterval() {
@@ -231,7 +231,7 @@ public class CloudMusic {
     }
 
     private static boolean isIntroBreak(LyricLine breakLine) {
-        return !lyrics.isEmpty() && breakLine.getTimestamp() < lyrics.getFirst().getTimestamp();
+        return !lyrics.isEmpty() && breakLine.getTimestamp() < lyrics.get(0).getTimestamp();
     }
 
     public static void resetLongBreak() {
@@ -256,7 +256,7 @@ public class CloudMusic {
             if (breakLine != null) {
                 long breakEnd = breakEndOf(breakLine);
 
-                if (!activeLongBreak.isEmpty() && activeLongBreak.getFirst().getTimestamp() == breakLine.getTimestamp()) {
+                if (!activeLongBreak.isEmpty() && activeLongBreak.get(0).getTimestamp() == breakLine.getTimestamp()) {
                     synchronized (longBreakAnimation) {
                         longBreakAnimation.breakEnd = breakEnd;
                     }
@@ -274,7 +274,7 @@ public class CloudMusic {
             if (activeLongBreak.isEmpty()) return;
 
             synchronized (longBreakAnimation) {
-                longBreakAnimation.linger(activeLongBreak.getFirst());
+                longBreakAnimation.linger(activeLongBreak.get(0));
             }
 
             activeLongBreak.clear();
@@ -310,7 +310,7 @@ public class CloudMusic {
     }
 
     private static LyricLine findLeadInLongBreakLine(double songProgress) {
-        long firstTimestamp = lyrics.getFirst().getTimestamp();
+        long firstTimestamp = lyrics.get(0).getTimestamp();
         return isLongBreakInterval(0L, firstTimestamp, songProgress)
                 ? createBreakLine(0L, firstTimestamp)
                 : null;
@@ -571,7 +571,7 @@ public class CloudMusic {
         }
 
         List<String> cookieLines = Files.readAllLines(cookieFile.toPath());
-        return cookieLines.isEmpty() ? "" : cookieLines.getFirst();
+        return cookieLines.isEmpty() ? "" : cookieLines.get(0);
     }
 
     private static String getCookieFromFileOrOptions() {

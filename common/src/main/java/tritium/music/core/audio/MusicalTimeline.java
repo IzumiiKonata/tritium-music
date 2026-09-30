@@ -23,7 +23,7 @@ public record MusicalTimeline(long startMillis, long durationMillis, List<Frame>
 
     private static int closestIndex(List<Long> times, long target) {
         int closest = 0;
-        long distance = Math.abs(times.getFirst() - target);
+        long distance = Math.abs(times.get(0) - target);
         for (int i = 1; i < times.size(); i++) {
             long candidateDistance = Math.abs(times.get(i) - target);
             if (candidateDistance >= distance) {
@@ -47,7 +47,7 @@ public record MusicalTimeline(long startMillis, long durationMillis, List<Frame>
         if (frames.isEmpty()) {
             return Frame.empty(timeMillis);
         }
-        Frame closest = frames.getFirst();
+        Frame closest = frames.get(0);
         long distance = Math.abs(closest.timeMillis() - timeMillis);
         for (Frame frame : frames) {
             long candidateDistance = Math.abs(frame.timeMillis() - timeMillis);
@@ -84,7 +84,7 @@ public record MusicalTimeline(long startMillis, long durationMillis, List<Frame>
         if (beatAccents.isEmpty()) {
             return 0.5;
         }
-        BeatAccent closest = beatAccents.getFirst();
+        BeatAccent closest = beatAccents.get(0);
         long distance = Math.abs(closest.timeMillis() - timeMillis);
         for (BeatAccent accent : beatAccents) {
             long candidateDistance = Math.abs(accent.timeMillis() - timeMillis);
@@ -141,7 +141,7 @@ public record MusicalTimeline(long startMillis, long durationMillis, List<Frame>
             return -1;
         }
         int beatIndex = closestIndex(beats, timeMillis);
-        int downbeatIndex = closestIndex(beats, downbeats.stream().filter(time -> time <= timeMillis + 80).reduce((first, second) -> second).orElse(downbeats.getFirst()));
+        int downbeatIndex = closestIndex(beats, downbeats.stream().filter(time -> time <= timeMillis + 80).reduce((first, second) -> second).orElse(downbeats.get(0)));
         return Math.floorMod(beatIndex - downbeatIndex, meter);
     }
 

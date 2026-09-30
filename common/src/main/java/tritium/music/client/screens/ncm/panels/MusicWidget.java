@@ -61,7 +61,7 @@ public class MusicWidget extends RoundedRectWidget {
 
         this.setTransformations(() -> {
             float ep = this.entranceProgress();
-            RenderContext.graphics().pose().translate(0, (1f - ep) * (float) ENTRANCE_SLIDE);
+            RenderContext.graphics().pose().translate(0f, (1f - ep) * (float) ENTRANCE_SLIDE, 0f);
             if (style == Style.GRID && pressAnimation > .001) {
                 this.scaleAtPos(this.getX() + this.getWidth() * .5, this.getY() + this.getHeight() * .5, 1 - pressAnimation * .04);
             }

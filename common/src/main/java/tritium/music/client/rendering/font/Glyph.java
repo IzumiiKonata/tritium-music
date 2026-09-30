@@ -1,7 +1,7 @@
 package tritium.music.client.rendering.font;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public class Glyph {
 
@@ -16,7 +16,7 @@ public class Glyph {
 
     public float u0, v0, u1, v1;
     public volatile boolean uploaded = false;
-    public Identifier atlasIdentifier;
+    public ResourceLocation atlasIdentifier;
     public NativeImage atlasImage;
 
     public Glyph(int width, int height, int bitmapWidth, int bitmapHeight,

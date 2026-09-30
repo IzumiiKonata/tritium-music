@@ -1,304 +1,230 @@
 package tritium.music.client.render;
 
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
-import com.mojang.renderpearl.api.textures.FilterMode;
-import com.mojang.renderpearl.api.textures.GpuSampler;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.navigation.ScreenRectangle;
-import net.minecraft.client.gui.render.TextureSetup;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
-import net.minecraft.client.renderer.texture.AbstractTexture;
-import net.minecraft.resources.Identifier;
-import org.joml.Matrix3x2f;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.resources.ResourceLocation;
+import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.opengl.GL11;
 import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.shader.EffectQueue;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public final class Render {
 
+    public static final String SHADER_POSITION_COLOR = "tritium_position_color";
+    public static final String SHADER_POSITION_TEX_COLOR = "tritium_position_tex_color";
+    public static final String SHADER_ROUNDED = "tritium_rounded";
+    public static final String SHADER_ROUNDED_GRADIENT = "tritium_rounded_gradient";
+    public static final String SHADER_ROUNDED_OUTLINE = "tritium_rounded_outline";
+    public static final String SHADER_ROUNDED_OUTLINE_GRADIENT = "tritium_rounded_outline_gradient";
+    public static final String SHADER_ROUNDED_TEXTURE = "tritium_rounded_texture";
+    public static final String SHADER_VERTICAL_FADE = "tritium_vertical_fade";
+    public static final String SHADER_STENCIL_COMPOSITE = "tritium_stencil_composite";
+
     private Render() {
     }
 
-    private static GpuSampler linearSampler() {
-        return com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+    private static @Nullable ShaderInstance shader(String name, VertexFormat format) {
+        return TritiumShaders.get(name, format);
     }
 
-    private static GuiRenderState state(GuiGraphicsExtractor g) {
-        return g.guiRenderState;
+    private static Matrix4f matrix(GuiGraphics graphics) {
+        return graphics.pose().last().pose();
     }
 
-    private static @Nullable ScreenRectangle scissor(GuiGraphicsExtractor g) {
-        return g.scissorStack.peek();
+    private static boolean hudOverlay;
+
+    public static void setHudOverlay(boolean value) {
+        hudOverlay = value;
     }
 
-    private static ClipRect clip() {
+    private static void begin(GuiGraphics graphics, boolean premultiplied) {
+        graphics.flush();
+        if (hudOverlay) {
+            GlStateManager._disableDepthTest();
+            GlStateManager._depthMask(false);
+        } else {
+            GlStateManager._enableDepthTest();
+            GlStateManager._depthFunc(GL11.GL_LEQUAL);
+            GlStateManager._depthMask(true);
+        }
+        GlStateManager._disableCull();
+        GlStateManager._colorMask(true, true, true, true);
+        RenderSystem.enableBlend();
+        if (premultiplied) {
+            RenderSystem.blendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        } else {
+            RenderSystem.blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        }
+    }
+
+    private static void clip(ShaderInstance shader) {
         ClipRect clip = StencilClipManager.currentClip();
-        return clip == null ? ClipRect.UNBOUNDED : clip;
+        if (clip == null) {
+            clip = ClipRect.UNBOUNDED;
+        }
+        Uniforms.set(shader, "ClipRect", clip.left(), clip.top(), clip.right(), clip.bottom());
     }
 
-    private static @Nullable RenderPipeline clippedPipeline(RenderPipeline pipeline) {
-        if (pipeline == RenderPipelines.GUI) {
-            return ClipPipeline.SOLID;
-        }
-        if (pipeline == RenderPipelines.GUI_TEXTURED) {
-            return ClipPipeline.TEXTURED;
-        }
-        if (pipeline == LinePipeline.PIPELINE) {
-            return ClipPipeline.LINES;
-        }
-        return null;
+    private static void upload(BufferBuilder builder, ShaderInstance shader) {
+        RenderSystem.setShader(() -> shader);
+        BufferUploader.drawWithShader(builder.end());
     }
 
-    private static Matrix3x2f pose(GuiGraphicsExtractor g) {
-        return new Matrix3x2f(g.pose());
+    private static void vertex(BufferBuilder builder, Matrix4f matrix, float x, float y, int color) {
+        builder.vertex(matrix, x, y, 0f).color(color).endVertex();
     }
 
-    public static void rect(GuiGraphicsExtractor g, float x, float y, float w, float h, int color) {
+    private static void vertex(BufferBuilder builder, Matrix4f matrix, float x, float y, float u, float v, int color) {
+        builder.vertex(matrix, x, y, 0f).uv(u, v).color(color).endVertex();
+    }
+
+    public static void rect(GuiGraphics graphics, float x, float y, float w, float h, int color) {
         if (EffectQueue.captureRect(x, y, w, h, 0f, color)) {
             return;
         }
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        quad(verts, x, y, x + w, y + h, color);
-        submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
+        ShaderInstance shader = shader(SHADER_POSITION_COLOR, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
+            return;
+        }
+        Dimensions dimensions = dimensions(x, y, w, h);
+        begin(graphics, false);
+        clip(shader);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), color);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), color);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), color);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), color);
+        upload(builder, shader);
     }
 
-    public static void lineStrip(GuiGraphicsExtractor g, float[] points, int count,
+    public static void lineStrip(GuiGraphics graphics, float[] points, int count,
                                  float offsetX, float offsetY, float yScale, int color) {
         if (count < 2) {
             return;
         }
-        List<MeshElement.Vertex> verts = new ArrayList<>((count - 1) * 2);
-        float minX = Float.POSITIVE_INFINITY;
-        float minY = Float.POSITIVE_INFINITY;
-        float maxX = Float.NEGATIVE_INFINITY;
-        float maxY = Float.NEGATIVE_INFINITY;
+        ShaderInstance shader = shader(SHADER_POSITION_COLOR, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
+            return;
+        }
+        begin(graphics, false);
+        clip(shader);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
         float previousX = offsetX + points[0];
         float previousY = offsetY + points[1] * yScale;
         for (int i = 1; i < count; i++) {
             int index = i * 2;
             float x = offsetX + points[index];
             float y = offsetY + points[index + 1] * yScale;
-            verts.add(new MeshElement.Vertex(previousX, previousY, 0, 0, color));
-            verts.add(new MeshElement.Vertex(x, y, 0, 0, color));
-            minX = Math.min(minX, Math.min(previousX, x));
-            minY = Math.min(minY, Math.min(previousY, y));
-            maxX = Math.max(maxX, Math.max(previousX, x));
-            maxY = Math.max(maxY, Math.max(previousY, y));
+            vertex(builder, matrix, previousX, previousY, color);
+            vertex(builder, matrix, x, y, color);
             previousX = x;
             previousY = y;
         }
-        submit(g, LinePipeline.PIPELINE, TextureSetup.noTexture(), verts,
-                minX - 1, minY - 1, maxX + 1, maxY + 1);
+        upload(builder, shader);
     }
 
-    public static void gradientV(GuiGraphicsExtractor g, float x, float y, float w, float h, int top, int bottom) {
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(x, y, 0, 0, top));
-        verts.add(new MeshElement.Vertex(x, y + h, 0, 0, bottom));
-        verts.add(new MeshElement.Vertex(x + w, y + h, 0, 0, bottom));
-        verts.add(new MeshElement.Vertex(x + w, y, 0, 0, top));
-        submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
+    public static void gradientV(GuiGraphics graphics, float x, float y, float w, float h, int top, int bottom) {
+        ShaderInstance shader = shader(SHADER_POSITION_COLOR, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
+            return;
+        }
+        Dimensions dimensions = dimensions(x, y, w, h);
+        begin(graphics, false);
+        clip(shader);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), top);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), bottom);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), bottom);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), top);
+        upload(builder, shader);
     }
 
-    public static void gradientH(GuiGraphicsExtractor g, float x, float y, float w, float h, int left, int right) {
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(x, y, 0, 0, left));
-        verts.add(new MeshElement.Vertex(x, y + h, 0, 0, left));
-        verts.add(new MeshElement.Vertex(x + w, y + h, 0, 0, right));
-        verts.add(new MeshElement.Vertex(x + w, y, 0, 0, right));
-        submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, x, y, x + w, y + h);
+    public static void gradientH(GuiGraphics graphics, float x, float y, float w, float h, int left, int right) {
+        ShaderInstance shader = shader(SHADER_POSITION_COLOR, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
+            return;
+        }
+        Dimensions dimensions = dimensions(x, y, w, h);
+        begin(graphics, false);
+        clip(shader);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), left);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), left);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), right);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), right);
+        upload(builder, shader);
     }
 
-    public static void roundedRect(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius, int color) {
+    public static void colorQuad(GuiGraphics graphics,
+                                 float tlx, float tly, float blx, float bly, float brx, float bry, float trx, float trY,
+                                 int color) {
+        ShaderInstance shader = shader(SHADER_POSITION_COLOR, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
+            return;
+        }
+        begin(graphics, false);
+        clip(shader);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        vertex(builder, matrix, tlx, tly, color);
+        vertex(builder, matrix, blx, bly, color);
+        vertex(builder, matrix, brx, bry, color);
+        vertex(builder, matrix, trx, trY, color);
+        upload(builder, shader);
+    }
+
+    public static void roundedRect(GuiGraphics graphics, float x, float y, float w, float h, float radius, int color) {
         if (EffectQueue.captureRect(x, y, w, h, radius, color)) {
             return;
         }
-        Dimensions dimensions = dimensions(x, y, w, h);
-        submitRounded(g, RoundedPipeline.SOLID, TextureSetup.noTexture(), dimensions, radius,
-                0f, 0f, 0f, 0f, color, color, color, color);
+        roundedSolid(graphics, SHADER_ROUNDED, x, y, w, h, radius, color, color, color, color);
     }
 
-    public static void roundedGradient(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius,
+    public static void roundedGradient(GuiGraphics graphics, float x, float y, float w, float h, float radius,
                                        int bottomLeft, int topLeft, int bottomRight, int topRight) {
-        Dimensions dimensions = dimensions(x, y, w, h);
-        submitRounded(g, RoundedPipeline.GRADIENT, TextureSetup.noTexture(), dimensions, radius,
-                0f, 0f, 0f, 0f, topLeft, bottomLeft, bottomRight, topRight);
+        roundedSolid(graphics, SHADER_ROUNDED_GRADIENT, x, y, w, h, radius, topLeft, bottomLeft, bottomRight, topRight);
     }
 
-    public static void roundedOutline(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius,
+    public static void roundedOutline(GuiGraphics graphics, float x, float y, float w, float h, float radius,
                                       float thickness, int color) {
-        Dimensions dimensions = dimensions(x, y, w, h);
-        submitRounded(g, RoundedPipeline.OUTLINE, TextureSetup.noTexture(), dimensions, radius - 2f,
-                thickness, 0f, thickness, 0f, color, color, color, color);
+        roundedOutline(graphics, SHADER_ROUNDED_OUTLINE, x, y, w, h, radius, thickness, color, color, color, color);
     }
 
-    public static void roundedOutlineGradient(GuiGraphicsExtractor g, float x, float y, float w, float h, float radius,
+    public static void roundedOutlineGradient(GuiGraphics graphics, float x, float y, float w, float h, float radius,
                                               float thickness, int bottomLeft, int topLeft, int bottomRight, int topRight) {
-        Dimensions dimensions = dimensions(x, y, w, h);
-        submitRounded(g, RoundedPipeline.OUTLINE_GRADIENT, TextureSetup.noTexture(), dimensions, radius - 2f,
-                thickness, 0f, thickness, 0f, topLeft, bottomLeft, bottomRight, topRight);
+        roundedOutline(graphics, SHADER_ROUNDED_OUTLINE_GRADIENT, x, y, w, h, radius, thickness,
+                topLeft, bottomLeft, bottomRight, topRight);
     }
 
-    public static void texture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float alpha) {
-        texture(g, id, x, y, w, h, 0f, 0f, 1f, 1f, alpha);
+    public static void texture(GuiGraphics graphics, ResourceLocation id, float x, float y, float w, float h, float alpha) {
+        texture(graphics, id, x, y, w, h, 0f, 0f, 1f, 1f, alpha);
     }
 
-    public static void texture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h,
+    public static void texture(GuiGraphics graphics, ResourceLocation id, float x, float y, float w, float h,
                                float u0, float v0, float u1, float v1, float alpha) {
-        AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
-        TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
-
-        int a = (int) (clamp01(alpha) * 255f) & 0xFF;
-        int color = (a << 24) | 0xFFFFFF;
-
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(x, y, u0, v0, color));
-        verts.add(new MeshElement.Vertex(x, y + h, u0, v1, color));
-        verts.add(new MeshElement.Vertex(x + w, y + h, u1, v1, color));
-        verts.add(new MeshElement.Vertex(x + w, y, u1, v0, color));
-
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, x, y, x + w, y + h);
-    }
-
-    public static void texturedQuad(GuiGraphicsExtractor g, Identifier id,
-                                    float tlx, float tly, float blx, float bly, float brx, float bry, float trx, float trY,
-                                    boolean flipX, float alpha) {
-        AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
-        TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
-
-        int a = (int) (clamp01(alpha) * 255f) & 0xFF;
-        int color = (a << 24) | 0xFFFFFF;
-
-        float u0 = flipX ? 1f : 0f, u1 = flipX ? 0f : 1f;
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(tlx, tly, u0, 0f, color));
-        verts.add(new MeshElement.Vertex(blx, bly, u0, 1f, color));
-        verts.add(new MeshElement.Vertex(brx, bry, u1, 1f, color));
-        verts.add(new MeshElement.Vertex(trx, trY, u1, 0f, color));
-
-        float minX = Math.min(Math.min(tlx, blx), Math.min(brx, trx));
-        float minY = Math.min(Math.min(tly, bly), Math.min(bry, trY));
-        float maxX = Math.max(Math.max(tlx, blx), Math.max(brx, trx));
-        float maxY = Math.max(Math.max(tly, bly), Math.max(bry, trY));
-        submit(g, RenderPipelines.GUI_TEXTURED, setup, verts, true, minX, minY, maxX, maxY);
-    }
-
-    public static void verticalFadeTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h,
-                                           float controlPercent, float alpha) {
-        AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
-        TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
-        int a = (int) (clamp01(alpha) * 255f) & 0xFF;
-        int color = (a << 24) | 0xFFFFFF;
-        List<ClipElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new ClipElement.Vertex(x, y, 0f, 0f, color));
-        verts.add(new ClipElement.Vertex(x, y + h, 0f, 1f, color));
-        verts.add(new ClipElement.Vertex(x + w, y + h, 1f, 1f, color));
-        verts.add(new ClipElement.Vertex(x + w, y, 1f, 0f, color));
-        state(g).addGuiElement(ClipElement.faded(VerticalFadePipeline.PIPELINE, setup, g.pose(), verts, clip(),
-                controlPercent, x, y, x + w, y + h, scissor(g)));
-    }
-
-    public static void colorQuad(GuiGraphicsExtractor g,
-                                 float tlx, float tly, float blx, float bly, float brx, float bry, float trx, float trY,
-                                 int color) {
-        List<MeshElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new MeshElement.Vertex(tlx, tly, 0, 0, color));
-        verts.add(new MeshElement.Vertex(blx, bly, 0, 0, color));
-        verts.add(new MeshElement.Vertex(brx, bry, 0, 0, color));
-        verts.add(new MeshElement.Vertex(trx, trY, 0, 0, color));
-
-        float minX = Math.min(Math.min(tlx, blx), Math.min(brx, trx));
-        float minY = Math.min(Math.min(tly, bly), Math.min(bry, trY));
-        float maxX = Math.max(Math.max(tlx, blx), Math.max(brx, trx));
-        float maxY = Math.max(Math.max(tly, bly), Math.max(bry, trY));
-        submit(g, RenderPipelines.GUI, TextureSetup.noTexture(), verts, minX, minY, maxX, maxY);
-    }
-
-    public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
-                             float u0, float v0, float u1, float v1, int color) {
-        glyph(g, atlas, x, y, w, h, u0, v0, u1, v1, color, color);
-    }
-
-    public static void glyph(GuiGraphicsExtractor g, Identifier atlas, float x, float y, float w, float h,
-                             float u0, float v0, float u1, float v1, int leftColor, int rightColor) {
-        glyphs(g, atlas, List.of(new GlyphQuad(x, y, w, h, u0, v0, u1, v1, leftColor, rightColor)));
-    }
-
-    public static void glyphs(GuiGraphicsExtractor g, Identifier atlas, List<GlyphQuad> quads) {
-        if (quads.isEmpty()) return;
-        AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(atlas);
-        TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
-
-        float minX = Float.POSITIVE_INFINITY;
-        float minY = Float.POSITIVE_INFINITY;
-        float maxX = Float.NEGATIVE_INFINITY;
-        float maxY = Float.NEGATIVE_INFINITY;
-        for (GlyphQuad quad : quads) {
-            minX = Math.min(minX, quad.x());
-            minY = Math.min(minY, quad.y());
-            maxX = Math.max(maxX, quad.x() + quad.width());
-            maxY = Math.max(maxY, quad.y() + quad.height());
-        }
-
-        ClipRect clip = StencilClipManager.currentClip();
-        if (clip != null) {
-            List<ClipElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
-            for (GlyphQuad quad : quads) {
-                float x1 = quad.x() + quad.width();
-                float y1 = quad.y() + quad.height();
-                verts.add(new ClipElement.Vertex(quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor()));
-                verts.add(new ClipElement.Vertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor()));
-                verts.add(new ClipElement.Vertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor()));
-                verts.add(new ClipElement.Vertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor()));
-            }
-            state(g).addGuiElement(ClipElement.clipped(ClipPipeline.TEXTURED, setup, g.pose(), verts, clip,
-                    minX, minY, maxX, maxY, scissor(g)));
+        ShaderInstance shader = shader(SHADER_POSITION_TEX_COLOR, DefaultVertexFormat.POSITION_TEX_COLOR);
+        if (shader == null) {
             return;
         }
-
-        List<MeshElement.Vertex> verts = new ArrayList<>(quads.size() * 4);
-        for (GlyphQuad quad : quads) {
-            float x1 = quad.x() + quad.width();
-            float y1 = quad.y() + quad.height();
-            verts.add(new MeshElement.Vertex(quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor()));
-            verts.add(new MeshElement.Vertex(quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor()));
-            verts.add(new MeshElement.Vertex(x1, y1, quad.u1(), quad.v1(), quad.rightColor()));
-            verts.add(new MeshElement.Vertex(x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor()));
-        }
-        state(g).addGuiElement(new MeshElement(RenderPipelines.GUI_TEXTURED, setup, g.pose(), verts,
-                true, minX, minY, maxX, maxY, scissor(g)));
-    }
-
-    public record GlyphQuad(float x, float y, float width, float height,
-                            float u0, float v0, float u1, float v1,
-                            int leftColor, int rightColor) {
-    }
-
-    public static void roundedTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha) {
-        roundedTexture(g, id, x, y, w, h, radius, alpha, 0f, 0f, 1f, 1f);
-    }
-
-    public static void roundedTexture(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
-                                      float u0, float v0, float u1, float v1) {
-        roundedTextureInternal(g, id, x, y, w, h, radius, alpha, u0, v0, u1, v1);
-    }
-
-    public static void roundedTextureSpecial(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
-                                             float uOffset, float vOffset, float uScale, float vScale) {
-        roundedTextureInternal(g, id, x, y, w, h, radius, alpha, uOffset, vOffset, uOffset + uScale, vOffset + vScale);
-    }
-
-    private static void roundedTextureInternal(GuiGraphicsExtractor g, Identifier id, float x, float y, float w, float h, float radius, float alpha,
-                                               float u0, float v0, float u1, float v1) {
-        AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(id);
-        TextureSetup setup = TextureSetup.singleTexture(tex.getTextureView(), linearSampler());
-        int a = (int) (clamp01(alpha) * 255f) & 0xFF;
-        int color = (a << 24) | 0xFFFFFF;
         Dimensions dimensions = dimensions(x, y, w, h);
         if (dimensions.flipX()) {
             float swap = u0;
@@ -310,39 +236,239 @@ public final class Render {
             v0 = v1;
             v1 = swap;
         }
-        submitRounded(g, RoundedPipeline.TEXTURED, setup, dimensions, radius,
-                u0, v0, u1, v1, color, color, color, color);
+        int color = alphaColor(alpha);
+        begin(graphics, false);
+        clip(shader);
+        RenderSystem.setShaderTexture(0, id);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), u0, v0, color);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), u0, v1, color);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), u1, v1, color);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), u1, v0, color);
+        upload(builder, shader);
     }
 
-    private static void submitRounded(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup, Dimensions dimensions,
-                                      float radius, float u0, float v0, float u1, float v1,
-                                      int topLeft, int bottomLeft, int bottomRight, int topRight) {
-        if (dimensions.width() <= 0 || dimensions.height() <= 0) {
+    public static void texturedQuad(GuiGraphics graphics, ResourceLocation id,
+                                    float tlx, float tly, float blx, float bly, float brx, float bry, float trx, float trY,
+                                    boolean flipX, float alpha) {
+        ShaderInstance shader = shader(SHADER_POSITION_TEX_COLOR, DefaultVertexFormat.POSITION_TEX_COLOR);
+        if (shader == null) {
             return;
         }
-        Matrix3x2f localPose = pose(g).translate(dimensions.x(), dimensions.y());
-        float scaleX = (float) Math.sqrt(localPose.m00() * localPose.m00() + localPose.m01() * localPose.m01());
-        float scaleY = (float) Math.sqrt(localPose.m10() * localPose.m10() + localPose.m11() * localPose.m11());
-        float radiusScale = Math.min(scaleX, scaleY);
-        radius *= radiusScale;
-        if (pipeline == RoundedPipeline.OUTLINE || pipeline == RoundedPipeline.OUTLINE_GRADIENT) {
-            u0 *= radiusScale;
-            u1 *= radiusScale;
+        float u0 = flipX ? 1f : 0f;
+        float u1 = flipX ? 0f : 1f;
+        int color = alphaColor(alpha);
+        begin(graphics, false);
+        clip(shader);
+        RenderSystem.setShaderTexture(0, id);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        vertex(builder, matrix, tlx, tly, u0, 0f, color);
+        vertex(builder, matrix, blx, bly, u0, 1f, color);
+        vertex(builder, matrix, brx, bry, u1, 1f, color);
+        vertex(builder, matrix, trx, trY, u1, 0f, color);
+        upload(builder, shader);
+    }
+
+    public static void verticalFadeTexture(GuiGraphics graphics, ResourceLocation id, float x, float y, float w, float h,
+                                           float controlPercent, float alpha) {
+        ShaderInstance shader = shader(SHADER_VERTICAL_FADE, DefaultVertexFormat.POSITION_TEX_COLOR);
+        if (shader == null) {
+            return;
         }
-        List<ClipElement.Vertex> vertices = new ArrayList<>(4);
-        vertices.add(new ClipElement.Vertex(0f, 0f, u0, v0, topLeft));
-        vertices.add(new ClipElement.Vertex(0f, dimensions.height(), u0, v1, bottomLeft));
-        vertices.add(new ClipElement.Vertex(dimensions.width(), dimensions.height(), u1, v1, bottomRight));
-        vertices.add(new ClipElement.Vertex(dimensions.width(), 0f, u1, v0, topRight));
-        state(g).addGuiElement(ClipElement.rounded(
-                pipeline, setup, localPose, vertices, clip(), radius,
-                dimensions.width(), dimensions.height(), scissor(g)
-        ));
+        Dimensions dimensions = dimensions(x, y, w, h);
+        int color = alphaColor(alpha);
+        begin(graphics, false);
+        clip(shader);
+        Uniforms.set(shader, "ControlPercent", controlPercent <= 0f ? 1f : controlPercent);
+        RenderSystem.setShaderTexture(0, id);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), 0f, 0f, color);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), 0f, 1f, color);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), 1f, 1f, color);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), 1f, 0f, color);
+        upload(builder, shader);
+    }
+
+    public static void roundedTexture(GuiGraphics graphics, ResourceLocation id, float x, float y, float w, float h, float radius, float alpha) {
+        roundedTexture(graphics, id, x, y, w, h, radius, alpha, 0f, 0f, 1f, 1f);
+    }
+
+    public static void roundedTexture(GuiGraphics graphics, ResourceLocation id, float x, float y, float w, float h, float radius, float alpha,
+                                      float u0, float v0, float u1, float v1) {
+        roundedTextured(graphics, id, x, y, w, h, radius, alpha, u0, v0, u1, v1);
+    }
+
+    public static void roundedTextureSpecial(GuiGraphics graphics, ResourceLocation id, float x, float y, float w, float h, float radius, float alpha,
+                                             float uOffset, float vOffset, float uScale, float vScale) {
+        roundedTextured(graphics, id, x, y, w, h, radius, alpha, uOffset, vOffset, uOffset + uScale, vOffset + vScale);
+    }
+
+    public static void glyph(GuiGraphics graphics, ResourceLocation atlas, float x, float y, float w, float h,
+                             float u0, float v0, float u1, float v1, int color) {
+        glyph(graphics, atlas, x, y, w, h, u0, v0, u1, v1, color, color);
+    }
+
+    public static void glyph(GuiGraphics graphics, ResourceLocation atlas, float x, float y, float w, float h,
+                             float u0, float v0, float u1, float v1, int leftColor, int rightColor) {
+        glyphs(graphics, atlas, List.of(new GlyphQuad(x, y, w, h, u0, v0, u1, v1, leftColor, rightColor)));
+    }
+
+    public static void glyphs(GuiGraphics graphics, ResourceLocation atlas, List<GlyphQuad> quads) {
+        if (quads.isEmpty()) {
+            return;
+        }
+        ShaderInstance shader = shader(SHADER_POSITION_TEX_COLOR, DefaultVertexFormat.POSITION_TEX_COLOR);
+        if (shader == null) {
+            return;
+        }
+        begin(graphics, false);
+        clip(shader);
+        RenderSystem.setShaderTexture(0, atlas);
+        Matrix4f matrix = matrix(graphics);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        for (GlyphQuad quad : quads) {
+            float x1 = quad.x() + quad.width();
+            float y1 = quad.y() + quad.height();
+            vertex(builder, matrix, quad.x(), quad.y(), quad.u0(), quad.v0(), quad.leftColor());
+            vertex(builder, matrix, quad.x(), y1, quad.u0(), quad.v1(), quad.leftColor());
+            vertex(builder, matrix, x1, y1, quad.u1(), quad.v1(), quad.rightColor());
+            vertex(builder, matrix, x1, quad.y(), quad.u1(), quad.v0(), quad.rightColor());
+        }
+        upload(builder, shader);
+    }
+
+    public static void stencilComposite(GuiGraphics graphics, int baseTexture, int stencilTexture,
+                                        float x, float y, float w, float h, float uMax, float vMax, float alpha) {
+        ShaderInstance shader = shader(SHADER_STENCIL_COMPOSITE, DefaultVertexFormat.POSITION_TEX_COLOR);
+        if (shader == null) {
+            return;
+        }
+        int color = alphaColor(alpha);
+        begin(graphics, true);
+        clip(shader);
+        RenderSystem.setShaderTexture(0, baseTexture);
+        RenderSystem.setShaderTexture(1, stencilTexture);
+        Matrix4f matrix = matrix(graphics);
+        float x1 = x + w;
+        float y1 = y + h;
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        vertex(builder, matrix, x, y, 0f, 0f, color);
+        vertex(builder, matrix, x, y1, 0f, vMax, color);
+        vertex(builder, matrix, x1, y1, uMax, vMax, color);
+        vertex(builder, matrix, x1, y, uMax, 0f, color);
+        upload(builder, shader);
+    }
+
+    public record GlyphQuad(float x, float y, float width, float height,
+                            float u0, float v0, float u1, float v1,
+                            int leftColor, int rightColor) {
+    }
+
+    private static void roundedSolid(GuiGraphics graphics, String name, float x, float y, float w, float h,
+                                     float radius, int topLeft, int bottomLeft, int bottomRight, int topRight) {
+        Dimensions dimensions = dimensions(x, y, w, h);
+        if (dimensions.width() <= 0f || dimensions.height() <= 0f) {
+            return;
+        }
+        ShaderInstance shader = shader(name, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
+            return;
+        }
+        Matrix4f matrix = matrix(graphics);
+        begin(graphics, false);
+        clip(shader);
+        Uniforms.set(shader, "Radius", radius * poseScale(matrix));
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), topLeft);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), bottomLeft);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), bottomRight);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), topRight);
+        upload(builder, shader);
+    }
+
+    private static void roundedOutline(GuiGraphics graphics, String name, float x, float y, float w, float h,
+                                       float radius, float thickness, int topLeft, int bottomLeft, int bottomRight, int topRight) {
+        Dimensions dimensions = dimensions(x, y, w, h);
+        if (dimensions.width() <= 0f || dimensions.height() <= 0f || thickness <= 0f) {
+            return;
+        }
+        ShaderInstance shader = shader(name, DefaultVertexFormat.POSITION_COLOR);
+        if (shader == null) {
+            return;
+        }
+        Matrix4f matrix = matrix(graphics);
+        begin(graphics, false);
+        clip(shader);
+        float scale = poseScale(matrix);
+        Uniforms.set(shader, "Radius", (radius - 2f) * scale);
+        Uniforms.set(shader, "BorderSize", thickness * scale);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), topLeft);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), bottomLeft);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), bottomRight);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), topRight);
+        upload(builder, shader);
+    }
+
+    private static void roundedTextured(GuiGraphics graphics, ResourceLocation id, float x, float y, float w, float h,
+                                        float radius, float alpha, float u0, float v0, float u1, float v1) {
+        Dimensions dimensions = dimensions(x, y, w, h);
+        if (dimensions.width() <= 0f || dimensions.height() <= 0f) {
+            return;
+        }
+        ShaderInstance shader = shader(SHADER_ROUNDED_TEXTURE, DefaultVertexFormat.POSITION_TEX_COLOR);
+        if (shader == null) {
+            return;
+        }
+        if (dimensions.flipX()) {
+            float swap = u0;
+            u0 = u1;
+            u1 = swap;
+        }
+        if (dimensions.flipY()) {
+            float swap = v0;
+            v0 = v1;
+            v1 = swap;
+        }
+        Matrix4f matrix = matrix(graphics);
+        int color = alphaColor(alpha);
+        begin(graphics, false);
+        clip(shader);
+        Uniforms.set(shader, "Radius", radius * poseScale(matrix));
+        RenderSystem.setShaderTexture(0, id);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        vertex(builder, matrix, dimensions.x(), dimensions.y(), u0, v0, color);
+        vertex(builder, matrix, dimensions.x(), dimensions.bottom(), u0, v1, color);
+        vertex(builder, matrix, dimensions.right(), dimensions.bottom(), u1, v1, color);
+        vertex(builder, matrix, dimensions.right(), dimensions.y(), u1, v0, color);
+        upload(builder, shader);
+    }
+
+    private static float poseScale(Matrix4f matrix) {
+        float scaleX = (float) Math.sqrt(matrix.m00() * matrix.m00() + matrix.m01() * matrix.m01());
+        float scaleY = (float) Math.sqrt(matrix.m10() * matrix.m10() + matrix.m11() * matrix.m11());
+        return Math.min(scaleX, scaleY);
+    }
+
+    private static int alphaColor(float alpha) {
+        int a = (int) (clamp01(alpha) * 255f) & 0xFF;
+        return (a << 24) | 0xFFFFFF;
     }
 
     private static Dimensions dimensions(float x, float y, float width, float height) {
-        boolean flipX = width < 0;
-        boolean flipY = height < 0;
+        boolean flipX = width < 0f;
+        boolean flipY = height < 0f;
         if (flipX) {
             x += width;
             width = -width;
@@ -354,41 +480,17 @@ public final class Render {
         return new Dimensions(x, y, width, height, flipX, flipY);
     }
 
+    private static float clamp01(float value) {
+        return value < 0f ? 0f : Math.min(value, 1f);
+    }
+
     private record Dimensions(float x, float y, float width, float height, boolean flipX, boolean flipY) {
-    }
-
-    private static void quad(List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1, int color) {
-        verts.add(new MeshElement.Vertex(x0, y0, 0, 0, color));
-        verts.add(new MeshElement.Vertex(x0, y1, 0, 1, color));
-        verts.add(new MeshElement.Vertex(x1, y1, 1, 1, color));
-        verts.add(new MeshElement.Vertex(x1, y0, 1, 0, color));
-    }
-
-    private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
-                               List<MeshElement.Vertex> verts, float x0, float y0, float x1, float y1) {
-        submit(g, pipeline, setup, verts, false, x0, y0, x1, y1);
-    }
-
-    private static void submit(GuiGraphicsExtractor g, RenderPipeline pipeline, TextureSetup setup,
-                               List<MeshElement.Vertex> verts, boolean writeUv,
-                               float x0, float y0, float x1, float y1) {
-        RenderPipeline clippedPipeline = clippedPipeline(pipeline);
-        ClipRect clip = StencilClipManager.currentClip();
-        if (clip != null && clippedPipeline != null) {
-            List<ClipElement.Vertex> clippedVertices = new ArrayList<>(verts.size());
-            for (MeshElement.Vertex vertex : verts) {
-                clippedVertices.add(new ClipElement.Vertex(
-                        vertex.x(), vertex.y(), vertex.u(), vertex.v(), vertex.color()
-                ));
-            }
-            state(g).addGuiElement(ClipElement.clipped(clippedPipeline, setup, g.pose(), clippedVertices, clip,
-                    x0, y0, x1, y1, scissor(g)));
-            return;
+        float right() {
+            return x + width;
         }
-        state(g).addGuiElement(new MeshElement(pipeline, setup, g.pose(), verts, writeUv, x0, y0, x1, y1, scissor(g)));
-    }
 
-    private static float clamp01(float v) {
-        return v < 0f ? 0f : (Math.min(v, 1f));
+        float bottom() {
+            return y + height;
+        }
     }
 }

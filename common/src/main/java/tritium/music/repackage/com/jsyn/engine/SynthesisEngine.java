@@ -406,7 +406,7 @@ public class SynthesisEngine implements Synthesizer {
 
         while (timeList != null) {
             while (!timeList.isEmpty()) {
-                ScheduledCommand command = timeList.removeFirst();
+                ScheduledCommand command = timeList.remove(0);
                 logger.fine("repackage/processing " + command + ", at time " + timeStamp.time());
                 command.run();
             }

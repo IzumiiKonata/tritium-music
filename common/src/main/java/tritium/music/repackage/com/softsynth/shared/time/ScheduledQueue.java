@@ -60,7 +60,7 @@ public class ScheduledQueue<T> {
             if (lowestTime.compareTo(time) <= 0) {
                 List<T> timeList = timeNodes.get(lowestTime);
                 if (timeList != null) {
-                    next = timeList.removeFirst();
+                    next = timeList.remove(0);
                     if (timeList.isEmpty()) {
                         timeNodes.remove(lowestTime);
                     }

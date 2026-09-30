@@ -1,19 +1,8 @@
 package tritium.music.client.rendering.shader;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.FilterMode;
-import com.mojang.renderpearl.api.textures.GpuSampler;
-import net.minecraft.client.gui.render.TextureSetup;
-import tritium.music.client.render.ClipElement;
-import tritium.music.client.render.ClipRect;
+import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
-import tritium.music.client.rendering.StencilClipManager;
-import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.TRenderTarget;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 
 public class StencilShader {
 
@@ -26,37 +15,10 @@ public class StencilShader {
     public void draw(TRenderTarget base, TRenderTarget stencil,
                      double x, double y, double width, double height,
                      double uMax, double vMax, float alpha) {
-        if (alpha <= 0.004f) return;
-
-        GpuSampler sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
-
-        TextureSetup textureSetup = TextureSetup.doubleTexture(
-                base.colorView(), sampler,
-                stencil.colorView(), sampler
-        );
-
-        float x1 = (float) (x + width);
-        float y1 = (float) (y + height);
-        float u1 = (float) uMax;
-        float v1 = (float) vMax;
-        int quadColor = (Math.round(alpha * 255f) << 24) | 0x00FFFFFF;
-
-        List<ClipElement.Vertex> verts = new ArrayList<>(4);
-        verts.add(new ClipElement.Vertex((float) x, (float) y, 0f, 0f, quadColor));
-        verts.add(new ClipElement.Vertex((float) x, y1, 0f, v1, quadColor));
-        verts.add(new ClipElement.Vertex(x1, y1, u1, v1, quadColor));
-        verts.add(new ClipElement.Vertex(x1, (float) y, u1, 0f, quadColor));
-
-        var g = RenderContext.graphics();
-        ClipRect clip = Objects.requireNonNullElse(StencilClipManager.currentClip(), ClipRect.UNBOUNDED);
-        g.guiRenderState.addGuiElement(ClipElement.clipped(
-                StencilCompositePipeline.PIPELINE,
-                textureSetup,
-                g.pose(),
-                verts,
-                clip,
-                (float) x, (float) y, x1, y1,
-                g.scissorStack.peek()
-        ));
+        if (alpha <= 0.004f || base == null || stencil == null || width <= 0.0 || height <= 0.0) {
+            return;
+        }
+        Render.stencilComposite(RenderContext.graphics(), base.colorTextureId(), stencil.colorTextureId(),
+                (float) x, (float) y, (float) width, (float) height, (float) uMax, (float) vMax, alpha);
     }
 }

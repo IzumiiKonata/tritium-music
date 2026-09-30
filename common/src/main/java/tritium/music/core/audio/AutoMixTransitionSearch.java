@@ -23,7 +23,7 @@ public final class AutoMixTransitionSearch {
         if (candidates.isEmpty()) {
             return firstSound;
         }
-        long first = candidates.getFirst();
+        long first = candidates.get(0);
         CueScore baseline = scoreIncomingCue(analysis, first);
         CueScore best = candidates.stream().map(candidate -> scoreIncomingCue(analysis, candidate)).max(Comparator.comparingDouble(CueScore::score)).orElse(baseline);
         return best.score() >= baseline.score() + 0.16 ? best.millis() : first;
@@ -111,7 +111,7 @@ public final class AutoMixTransitionSearch {
         if (candidates.isEmpty()) {
             return Math.min(timelineEnd, startMillis + MAXIMUM_OVERLAP_MILLIS);
         }
-        long best = candidates.getLast();
+        long best = candidates.get(candidates.size() - 1);
         double bestScore = -1;
         for (long candidate : candidates) {
             MusicalTimeline.Frame frame = timeline.frameAt(candidate);

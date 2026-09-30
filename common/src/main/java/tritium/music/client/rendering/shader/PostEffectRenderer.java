@@ -1,37 +1,47 @@
 package tritium.music.client.rendering.shader;
 
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.DynamicGpuDataStorage;
-import net.minecraft.client.renderer.DynamicGpuDataStorageMapped;
-import org.joml.Vector4f;
+import net.minecraft.client.renderer.ShaderInstance;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
+import tritium.music.client.render.RenderContext;
+import tritium.music.client.render.TritiumShaders;
+import tritium.music.client.render.Uniforms;
+import tritium.music.client.rendering.StencilClipManager;
 
-import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public final class PostEffectRenderer {
 
     private static final float BLUR_STEP_WIDTH = 0.5f;
     private static final int BLUR_COMPOSITE_PADDING = 7;
     private static final int BLOOM_COMPOSITE_PADDING = 50;
-    private static final int BLOOM_KERNEL_PADDING = 74;
     private static final float BLOOM_RADIUS = 12f;
     private static final float BLOOM_STEP_WIDTH = 2f;
     private static final float INVISIBLE_ALPHA = 0.004f;
 
-    private static TextureTarget source;
+    private static final String SHADER_GAUSSIAN = "tritium_gaussian";
+    private static final String SHADER_BLUR_COMPOSITE = "tritium_blur_composite";
+    private static final String SHADER_BLOOM_MASK = "tritium_bloom_mask";
+    private static final String SHADER_BLOOM_COMPOSITE = "tritium_bloom_composite";
+
     private static TextureTarget scratch;
     private static TextureTarget output;
-    private static DynamicGpuDataStorageMapped<BlurInfo> blurUniforms;
-    private static DynamicGpuDataStorageMapped<EffectInfo> effectUniforms;
-    private static DynamicGpuDataStorageMapped<ShapeInfo> shapeUniforms;
+    private static TextureTarget mask;
+    private static int width = -1;
+    private static int height = -1;
 
     private PostEffectRenderer() {
     }
@@ -39,31 +49,40 @@ public final class PostEffectRenderer {
     public static void render() {
         List<EffectQueue.Region> blurs = EffectQueue.blurs();
         List<EffectQueue.Region> blooms = EffectQueue.blooms();
+        if (blurs.isEmpty() && blooms.isEmpty()) {
+            return;
+        }
+        if (!RenderContext.active()) {
+            return;
+        }
+        RenderSystem.assertOnRenderThread();
+
+        Minecraft minecraft = Minecraft.getInstance();
+        RenderTarget main = minecraft.getMainRenderTarget();
+        if (main == null || main.width <= 0 || main.height <= 0) {
+            return;
+        }
+        int guiScale = (int) minecraft.getWindow().getGuiScale();
+
+        StencilClipManager.suspendScissor();
         try {
-            if (blurs.isEmpty() && blooms.isEmpty()) {
+            ensureTargets(main.width, main.height);
+            if (scratch == null || output == null || mask == null) {
                 return;
             }
-
-            RenderSystem.assertOnRenderThread();
-            ensureUniforms();
-            Minecraft minecraft = Minecraft.getInstance();
-            RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
-            ensureTargets(main.width, main.height);
+            main.bindWrite(true);
+            RenderContext.graphics().flush();
 
             if (!blurs.isEmpty()) {
-                Map<Float, List<EffectQueue.Region>> blursByRadius = new LinkedHashMap<>();
+                Map<Float, List<EffectQueue.Region>> byRadius = new LinkedHashMap<>();
                 for (EffectQueue.Region region : blurs) {
-                    blursByRadius.computeIfAbsent(region.blurRadius(), ignored -> new java.util.ArrayList<>()).add(region);
+                    byRadius.computeIfAbsent(region.blurRadius(), ignored -> new ArrayList<>()).add(region);
                 }
-                for (Map.Entry<Float, List<EffectQueue.Region>> entry : blursByRadius.entrySet()) {
+                for (Map.Entry<Float, List<EffectQueue.Region>> entry : byRadius.entrySet()) {
                     float radius = entry.getKey();
-                    List<EffectQueue.Region> regions = entry.getValue();
-                    int reach = (int) Math.ceil(radius * BLUR_STEP_WIDTH);
-                    int padding = BLUR_COMPOSITE_PADDING + reach + 2;
-                    ScissorBounds blurBounds = bounds(regions, minecraft.getWindow().getGuiScale(), main.width, main.height, padding);
-                    gaussian(main, scratch, radius, BLUR_STEP_WIDTH, 1f, 0f, blurBounds);
-                    gaussian(scratch, output, radius, BLUR_STEP_WIDTH, 0f, 1f, blurBounds);
-                    compositeBlur(main, regions, minecraft.getWindow().getGuiScale());
+                    gaussian(main.getColorTextureId(), scratch, radius, BLUR_STEP_WIDTH, 1f, 0f);
+                    gaussian(scratch.getColorTextureId(), output, radius, BLUR_STEP_WIDTH, 0f, 1f);
+                    compositeBlur(main, output.getColorTextureId(), entry.getValue(), guiScale);
                 }
             }
 
@@ -71,168 +90,138 @@ public final class PostEffectRenderer {
                 if (region.alpha() <= INVISIBLE_ALPHA) {
                     continue;
                 }
-                renderBloom(main, region, minecraft.getWindow().getGuiScale());
+                renderBloom(main, region, guiScale);
             }
         } finally {
-            endUniformFrame();
-            EffectQueue.finishFrame();
+            main.bindWrite(true);
+            GlStateManager._enableDepthTest();
+            GlStateManager._depthMask(true);
+            GlStateManager._enableCull();
+            GlStateManager._activeTexture(GL13.GL_TEXTURE0);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            StencilClipManager.resumeScissor();
         }
     }
 
-    private static void ensureTargets(int width, int height) {
-        if (source == null || source.width != width || source.height != height) {
-            if (source != null) {
-                source.destroyBuffers();
-                scratch.destroyBuffers();
-                output.destroyBuffers();
-            }
-            source = new TextureTarget("Tritium effect source", width, height, com.mojang.renderpearl.api.GpuFormat.RGBA8_UNORM, null);
-            scratch = new TextureTarget("Tritium effect scratch", width, height, com.mojang.renderpearl.api.GpuFormat.RGBA8_UNORM, null);
-            output = new TextureTarget("Tritium effect output", width, height, com.mojang.renderpearl.api.GpuFormat.RGBA8_UNORM, null);
+    private static void ensureTargets(int targetWidth, int targetHeight) {
+        if (scratch != null && width == targetWidth && height == targetHeight) {
+            return;
         }
+        destroy();
+        scratch = createTarget(targetWidth, targetHeight);
+        output = createTarget(targetWidth, targetHeight);
+        mask = createTarget(targetWidth, targetHeight);
+        width = targetWidth;
+        height = targetHeight;
     }
 
-    private static void gaussian(RenderTarget from, RenderTarget to, float radius, float stepWidth, float dx, float dy,
-                                 ScissorBounds bounds) {
-        GpuBufferSlice uniform = blurUniforms.writeData(new BlurInfo(dx, dy, radius, stepWidth));
-        try (RenderPass pass = pass("Tritium gaussian", to)) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(EffectPipelines.GAUSSIAN));
-            RenderSystem.bindDefaultUniforms(pass);
-            pass.setUniform("InSampler", from.getColorTextureView(), linearSampler());
-            pass.setUniform("BlurInfo", uniform);
-            bounds.apply(pass);
-            pass.draw(3, 1, 0, 0);
-        }
+    private static TextureTarget createTarget(int targetWidth, int targetHeight) {
+        TextureTarget target = new TextureTarget(targetWidth, targetHeight, false, false);
+        target.setFilterMode(GL11.GL_LINEAR);
+        return target;
     }
 
-    private static void compositeBlur(RenderTarget main, List<EffectQueue.Region> regions, int guiScale) {
-        try (RenderPass pass = pass("Tritium blur composite", main)) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(EffectPipelines.BLUR_COMPOSITE));
-            RenderSystem.bindDefaultUniforms(pass);
-            pass.setUniform("InSampler", output.getColorTextureView(), linearSampler());
-            for (EffectQueue.Region region : regions) {
-                pass.setUniform("EffectInfo", effectUniforms.writeData(new EffectInfo(region.alpha())));
-                applyScissor(pass, region, guiScale, main.width, main.height, BLUR_COMPOSITE_PADDING);
-                pass.draw(3, 1, 0, 0);
-            }
+    private static void destroy() {
+        if (scratch != null) {
+            scratch.destroyBuffers();
+        }
+        if (output != null) {
+            output.destroyBuffers();
+        }
+        if (mask != null) {
+            mask.destroyBuffers();
+        }
+        scratch = null;
+        output = null;
+        mask = null;
+    }
+
+    private static void gaussian(int sourceTexture, TextureTarget destination, float radius, float stepWidth, float dx, float dy) {
+        ShaderInstance shader = TritiumShaders.get(SHADER_GAUSSIAN, DefaultVertexFormat.POSITION);
+        if (shader == null) {
+            return;
+        }
+        Uniforms.set(shader, "BlurInfo", dx, dy, radius, stepWidth);
+        pass(destination, shader, sourceTexture, false);
+    }
+
+    private static void compositeBlur(RenderTarget main, int blurredTexture, List<EffectQueue.Region> regions, int guiScale) {
+        ShaderInstance shader = TritiumShaders.get(SHADER_BLUR_COMPOSITE, DefaultVertexFormat.POSITION);
+        if (shader == null) {
+            return;
+        }
+        for (EffectQueue.Region region : regions) {
+            Uniforms.set(shader, "Opacity", region.alpha());
+            setCompositeRect(shader, region, guiScale, main.width, main.height, BLUR_COMPOSITE_PADDING);
+            pass(main, shader, blurredTexture, true);
         }
     }
 
     private static void renderBloom(RenderTarget main, EffectQueue.Region region, int guiScale) {
-        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(source.getColorTexture(), new Vector4f(0f));
-        GpuBufferSlice shape = shapeUniform(region, guiScale, main.height);
-        try (RenderPass pass = pass("Tritium bloom mask", source)) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(EffectPipelines.BLOOM_MASK));
-            RenderSystem.bindDefaultUniforms(pass);
-            pass.setUniform("ShapeInfo", shape);
-            bounds(List.of(region), guiScale, main.width, main.height, 1).apply(pass);
-            pass.draw(3, 1, 0, 0);
+        ShaderInstance maskShader = TritiumShaders.get(SHADER_BLOOM_MASK, DefaultVertexFormat.POSITION);
+        if (maskShader == null) {
+            return;
         }
-        ScissorBounds bloomBounds = bounds(List.of(region), guiScale, main.width, main.height, BLOOM_KERNEL_PADDING);
-        gaussian(source, scratch, BLOOM_RADIUS, BLOOM_STEP_WIDTH, 1f, 0f, bloomBounds);
-        gaussian(scratch, output, BLOOM_RADIUS, BLOOM_STEP_WIDTH, 0f, 1f, bloomBounds);
-        try (RenderPass pass = pass("Tritium bloom composite", main)) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(EffectPipelines.BLOOM_COMPOSITE));
-            RenderSystem.bindDefaultUniforms(pass);
-            pass.setUniform("InSampler", output.getColorTextureView(), linearSampler());
-            pass.setUniform("ShapeInfo", shape);
-            applyScissor(pass, region, guiScale, main.width, main.height, BLOOM_COMPOSITE_PADDING);
-            pass.draw(3, 1, 0, 0);
+        clear(mask);
+        setShapeInfo(maskShader, region, guiScale, main.height);
+        Uniforms.set(maskShader, "ShapeOpacity", region.alpha());
+        pass(mask, maskShader, 0, true);
+
+        gaussian(mask.getColorTextureId(), scratch, BLOOM_RADIUS, BLOOM_STEP_WIDTH, 1f, 0f);
+        gaussian(scratch.getColorTextureId(), output, BLOOM_RADIUS, BLOOM_STEP_WIDTH, 0f, 1f);
+
+        ShaderInstance composite = TritiumShaders.get(SHADER_BLOOM_COMPOSITE, DefaultVertexFormat.POSITION);
+        if (composite == null) {
+            return;
         }
+        setShapeInfo(composite, region, guiScale, main.height);
+        setCompositeRect(composite, region, guiScale, main.width, main.height, BLOOM_COMPOSITE_PADDING);
+        pass(main, composite, output.getColorTextureId(), true);
     }
 
-    private static com.mojang.renderpearl.api.textures.GpuSampler linearSampler() {
-        return RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+    private static void clear(TextureTarget target) {
+        target.bindWrite(true);
+        GlStateManager._clearColor(0f, 0f, 0f, 0f);
+        GlStateManager._clear(GL11.GL_COLOR_BUFFER_BIT, false);
     }
 
-    private static RenderPass pass(String label, RenderTarget target) {
-        return RenderSystem.getDevice().createCommandEncoder().createRenderPass(
-                () -> label,
-                target.getColorTextureView(),
-                Optional.empty(),
-                null,
-                OptionalDouble.empty()
-        );
-    }
-
-    private static void applyScissor(RenderPass pass, EffectQueue.Region region, int scale, int targetWidth, int targetHeight, int padding) {
-        int left = Math.max(0, (int) Math.floor(region.x() * scale) - padding);
-        int top = Math.max(0, (int) Math.floor(region.y() * scale) - padding);
-        int right = Math.min(targetWidth, (int) Math.ceil((region.x() + region.width()) * scale) + padding);
-        int bottom = Math.min(targetHeight, (int) Math.ceil((region.y() + region.height()) * scale) + padding);
-        if (right > left && bottom > top) {
-            pass.enableScissor(left, targetHeight - bottom, right - left, bottom - top);
+    private static void pass(RenderTarget destination, ShaderInstance shader, int sourceTexture, boolean blend) {
+        destination.bindWrite(true);
+        GlStateManager._disableDepthTest();
+        GlStateManager._depthMask(false);
+        GlStateManager._disableCull();
+        GlStateManager._colorMask(true, true, true, true);
+        if (blend) {
+            RenderSystem.enableBlend();
+            RenderSystem.blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
         } else {
-            pass.disableScissor();
+            RenderSystem.disableBlend();
         }
+        RenderSystem.setShader(() -> shader);
+        RenderSystem.setShaderTexture(0, sourceTexture);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        builder.vertex(-1f, -1f, 0f).endVertex();
+        builder.vertex(-1f, 1f, 0f).endVertex();
+        builder.vertex(1f, 1f, 0f).endVertex();
+        builder.vertex(1f, -1f, 0f).endVertex();
+        BufferUploader.drawWithShader(builder.end());
     }
 
-    private static ScissorBounds bounds(List<EffectQueue.Region> regions, int scale, int targetWidth, int targetHeight, int padding) {
-        int left = targetWidth;
-        int top = targetHeight;
-        int right = 0;
-        int bottom = 0;
-        for (EffectQueue.Region region : regions) {
-            left = Math.min(left, (int) Math.floor(region.x() * scale) - padding);
-            top = Math.min(top, (int) Math.floor(region.y() * scale) - padding);
-            right = Math.max(right, (int) Math.ceil((region.x() + region.width()) * scale) + padding);
-            bottom = Math.max(bottom, (int) Math.ceil((region.y() + region.height()) * scale) + padding);
-        }
-        return new ScissorBounds(Math.max(0, left), Math.max(0, top), Math.min(targetWidth, right),
-                Math.min(targetHeight, bottom), targetHeight);
-    }
-
-    private static GpuBufferSlice shapeUniform(EffectQueue.Region region, int scale, int targetHeight) {
+    private static void setShapeInfo(ShaderInstance shader, EffectQueue.Region region, int scale, int targetHeight) {
         float x = region.x() * scale;
         float y = targetHeight - (region.y() + region.height()) * scale;
-        return shapeUniforms.writeData(new ShapeInfo(x, y, region.width() * scale, region.height() * scale,
-                region.radius() * scale, region.alpha()));
+        Uniforms.set(shader, "ShapeInfo", x, y, region.width() * scale, region.height() * scale);
+        Uniforms.set(shader, "ShapeRadius", region.radius() * scale);
     }
 
-    private static void ensureUniforms() {
-        if (blurUniforms == null) {
-            blurUniforms = new DynamicGpuDataStorageMapped<>("Tritium blur info", 16, GpuBuffer.USAGE_UNIFORM, 8);
-            effectUniforms = new DynamicGpuDataStorageMapped<>("Tritium effect info", 16, GpuBuffer.USAGE_UNIFORM, 16);
-            shapeUniforms = new DynamicGpuDataStorageMapped<>("Tritium shape info", 32, GpuBuffer.USAGE_UNIFORM, 16);
-        }
-    }
-
-    private static void endUniformFrame() {
-        if (blurUniforms != null) {
-            blurUniforms.endFrame();
-            effectUniforms.endFrame();
-            shapeUniforms.endFrame();
-        }
-    }
-
-    private record BlurInfo(float dx, float dy, float radius, float stepWidth)
-            implements DynamicGpuDataStorage.DynamicGpuData {
-        @Override
-        public void write(ByteBuffer buffer) {
-            Std140Builder.intoBuffer(buffer).putVec2(dx, dy).putFloat(radius).putFloat(stepWidth);
-        }
-    }
-
-    private record EffectInfo(float opacity) implements DynamicGpuDataStorage.DynamicGpuData {
-        @Override
-        public void write(ByteBuffer buffer) {
-            Std140Builder.intoBuffer(buffer).putFloat(opacity);
-        }
-    }
-
-    private record ShapeInfo(float x, float y, float width, float height, float radius, float opacity)
-            implements DynamicGpuDataStorage.DynamicGpuData {
-        @Override
-        public void write(ByteBuffer buffer) {
-            Std140Builder.intoBuffer(buffer).putVec4(x, y, width, height).putFloat(radius).putFloat(opacity);
-        }
-    }
-
-    private record ScissorBounds(int left, int top, int right, int bottom, int targetHeight) {
-        private void apply(RenderPass pass) {
-            if (right > left && bottom > top) {
-                pass.enableScissor(left, targetHeight - bottom, right - left, bottom - top);
-            }
-        }
+    private static void setCompositeRect(ShaderInstance shader, EffectQueue.Region region, int scale,
+                                         int targetWidth, int targetHeight, int padding) {
+        float left = Math.max(0f, (float) Math.floor(region.x() * scale) - padding);
+        float top = Math.max(0f, (float) Math.floor(region.y() * scale) - padding);
+        float right = Math.min(targetWidth, (float) Math.ceil((region.x() + region.width()) * scale) + padding);
+        float bottom = Math.min(targetHeight, (float) Math.ceil((region.y() + region.height()) * scale) + padding);
+        Uniforms.set(shader, "CompositeRect", left, targetHeight - bottom, right, targetHeight - top);
     }
 }

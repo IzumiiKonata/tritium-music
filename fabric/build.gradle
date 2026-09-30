@@ -1,5 +1,5 @@
 plugins {
-	id 'net.fabricmc.fabric-loom'
+	id 'net.fabricmc.fabric-loom-remap'
 	id 'maven-publish'
 }
 
@@ -16,15 +16,21 @@ sourceSets {
 
 loom {
 	accessWidenerPath = project(':common').file('src/main/resources/tritium-music.accesswidener')
+	mixin {
+		useLegacyMixinAp = true
+		defaultRefmapName = 'tritium-music-refmap.json'
+	}
 }
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
 	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
+	compileOnly "org.jspecify:jspecify:${project.jspecify_version}"
 
 	implementation "com.google.code.gson:gson:${project.gson_version}"
 	include implementation("com.google.zxing:core:${project.zxing_version}")
@@ -32,11 +38,13 @@ dependencies {
 	include implementation("net.java.dev.jna:jna-platform:${project.jna_version}")
 
 	include implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")
+	include implementation("org.lwjgl:lwjgl-freetype:${project.lwjgl_version}")
 	include implementation("com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}")
 	include implementation("com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}")
 	include implementation("com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}")
 	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
 		include "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it"
+		include "org.lwjgl:lwjgl-freetype:${project.lwjgl_version}:$it"
 	}
 
 	def osName = System.getProperty('os.name').toLowerCase()
@@ -48,8 +56,9 @@ dependencies {
 			? (aarch64 ? 'natives-macos-arm64' : 'natives-macos')
 			: 'natives-linux'
 	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
+	runtimeOnly "org.lwjgl:lwjgl-freetype:${project.lwjgl_version}:$lwjglNatives"
 
-	implementation "maven.modrinth:mOgUt4GM:kyy7dbrZ"
+	modImplementation "maven.modrinth:modmenu:${project.modmenu_version}"
 }
 
 processResources {
@@ -60,15 +69,15 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	options.release = 25
+	options.release = 17
 	options.encoding = 'UTF-8'
 }
 
 java {
-	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	toolchain.languageVersion = JavaLanguageVersion.of(17)
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
 }
 
 jar {
@@ -76,10 +85,16 @@ jar {
 			'LICENSE_SOUNDTOUCH', 'LICENSE_SOUNDTOUCH_JNI')) {
 		rename { "${it}_${rootProject.name}" }
 	}
+}
 
+def stripOnnxRuntimeNatives = tasks.register('stripOnnxRuntimeNatives') {
 	doLast {
-		rootProject.stripOnnxRuntimeNatives(archiveFile.get().asFile)
+		rootProject.stripOnnxRuntimeNatives(tasks.named('remapJar').get().archiveFile.get().asFile)
 	}
+}
+
+tasks.named('remapJar') {
+	finalizedBy stripOnnxRuntimeNatives
 }
 
 publishing {

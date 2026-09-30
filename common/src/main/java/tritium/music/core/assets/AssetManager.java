@@ -332,7 +332,7 @@ public final class AssetManager {
                 }
                 log("missing " + missing.size() + " file(s), " + AssetFormat.bytes(missingBytes(missing)));
                 setPhase(Phase.RESOLVING);
-                AssetRoute resolved = resolveRoute(missing.getFirst().asset, excluded);
+                AssetRoute resolved = resolveRoute(missing.get(0).asset, excluded);
                 if (resolved == null) {
                     if (!awaitRetry("all download routes failed")) {
                         return;
@@ -462,7 +462,7 @@ public final class AssetManager {
             tasks.add(() -> AssetDownloader.reachable(candidate, probe));
         }
 
-        ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
+        ExecutorService pool = Executors.newCachedThreadPool();
         try {
             List<Future<Boolean>> futures = pool.invokeAll(tasks, PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             for (int index = 0; index < candidates.size(); index++) {

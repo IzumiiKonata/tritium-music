@@ -27,10 +27,12 @@
 		"tritium-music.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.19.5",
-		"minecraft": "~26.3",
-		"java": ">=25",
-		"fabric-api": "*",
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	},
+	"suggests": {
 		"modmenu": "*"
 	}
 }

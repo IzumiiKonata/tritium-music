@@ -4,8 +4,8 @@ import com.mojang.blaze3d.platform.Window;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 import org.jspecify.annotations.Nullable;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
@@ -28,7 +28,7 @@ public class RenderSystem {
         return mc.getWindow();
     }
 
-    private static GuiGraphicsExtractor g() {
+    private static GuiGraphics g() {
         return RenderContext.graphics();
     }
 
@@ -102,13 +102,13 @@ public class RenderSystem {
     public static void resetColor() {
     }
 
-    private static @Nullable Identifier boundTexture = null;
+    private static @Nullable ResourceLocation boundTexture = null;
 
-    public static void bindTexture(@Nullable Identifier texture) {
+    public static void bindTexture(@Nullable ResourceLocation texture) {
         boundTexture = texture;
     }
 
-    public static @Nullable Identifier boundTexture() {
+    public static @Nullable ResourceLocation boundTexture() {
         return boundTexture;
     }
 
@@ -182,9 +182,9 @@ public class RenderSystem {
     }
 
     public static void translateAndScale(double posX, double posY, double scale) {
-        g().pose().translate((float) posX, (float) posY);
-        g().pose().scale((float) scale, (float) scale);
-        g().pose().translate((float) -posX, (float) -posY);
+        g().pose().translate((float) posX, (float) posY, 0f);
+        g().pose().scale((float) scale, (float) scale, 1f);
+        g().pose().translate((float) -posX, (float) -posY, 0f);
     }
 
     public static void doScissor(double x, double y, double width, double height) {

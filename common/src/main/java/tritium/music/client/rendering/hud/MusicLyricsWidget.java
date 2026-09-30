@@ -131,7 +131,7 @@ public class MusicLyricsWidget extends HudWidget {
     public void onRender() {
 
         if (!shouldRender()) {
-            if (Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen) {
+            if (Minecraft.getInstance().screen instanceof WidgetEditorScreen) {
                 renderEditorData();
             }
             return;
@@ -220,7 +220,7 @@ public class MusicLyricsWidget extends HudWidget {
                     renderInfo.fade);
 
             double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
-            RenderContext.graphics().pose().pushMatrix();
+            RenderContext.graphics().pose().pushPose();
             scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
             renderByAlignment(
                     line,
@@ -233,7 +233,7 @@ public class MusicLyricsWidget extends HudWidget {
             if (current && hasWords) {
                 handleScrollEffects(line, renderInfo, progress);
             }
-            RenderContext.graphics().pose().popMatrix();
+            RenderContext.graphics().pose().popPose();
         }
         StencilClipManager.endClip();
     }
@@ -279,7 +279,7 @@ public class MusicLyricsWidget extends HudWidget {
     private void handleSingleLineMode(boolean shouldNotDisplayOtherLyrics) {
         if (shouldNotDisplayOtherLyrics && CloudMusic.currentLyric == null) {
             if (!CloudMusic.lyrics.isEmpty()) {
-                CloudMusic.currentLyric = CloudMusic.lyrics.getFirst();
+                CloudMusic.currentLyric = CloudMusic.lyrics.get(0);
             }
         }
     }
@@ -307,8 +307,8 @@ public class MusicLyricsWidget extends HudWidget {
     private static boolean lyricSetChanged() {
         synchronized (CloudMusic.lyrics) {
             int size = CloudMusic.lyrics.size();
-            LyricLine first = size == 0 ? null : CloudMusic.lyrics.getFirst();
-            LyricLine last = size == 0 ? null : CloudMusic.lyrics.getLast();
+            LyricLine first = size == 0 ? null : CloudMusic.lyrics.get(0);
+            LyricLine last = size == 0 ? null : CloudMusic.lyrics.get(CloudMusic.lyrics.size() - 1);
             return size != scrollLyricsSize || first != scrollLyricsFirst || last != scrollLyricsLast
                     || Double.compare(lyricHStatic(), scrollLyricHeight) != 0;
         }
@@ -323,8 +323,8 @@ public class MusicLyricsWidget extends HudWidget {
         scrollOffset = position;
         synchronized (CloudMusic.lyrics) {
             scrollLyricsSize = CloudMusic.lyrics.size();
-            scrollLyricsFirst = scrollLyricsSize == 0 ? null : CloudMusic.lyrics.getFirst();
-            scrollLyricsLast = scrollLyricsSize == 0 ? null : CloudMusic.lyrics.getLast();
+            scrollLyricsFirst = scrollLyricsSize == 0 ? null : CloudMusic.lyrics.get(0);
+            scrollLyricsLast = scrollLyricsSize == 0 ? null : CloudMusic.lyrics.get(CloudMusic.lyrics.size() - 1);
         }
         scrollLyricHeight = lyricHeight;
     }
@@ -389,10 +389,10 @@ public class MusicLyricsWidget extends HudWidget {
                     } else {
                         double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
 
-                        RenderContext.graphics().pose().pushMatrix();
+                        RenderContext.graphics().pose().pushPose();
                         scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
                         renderLyricLine(line, renderInfo, i, indexOf, songProgress);
-                        RenderContext.graphics().pose().popMatrix();
+                        RenderContext.graphics().pose().popPose();
                     }
                 }
 
@@ -460,7 +460,7 @@ public class MusicLyricsWidget extends HudWidget {
             if (current != null) {
                 preview = indexOf + 1 < CloudMusic.lyrics.size() ? CloudMusic.lyrics.get(indexOf + 1) : null;
             } else {
-                preview = CloudMusic.lyrics.isEmpty() ? null : CloudMusic.lyrics.getFirst();
+                preview = CloudMusic.lyrics.isEmpty() ? null : CloudMusic.lyrics.get(0);
             }
         }
 
@@ -504,7 +504,7 @@ public class MusicLyricsWidget extends HudWidget {
     private void renderKaraokeCurrentLine(LyricLine line, LyricRenderInfo info, float songProgress,
                                           boolean onLeft, String secondaryLyric, boolean singleLineMode) {
         double pivotX = onLeft ? getX() : getX() + getWidth();
-        RenderContext.graphics().pose().pushMatrix();
+        RenderContext.graphics().pose().pushPose();
         if (!singleLineMode) {
             double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
             scaleAtPos(pivotX, info.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
@@ -514,7 +514,7 @@ public class MusicLyricsWidget extends HudWidget {
         if (!line.words.isEmpty()) {
             handleScrollEffects(line, info, songProgress);
         }
-        RenderContext.graphics().pose().popMatrix();
+        RenderContext.graphics().pose().popPose();
     }
 
     private void renderKaraokeLine(LyricLine line, LyricRenderInfo info, boolean onLeft, boolean isCurrent, String secondaryLyric) {
@@ -841,10 +841,10 @@ public class MusicLyricsWidget extends HudWidget {
                 int tinted = RGBA.srgbLerp((float) (wave * 0.55), 0xFFFFFFFF, accent);
                 int color = withFade(tinted, charAlpha);
 
-                RenderContext.graphics().pose().pushMatrix();
+                RenderContext.graphics().pose().pushPose();
                 scaleAtPos(cx, baseY + fontH * 0.5 - lift, charScale);
                 fr.drawGlyphAt(placed.glyph(), x, baseY - lift, color);
-                RenderContext.graphics().pose().popMatrix();
+                RenderContext.graphics().pose().popPose();
             }
         }
 
@@ -919,10 +919,10 @@ public class MusicLyricsWidget extends HudWidget {
                     int alpha = (int) (intensity * reveal * layer[1] * 255.0);
                     if (alpha <= 0) continue;
 
-                    RenderContext.graphics().pose().pushMatrix();
+                    RenderContext.graphics().pose().pushPose();
                     scaleAtPos(cx, centerY, layer[0]);
                     fr.drawGlyphAt(placed.glyph(), x, baseY, RGBA.color(rgb, alpha));
-                    RenderContext.graphics().pose().popMatrix();
+                    RenderContext.graphics().pose().popPose();
                 }
             }
         }

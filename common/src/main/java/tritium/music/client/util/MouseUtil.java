@@ -10,6 +10,10 @@ public final class MouseUtil {
     public static final int BUTTON_BACK = 4;
     public static final int BUTTON_FORWARD = 5;
 
+    public static final int LEGACY_LEFT = 0;
+    public static final int LEGACY_RIGHT = 1;
+    public static final int LEGACY_MIDDLE = 2;
+
     private static boolean leftDown;
     private static boolean middleDown;
     private static boolean rightDown;
@@ -17,8 +21,19 @@ public final class MouseUtil {
     private MouseUtil() {
     }
 
+    public static int fromLegacy(int button) {
+        return switch (button) {
+            case LEGACY_LEFT -> BUTTON_LEFT;
+            case LEGACY_RIGHT -> BUTTON_RIGHT;
+            case LEGACY_MIDDLE -> BUTTON_MIDDLE;
+            case 3 -> BUTTON_BACK;
+            case 4 -> BUTTON_FORWARD;
+            default -> button;
+        };
+    }
+
     public static boolean isButtonDown(int button) {
-        if (Minecraft.getInstance().gui.screen() != null) {
+        if (Minecraft.getInstance().screen != null) {
             return switch (button) {
                 case BUTTON_LEFT -> leftDown;
                 case BUTTON_MIDDLE -> middleDown;

@@ -1,5 +1,5 @@
 plugins {
-	id 'net.neoforged.moddev'
+	id 'net.neoforged.moddev.legacyforge'
 	id 'maven-publish'
 }
 
@@ -9,17 +9,16 @@ base {
 
 sourceSets {
 	main {
-		java {
-			setSrcDirs([project(':common').file('src/main/java'), file('src/main/java')])
-		}
-		resources {
-			setSrcDirs([project(':common').file('src/main/resources'), file('src/main/resources')])
-		}
+		java.setSrcDirs([project(':common').file('src/main/java'), file('src/main/java')])
+		resources.setSrcDirs([project(':common').file('src/main/resources'), file('src/main/resources')])
 	}
 }
 
-neoForge {
-	version = project.neoforge_version
+legacyForge {
+	enable {
+		neoForgeVersion = project.neoforge_version
+	}
+
 	accessTransformers.from(project(':common').file('src/main/resources/META-INF/accesstransformer.cfg'))
 
 	runs {
@@ -55,43 +54,22 @@ def harfbuzzNativesJar = tasks.register('harfbuzzNativesJar', Jar) {
 dependencies {
 	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
 	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
+	compileOnly "org.jspecify:jspecify:${project.jspecify_version}"
 
 	implementation "com.google.code.gson:gson:${project.gson_version}"
-	jarJar(implementation("com.google.zxing:core:${project.zxing_version}")) {
-		version {
-			strictly "[${project.zxing_version}]"
-			prefer project.zxing_version
-		}
-	}
 	implementation "net.java.dev.jna:jna:${project.jna_version}"
 	implementation "net.java.dev.jna:jna-platform:${project.jna_version}"
-	jarJar(implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}")) {
-		version {
-			strictly "[${project.lwjgl_version}]"
-			prefer project.lwjgl_version
-		}
-	}
-	jarJar(implementation("com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}")) {
-		version {
-			strictly "[${project.onnxruntime_version}]"
-			prefer project.onnxruntime_version
-		}
-	}
-	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}")) {
-		version {
-			strictly "[${project.soundtouch_jni_version}]"
-			prefer project.soundtouch_jni_version
-		}
-	}
-	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}")) {
-		version {
-			strictly "[${project.soundtouch_jni_version}]"
-			prefer project.soundtouch_jni_version
-		}
-	}
+
+	jarJar(implementation("com.google.zxing:core:${project.zxing_version}"))
+	jarJar(implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}"))
+	jarJar(implementation("org.lwjgl:lwjgl-freetype:${project.lwjgl_version}"))
+	jarJar(implementation("com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}"))
+	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}"))
+	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}"))
 
 	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
 		add(harfbuzzNatives.name, "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it")
+		add(harfbuzzNatives.name, "org.lwjgl:lwjgl-freetype:${project.lwjgl_version}:$it")
 	}
 
 	def osName = System.getProperty('os.name').toLowerCase()
@@ -103,32 +81,33 @@ dependencies {
 			? (aarch64 ? 'natives-macos-arm64' : 'natives-macos')
 			: 'natives-linux'
 	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
+	runtimeOnly "org.lwjgl:lwjgl-freetype:${project.lwjgl_version}:$lwjglNatives"
 
 	jarJar files(harfbuzzNativesJar)
 }
 
 processResources {
 	def properties = [
-			version: project.version,
-			neoforge_version: project.neoforge_version,
-			neoforge_loader_version_range: project.neoforge_loader_version_range
+			version                       : project.version,
+			neoforge_version              : project.neoforge_version,
+			neoforge_loader_version_range : project.neoforge_loader_version_range
 	]
 	inputs.properties properties
-	filesMatching('META-INF/neoforge.mods.toml') {
+	filesMatching('META-INF/mods.toml') {
 		expand properties
 	}
 }
 
 tasks.withType(JavaCompile).configureEach {
-	options.release = 25
+	options.release = 17
 	options.encoding = 'UTF-8'
 }
 
 java {
-	toolchain.languageVersion = JavaLanguageVersion.of(25)
+	toolchain.languageVersion = JavaLanguageVersion.of(17)
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
 }
 
 jar {

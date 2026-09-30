@@ -58,7 +58,7 @@ public class LoginRenderer implements SharedRenderingConstants {
 
         Rect.draw(posX, posY, width, height, RGBA.black(visibleAlpha * .48f));
 
-        RenderContext.graphics().pose().pushMatrix();
+        RenderContext.graphics().pose().pushPose();
         RenderSystem.translateAndScale(posX + width / 2.0, posY + height / 2.0, scale);
 
         double cardWidth = Math.min(340, width - 56);
@@ -87,7 +87,7 @@ public class LoginRenderer implements SharedRenderingConstants {
 
         renderQrArea(width, height, centerX, cardY + height * .2, visibleAlpha);
 
-        RenderContext.graphics().pose().popMatrix();
+        RenderContext.graphics().pose().popPose();
     }
 
     private void renderQrArea(double width, double height, double centerX, double qrFrameY, float alpha) {

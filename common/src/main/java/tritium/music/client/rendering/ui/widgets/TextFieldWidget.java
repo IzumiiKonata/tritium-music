@@ -21,7 +21,6 @@ public class TextFieldWidget extends AbstractWidget<TextFieldWidget> implements 
     }
 
     private void onTextInputFocusChanged(Object owner, boolean focused) {
-        Minecraft.getInstance().onTextInputFocusChange(this, focused);
     }
 
     @Override
@@ -46,7 +45,7 @@ public class TextFieldWidget extends AbstractWidget<TextFieldWidget> implements 
     }
 
     @Override
-    public com.mojang.blaze3d.platform.cursor.CursorType getHoveringCursorType() {
+    public int getHoveringCursorType() {
         return CursorUtils.TEXT;
     }
 

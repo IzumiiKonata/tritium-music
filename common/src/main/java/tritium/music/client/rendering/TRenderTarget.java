@@ -1,113 +1,59 @@
 package tritium.music.client.rendering;
 
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.textures.*;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.Identifier;
-import org.joml.Vector4f;
-
-import java.nio.ByteBuffer;
-import java.util.OptionalDouble;
+import org.lwjgl.opengl.GL11;
 
 public final class TRenderTarget implements AutoCloseable {
 
-    private TTexture colorTexture;
-    private GpuTexture depthTexture;
-    private GpuTextureView depthView;
-    private GpuBuffer vertexBuffer;
-    private final Identifier identifier;
+    private final String name;
+    private TextureTarget target;
     private int width;
     private int height;
 
     private TRenderTarget(String name, int width, int height) {
+        this.name = name;
         this.width = width;
         this.height = height;
-        this.identifier = Identifier.fromNamespaceAndPath("tritium", "render-target-" + name);
-        createTextures();
+        this.target = createTarget(width, height);
+        rebindMainTarget();
     }
 
     public static TRenderTarget create(String name, int width, int height) {
         return new TRenderTarget(name, width, height);
     }
 
-    private void createTextures() {
-        var device = com.mojang.blaze3d.systems.RenderSystem.getDevice();
-
-        final var colorTexture = device.createTexture(
-                "tritium-rt-color",
-                GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
-                GpuFormat.RGBA8_UNORM,
-                width, height, 1, 1
-        );
-        final var colorView = device.createTextureView(colorTexture);
-
-        depthTexture = device.createTexture(
-                "tritium-rt-depth",
-                GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
-                GpuFormat.D32_FLOAT,
-                width, height, 1, 1
-        );
-        depthView = device.createTextureView(depthTexture);
-
-        final var sampler = com.mojang.blaze3d.systems.RenderSystem.getDevice().createSampler(
-                AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
-                FilterMode.NEAREST, FilterMode.NEAREST,
-                1, OptionalDouble.empty()
-        );
-
-        this.colorTexture = new TTexture(colorTexture, colorView, sampler);
-
-        Minecraft.getInstance().getTextureManager().register(identifier, getColorTexture());
+    private static TextureTarget createTarget(int width, int height) {
+        TextureTarget target = new TextureTarget(width, height, false, false);
+        target.setFilterMode(GL11.GL_LINEAR);
+        return target;
     }
 
     public void resize(int newWidth, int newHeight) {
-        if (newWidth == width && newHeight == height) return;
-        destroyTextures();
+        if (newWidth == width && newHeight == height) {
+            return;
+        }
         width = newWidth;
         height = newHeight;
-        createTextures();
+        target.resize(newWidth, newHeight, false);
+        target.setFilterMode(GL11.GL_LINEAR);
+        rebindMainTarget();
     }
 
-    public Identifier getIdentifier() {
-        return identifier;
+    public void bindWrite() {
+        target.bindWrite(true);
     }
 
     public void clear() {
-        var device = com.mojang.blaze3d.systems.RenderSystem.getDevice();
-        var encoder = device.createCommandEncoder();
-        encoder.clearColorAndDepthTextures(colorTexture.getTexture(), new Vector4f(0, 0, 0, 0), depthTexture, 1.0);
-        encoder.submit();
+        target.bindWrite(true);
+        GlStateManager._clearColor(0f, 0f, 0f, 0f);
+        GlStateManager._clear(GL11.GL_COLOR_BUFFER_BIT, false);
     }
 
-    public GpuTextureView colorView() {
-        return colorTexture.getTextureView();
-    }
-
-    public GpuTextureView depthView() {
-        return depthView;
-    }
-
-    public GpuTexture colorTexture() {
-        return colorTexture.getTexture();
-    }
-
-    public GpuSampler sampler() {
-        return colorTexture.getSampler();
-    }
-
-    GpuBuffer uploadVertices(ByteBuffer data) {
-        var device = com.mojang.blaze3d.systems.RenderSystem.getDevice();
-        if (vertexBuffer == null || vertexBuffer.size() < data.remaining()) {
-            if (vertexBuffer != null) vertexBuffer.close();
-            vertexBuffer = device.createBuffer(
-                    () -> identifier + " vertices",
-                    GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST,
-                    data.remaining()
-            );
-        }
-        device.createCommandEncoder().writeToBuffer(vertexBuffer.slice(0, data.remaining()), data);
-        return vertexBuffer;
+    public int colorTextureId() {
+        return target.getColorTextureId();
     }
 
     public int width() {
@@ -118,19 +64,28 @@ public final class TRenderTarget implements AutoCloseable {
         return height;
     }
 
-    public TTexture getColorTexture() {
-        return colorTexture;
+    public String name() {
+        return name;
     }
 
-    private void destroyTextures() {
-        Minecraft.getInstance().getTextureManager().release(identifier);
-        if (depthView != null) depthView.close();
-        if (depthTexture != null) depthTexture.close();
+    public static void rebindMainTarget() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null) {
+            return;
+        }
+        RenderTarget main = minecraft.getMainRenderTarget();
+        if (main != null) {
+            main.bindWrite(true);
+        }
     }
 
     @Override
     public void close() {
-        destroyTextures();
-        if (vertexBuffer != null) vertexBuffer.close();
+        if (target != null) {
+            target.destroyBuffers();
+            target = null;
+            width = 0;
+            height = 0;
+        }
     }
 }

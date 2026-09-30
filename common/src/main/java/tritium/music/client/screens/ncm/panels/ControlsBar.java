@@ -52,6 +52,10 @@ public class ControlsBar extends NCMPanel {
                 })
                 .setOnClickCallback((relativeX, relativeY, mouseButton) -> {
                     if (CloudMusic.currentlyPlaying != null) {
+                        MusicLyricsPanel previous = NCMScreen.getInstance().musicLyricsPanel;
+                        if (previous != null) {
+                            previous.dispose();
+                        }
                         NCMScreen.getInstance().musicLyricsPanel = new MusicLyricsPanel(CloudMusic.currentlyPlaying);
                     }
 

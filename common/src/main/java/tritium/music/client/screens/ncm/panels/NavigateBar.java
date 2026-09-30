@@ -50,8 +50,8 @@ public class NavigateBar extends NCMPanel {
     }
 
     private static boolean isCtrlDown() {
-        long handle = net.minecraft.client.Minecraft.getInstance().getWindow().handle();
-        return Minecraft.getInstance().hasControlDown();
+        long handle = net.minecraft.client.Minecraft.getInstance().getWindow().getWindow();
+        return net.minecraft.client.gui.screens.Screen.hasControlDown();
     }
 
     private void layout() {
@@ -407,7 +407,7 @@ public class NavigateBar extends NCMPanel {
             setShouldOverrideMouseCursor(true);
             setTransformations(() -> {
                 double scale = .975 + visibility * .025;
-                RenderContext.graphics().pose().translate(0, (1 - visibility) * -5);
+                RenderContext.graphics().pose().translate(0f, (1 - visibility) * -5f, 0f);
                 scaleAtPos(getX() + getWidth() * .5, getY(), scale);
             });
         }

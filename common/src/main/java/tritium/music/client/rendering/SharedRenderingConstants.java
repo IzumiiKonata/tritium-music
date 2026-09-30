@@ -1,6 +1,6 @@
 package tritium.music.client.rendering;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
 
@@ -53,7 +53,7 @@ public interface SharedRenderingConstants {
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double radius, float alpha) {
-        Identifier texture = RenderSystem.boundTexture();
+        ResourceLocation texture = RenderSystem.boundTexture();
         if (texture == null) {
             return;
         }
@@ -65,7 +65,7 @@ public interface SharedRenderingConstants {
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double texX, double texY, double u, double v, double radius, float alpha) {
-        Identifier texture = RenderSystem.boundTexture();
+        ResourceLocation texture = RenderSystem.boundTexture();
         if (texture == null) {
             return;
         }
@@ -74,7 +74,7 @@ public interface SharedRenderingConstants {
     }
 
     default void roundedRectTextured(double x, double y, double width, double height, double texX, double texY, double u, double v, double radius, double expand, float alpha) {
-        Identifier texture = RenderSystem.boundTexture();
+        ResourceLocation texture = RenderSystem.boundTexture();
         if (texture == null) {
             return;
         }
@@ -153,23 +153,23 @@ public interface SharedRenderingConstants {
     }
 
     default void matrix(Runnable render) {
-        RenderContext.graphics().pose().pushMatrix();
+        RenderContext.graphics().pose().pushPose();
         render.run();
-        RenderContext.graphics().pose().popMatrix();
+        RenderContext.graphics().pose().popPose();
     }
 
     default void scaleAtPos(double posX, double posY, double scale) {
         var pose = RenderContext.graphics().pose();
-        pose.translate((float) posX, (float) posY);
-        pose.scale((float) scale, (float) scale);
-        pose.translate((float) -posX, (float) -posY);
+        pose.translate((float) posX, (float) posY, 0f);
+        pose.scale((float) scale, (float) scale, 1f);
+        pose.translate((float) -posX, (float) -posY, 0f);
     }
 
     default void rotateAtPos(double posX, double posY, float rotate) {
         var pose = RenderContext.graphics().pose();
-        pose.translate((float) posX, (float) posY);
-        pose.rotate((float) Math.toRadians(rotate));
-        pose.translate((float) -posX, (float) -posY);
+        pose.translate((float) posX, (float) posY, 0f);
+        pose.mulPose(com.mojang.math.Axis.ZP.rotation((float) Math.toRadians(rotate)));
+        pose.translate((float) -posX, (float) -posY, 0f);
     }
 
     static void clearRunnables() {

@@ -1,17 +1,17 @@
 package tritium.music.platform;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public final class Identifiers {
 
     private Identifiers() {
     }
 
-    public static Identifier of(TextureHandle handle) {
-        return Identifier.fromNamespaceAndPath(handle.namespace(), handle.path());
+    public static ResourceLocation of(TextureHandle handle) {
+        return new ResourceLocation(handle.namespace(), handle.path());
     }
 
-    public static Identifier of(String path) {
-        return Identifier.fromNamespaceAndPath("tritium-music", path);
+    public static ResourceLocation of(String path) {
+        return new ResourceLocation("tritium-music", path);
     }
 }

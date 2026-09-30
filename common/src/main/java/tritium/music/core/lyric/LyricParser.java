@@ -359,7 +359,7 @@ public class LyricParser {
             long duration = Long.parseLong(metadataParts[1]);
 
             if (duration <= 0 && !words.isEmpty()) {
-                Pair<String, Pair<Long, Long>> last = words.getLast();
+                Pair<String, Pair<Long, Long>> last = words.get(words.size() - 1);
                 words.set(words.size() - 1, Pair.of(last.a() + lyric, last.b()));
             } else {
                 words.add(Pair.of(lyric, Pair.of(timestamp, duration)));

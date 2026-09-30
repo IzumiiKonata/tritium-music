@@ -1,23 +1,31 @@
 package tritium.music.client.render;
 
-import org.joml.Matrix3x2fc;
-import org.joml.Vector2f;
+import com.mojang.blaze3d.vertex.PoseStack;
+import org.joml.Matrix4f;
 
 public record ClipRect(float left, float top, float right, float bottom) {
 
     public static final ClipRect UNBOUNDED = new ClipRect(-1.0e6f, -1.0e6f, 1.0e6f, 1.0e6f);
 
-    public static ClipRect of(Matrix3x2fc pose, double x, double y, double width, double height) {
-        Vector2f p0 = pose.transformPosition((float) x, (float) y, new Vector2f());
-        Vector2f p1 = pose.transformPosition((float) (x + width), (float) y, new Vector2f());
-        Vector2f p2 = pose.transformPosition((float) (x + width), (float) (y + height), new Vector2f());
-        Vector2f p3 = pose.transformPosition((float) x, (float) (y + height), new Vector2f());
+    public static ClipRect of(PoseStack poseStack, double x, double y, double width, double height) {
+        Matrix4f matrix = poseStack.last().pose();
+        float[] xs = new float[4];
+        float[] ys = new float[4];
+        corner(matrix, (float) x, (float) y, xs, ys, 0);
+        corner(matrix, (float) (x + width), (float) y, xs, ys, 1);
+        corner(matrix, (float) (x + width), (float) (y + height), xs, ys, 2);
+        corner(matrix, (float) x, (float) (y + height), xs, ys, 3);
         return new ClipRect(
-                Math.min(Math.min(p0.x, p1.x), Math.min(p2.x, p3.x)),
-                Math.min(Math.min(p0.y, p1.y), Math.min(p2.y, p3.y)),
-                Math.max(Math.max(p0.x, p1.x), Math.max(p2.x, p3.x)),
-                Math.max(Math.max(p0.y, p1.y), Math.max(p2.y, p3.y))
+                Math.min(Math.min(xs[0], xs[1]), Math.min(xs[2], xs[3])),
+                Math.min(Math.min(ys[0], ys[1]), Math.min(ys[2], ys[3])),
+                Math.max(Math.max(xs[0], xs[1]), Math.max(xs[2], xs[3])),
+                Math.max(Math.max(ys[0], ys[1]), Math.max(ys[2], ys[3]))
         );
+    }
+
+    private static void corner(Matrix4f matrix, float x, float y, float[] xs, float[] ys, int index) {
+        xs[index] = matrix.m00() * x + matrix.m10() * y + matrix.m30();
+        ys[index] = matrix.m01() * x + matrix.m11() * y + matrix.m31();
     }
 
     public ClipRect intersection(ClipRect other) {

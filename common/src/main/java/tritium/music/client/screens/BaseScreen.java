@@ -1,18 +1,15 @@
 package tritium.music.client.screens;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
+import tritium.music.client.render.GuiStateReset;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.SharedRenderingConstants;
 import tritium.music.client.rendering.TextField;
 import tritium.music.client.rendering.animation.Interpolations;
+import tritium.music.client.rendering.font.TextureAtlas;
 import tritium.music.client.rendering.shader.EffectQueue;
 import tritium.music.client.util.CursorUtils;
 import tritium.music.client.util.MouseUtil;
@@ -41,9 +38,9 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     }
 
     @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        if (screenAlpha() > 0.5f && minecraft.options.getMenuBackgroundBlurriness() >= 1.0f) {
-            graphics.blurBeforeThisStratum();
+    public void renderBackground(GuiGraphics graphics) {
+        if (screenAlpha() > 0.5f) {
+            super.renderBackground(graphics);
         }
     }
 
@@ -53,10 +50,10 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     public void onKeyTyped(char typedChar, int keyCode) {
     }
 
-    public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
+    public void onMouseClicked(double mouseX, double mouseY, int mouseButton) {
     }
 
-    public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
+    public void onMouseReleased(double mouseX, double mouseY, int mouseButton) {
     }
 
     public void mouseClickMove(double mouseX, double mouseY, int mouseButton, long timeSinceLastClick) {
@@ -69,7 +66,9 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(graphics);
+
         EffectQueue.beginFrame();
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
@@ -78,13 +77,11 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
         try {
             RenderSystem.resetColor();
 
-            graphics.pose().pushMatrix();
+            graphics.pose().pushPose();
             try {
                 double normalizer = RenderSystem.getScaleNormalizer();
-                double offsetX = RenderSystem.getOffsetX();
-                double offsetY = RenderSystem.getOffsetY();
-                graphics.pose().translate((float) offsetX, (float) offsetY);
-                graphics.pose().scale((float) normalizer, (float) normalizer);
+                graphics.pose().translate((float) RenderSystem.getOffsetX(), (float) RenderSystem.getOffsetY(), 0f);
+                graphics.pose().scale((float) normalizer, (float) normalizer, 1f);
 
                 double mx = RenderSystem.getMouseX();
                 double my = RenderSystem.getMouseY();
@@ -94,7 +91,7 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
 
                 if (lmb || rmb) {
                     if (clickMoveTicks > 1) {
-                        this.mouseClickMove(mx, my, toLegacyButton(lmb ? MouseUtil.BUTTON_LEFT : MouseUtil.BUTTON_RIGHT), System.currentTimeMillis() - lastClick);
+                        this.mouseClickMove(mx, my, lmb ? MouseUtil.LEGACY_LEFT : MouseUtil.LEGACY_RIGHT, System.currentTimeMillis() - lastClick);
                     }
                     clickMoveTicks++;
                 }
@@ -105,30 +102,27 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
                 this.drawScreen(mx, my);
                 this.renderLast(mx, my);
             } finally {
-                graphics.pose().popMatrix();
+                graphics.pose().popPose();
             }
         } finally {
             CursorUtils.applyOverride();
-            tritium.music.client.rendering.font.TextureAtlas.flushAllDirty();
+            TextureAtlas.flushAllDirty();
+            tritium.music.client.rendering.StencilClipManager.endFrame();
+            GuiStateReset.audit("screen");
             RenderContext.end();
         }
     }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
-        this.onKeyTyped('\0', event.key());
-        return super.keyPressed(event);
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        this.onKeyTyped('\0', keyCode);
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
-    public boolean charTyped(CharacterEvent event) {
-        this.onKeyTyped((char) event.codepoint(), 0);
+    public boolean charTyped(char codePoint, int modifiers) {
+        this.onKeyTyped(codePoint, 0);
         return true;
-    }
-
-    @Override
-    public boolean preeditUpdated(PreeditEvent event) {
-        return TextField.preeditUpdated(event);
     }
 
     @Override
@@ -139,43 +133,32 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
         double mx = RenderSystem.getMouseX();
         double my = RenderSystem.getMouseY();
         clickMoveTicks = 0;
         lastClick = System.currentTimeMillis();
-        if (event.button() == MouseUtil.BUTTON_LEFT) lmbPressed = true;
-        if (event.button() == MouseUtil.BUTTON_RIGHT) rmbPressed = true;
-        MouseUtil.setButtonDown(event.button(), true);
+        if (button == MouseUtil.LEGACY_LEFT) lmbPressed = true;
+        if (button == MouseUtil.LEGACY_RIGHT) rmbPressed = true;
+        MouseUtil.setButtonDown(MouseUtil.fromLegacy(button), true);
         TextField.clearFocusOutside(mx, my);
-        this.mouseClicked(mx, my, toLegacyButton(event.button()));
+        this.onMouseClicked(mx, my, button);
         return true;
     }
 
     @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
         double mx = RenderSystem.getMouseX();
         double my = RenderSystem.getMouseY();
-        if (event.button() == MouseUtil.BUTTON_LEFT) this.lmbPressed = false;
-        if (event.button() == MouseUtil.BUTTON_RIGHT) this.rmbPressed = false;
-        MouseUtil.setButtonDown(event.button(), false);
-        this.mouseReleased(mx, my, toLegacyButton(event.button()));
+        if (button == MouseUtil.LEGACY_LEFT) this.lmbPressed = false;
+        if (button == MouseUtil.LEGACY_RIGHT) this.rmbPressed = false;
+        MouseUtil.setButtonDown(MouseUtil.fromLegacy(button), false);
+        this.onMouseReleased(mx, my, button);
         return true;
     }
 
-    private static int toLegacyButton(int sdlButton) {
-        return switch (sdlButton) {
-            case MouseUtil.BUTTON_LEFT -> 0;
-            case MouseUtil.BUTTON_MIDDLE -> 2;
-            case MouseUtil.BUTTON_RIGHT -> 1;
-            case MouseUtil.BUTTON_BACK -> 3;
-            case MouseUtil.BUTTON_FORWARD -> 4;
-            default -> sdlButton;
-        };
-    }
-
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
         double mx = RenderSystem.getMouseX();
         double my = RenderSystem.getMouseY();
         int dWheel = (int) Math.signum(scrollY);

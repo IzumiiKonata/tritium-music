@@ -1,7 +1,6 @@
 package tritium.music.client.rendering.shader;
 
-import org.joml.Matrix3x2fc;
-import org.joml.Vector2f;
+import org.joml.Matrix4f;
 import tritium.music.client.render.RenderContext;
 
 import java.util.ArrayList;
@@ -47,38 +46,64 @@ public final class EffectQueue {
     private static void capture(List<Runnable> renderers, List<Region> destination, float blurRadius) {
         Capture previous = CAPTURE.get();
         CAPTURE.set(new Capture(destination, blurRadius));
+        boolean failed = false;
         try {
             renderers.forEach(Runnable::run);
+        } catch (RuntimeException exception) {
+            failed = true;
+            throw exception;
         } finally {
             if (previous == null) {
                 CAPTURE.remove();
             } else {
                 CAPTURE.set(previous);
             }
+            if (failed) {
+                destination.clear();
+            }
+        }
+        if (destination.isEmpty()) {
+            return;
+        }
+        try {
+            PostEffectRenderer.render();
+        } finally {
+            destination.clear();
         }
     }
-
     public static boolean captureRect(float x, float y, float width, float height, float radius, int color) {
         Capture capture = CAPTURE.get();
         if (capture == null) {
             return false;
         }
 
-        Matrix3x2fc pose = RenderContext.graphics().pose();
-        Vector2f p0 = pose.transformPosition(x, y, new Vector2f());
-        Vector2f p1 = pose.transformPosition(x + width, y, new Vector2f());
-        Vector2f p2 = pose.transformPosition(x + width, y + height, new Vector2f());
-        Vector2f p3 = pose.transformPosition(x, y + height, new Vector2f());
-        float minX = Math.min(Math.min(p0.x, p1.x), Math.min(p2.x, p3.x));
-        float minY = Math.min(Math.min(p0.y, p1.y), Math.min(p2.y, p3.y));
-        float maxX = Math.max(Math.max(p0.x, p1.x), Math.max(p2.x, p3.x));
-        float maxY = Math.max(Math.max(p0.y, p1.y), Math.max(p2.y, p3.y));
-        float sx = (float) Math.hypot(pose.m00(), pose.m01());
-        float sy = (float) Math.hypot(pose.m10(), pose.m11());
-        float transformedRadius = radius * Math.min(sx, sy);
+        Matrix4f matrix = RenderContext.graphics().pose().last().pose();
+        float p0x = transformX(matrix, x, y);
+        float p0y = transformY(matrix, x, y);
+        float p1x = transformX(matrix, x + width, y);
+        float p1y = transformY(matrix, x + width, y);
+        float p2x = transformX(matrix, x + width, y + height);
+        float p2y = transformY(matrix, x + width, y + height);
+        float p3x = transformX(matrix, x, y + height);
+        float p3y = transformY(matrix, x, y + height);
+        float minX = Math.min(Math.min(p0x, p1x), Math.min(p2x, p3x));
+        float minY = Math.min(Math.min(p0y, p1y), Math.min(p2y, p3y));
+        float maxX = Math.max(Math.max(p0x, p1x), Math.max(p2x, p3x));
+        float maxY = Math.max(Math.max(p0y, p1y), Math.max(p2y, p3y));
+        float scaleX = (float) Math.hypot(matrix.m00(), matrix.m01());
+        float scaleY = (float) Math.hypot(matrix.m10(), matrix.m11());
+        float transformedRadius = radius * Math.min(scaleX, scaleY);
         float alpha = ((color >>> 24) & 255) / 255f;
         capture.destination.add(new Region(minX, minY, maxX - minX, maxY - minY, transformedRadius, alpha, capture.blurRadius));
         return true;
+    }
+
+    private static float transformX(Matrix4f matrix, float x, float y) {
+        return matrix.m00() * x + matrix.m10() * y + matrix.m30();
+    }
+
+    private static float transformY(Matrix4f matrix, float x, float y) {
+        return matrix.m01() * x + matrix.m11() * y + matrix.m31();
     }
 
     public static List<Region> blurs() {

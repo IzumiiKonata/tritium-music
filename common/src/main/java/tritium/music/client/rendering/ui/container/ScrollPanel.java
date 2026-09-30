@@ -82,8 +82,8 @@ public class ScrollPanel extends AbstractWidget<ScrollPanel> {
     }
 
     private static boolean isShiftDown() {
-        long handle = Minecraft.getInstance().getWindow().handle();
-        return Minecraft.getInstance().hasShiftDown();
+        long handle = Minecraft.getInstance().getWindow().getWindow();
+        return net.minecraft.client.gui.screens.Screen.hasShiftDown();
     }
 
     private void performScroll(int dWheel) {

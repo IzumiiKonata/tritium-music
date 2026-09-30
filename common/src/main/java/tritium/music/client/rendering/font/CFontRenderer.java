@@ -1,9 +1,9 @@
 package tritium.music.client.rendering.font;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.resources.Identifier;
-import org.joml.Matrix3x2fStack;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
+import com.mojang.blaze3d.vertex.PoseStack;
 import tritium.music.client.render.Render;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
@@ -432,13 +432,13 @@ public class CFontRenderer implements Closeable {
         if (glyph == null || !glyph.uploaded || glyph.atlasIdentifier == null) {
             return;
         }
-        GuiGraphicsExtractor graphics = RenderContext.graphics();
-        Matrix3x2fStack pose = graphics.pose();
-        pose.pushMatrix();
-        pose.translate((float) x, (float) (y - 2.0f));
-        pose.scale(0.5f, 0.5f);
+        GuiGraphics graphics = RenderContext.graphics();
+        PoseStack pose = graphics.pose();
+        pose.pushPose();
+        pose.translate((float) x, (float) (y - 2.0f), 0f);
+        pose.scale(0.5f, 0.5f, 1f);
         drawGlyph(graphics, glyph, 0, 0, color, color);
-        pose.popMatrix();
+        pose.popPose();
     }
 
     public float drawString(String s, double x, double y, int color) {
@@ -452,15 +452,15 @@ public class CFontRenderer implements Closeable {
 
     public float drawStringWithVerticalOffsets(String text, double x, double y, int color,
                                                double[] verticalOffsets, int offsetStart) {
-        GuiGraphicsExtractor graphics = RenderContext.graphics();
-        Matrix3x2fStack pose = graphics.pose();
-        pose.pushMatrix();
-        pose.translate((float) x, (float) (y - 2.0));
-        pose.scale(0.5f, 0.5f);
+        GuiGraphics graphics = RenderContext.graphics();
+        PoseStack pose = graphics.pose();
+        pose.pushPose();
+        pose.translate((float) x, (float) (y - 2.0), 0f);
+        pose.scale(0.5f, 0.5f, 1f);
 
         drawShapedText(text, color, verticalOffsets, offsetStart, true);
 
-        pose.popMatrix();
+        pose.popPose();
         return (float) getStringWidthD(text);
     }
 
@@ -470,14 +470,14 @@ public class CFontRenderer implements Closeable {
         float b = ((color) & 0xff) * RGBA.DIVIDE_BY_255;
         float baseA = ((color >> 24) & 0xff) * RGBA.DIVIDE_BY_255;
 
-        GuiGraphicsExtractor graphics = RenderContext.graphics();
-        Matrix3x2fStack pose = graphics.pose();
+        GuiGraphics graphics = RenderContext.graphics();
+        PoseStack pose = graphics.pose();
 
         y -= 2.0f;
 
-        pose.pushMatrix();
-        pose.translate((float) x, (float) y);
-        pose.scale(0.5f, 0.5f);
+        pose.pushPose();
+        pose.translate((float) x, (float) y, 0f);
+        pose.scale(0.5f, 0.5f, 1f);
 
         int leftColor = packColor(r, g, b, baseA * leftAlphaMul);
         int rightColor = packColor(r, g, b, baseA * rightAlphaMul);
@@ -501,11 +501,11 @@ public class CFontRenderer implements Closeable {
             if (glyph.atlasIdentifier != null) {
                 drawGlyph(graphics, glyph, 0, 0, leftColor, rightColor);
             }
-            pose.popMatrix();
+            pose.popPose();
             return advance * 0.5f;
         }
 
-        pose.popMatrix();
+        pose.popPose();
         return 0f;
     }
 
@@ -547,18 +547,18 @@ public class CFontRenderer implements Closeable {
     }
 
     public boolean drawString(String s, double x, double y, float r, float g, float b, float a) {
-        GuiGraphicsExtractor graphics = RenderContext.graphics();
-        Matrix3x2fStack pose = graphics.pose();
+        GuiGraphics graphics = RenderContext.graphics();
+        PoseStack pose = graphics.pose();
 
         y -= 2.0f;
 
-        pose.pushMatrix();
-        pose.translate((float) x, (float) y);
-        pose.scale(0.5f, 0.5f);
+        pose.pushPose();
+        pose.translate((float) x, (float) y, 0f);
+        pose.scale(0.5f, 0.5f, 1f);
 
         boolean allLoaded = drawShapedText(s, packColor(r, g, b, a), null, 0, false);
 
-        pose.popMatrix();
+        pose.popPose();
         return allLoaded;
     }
 
@@ -702,7 +702,7 @@ public class CFontRenderer implements Closeable {
         return advance;
     }
 
-    private static void drawGlyph(GuiGraphicsExtractor graphics, Glyph glyph, float x, float y,
+    private static void drawGlyph(GuiGraphics graphics, Glyph glyph, float x, float y,
                                   int leftColor, int rightColor) {
         Render.glyph(graphics, glyph.atlasIdentifier,
                 x + glyph.originX, y + glyph.originY, glyph.bitmapWidth, glyph.bitmapHeight,
@@ -711,16 +711,16 @@ public class CFontRenderer implements Closeable {
 
     private static void addGlyph(List<GlyphBatch> batches, Glyph glyph, float x, float y,
                                  int leftColor, int rightColor) {
-        Identifier atlas = glyph.atlasIdentifier;
+        ResourceLocation atlas = glyph.atlasIdentifier;
         if (atlas == null) {
             return;
         }
         GlyphBatch batch;
-        if (batches.isEmpty() || !atlas.equals(batches.getLast().atlas)) {
+        if (batches.isEmpty() || !atlas.equals(batches.get(batches.size() - 1).atlas)) {
             batch = new GlyphBatch(atlas);
             batches.add(batch);
         } else {
-            batch = batches.getLast();
+            batch = batches.get(batches.size() - 1);
         }
         batch.quads.add(new Render.GlyphQuad(x + glyph.originX, y + glyph.originY,
                 glyph.bitmapWidth, glyph.bitmapHeight,
@@ -734,10 +734,10 @@ public class CFontRenderer implements Closeable {
     }
 
     private static final class GlyphBatch {
-        private final Identifier atlas;
+        private final ResourceLocation atlas;
         private final List<Render.GlyphQuad> quads = new ArrayList<>();
 
-        private GlyphBatch(Identifier atlas) {
+        private GlyphBatch(ResourceLocation atlas) {
             this.atlas = atlas;
         }
     }
@@ -987,7 +987,7 @@ public class CFontRenderer implements Closeable {
         return (int) this.getFontHeight();
     }
 
-    public net.minecraft.resources.Identifier getAtlasId() {
+    public net.minecraft.resources.ResourceLocation getAtlasId() {
         return atlas.identifier();
     }
 

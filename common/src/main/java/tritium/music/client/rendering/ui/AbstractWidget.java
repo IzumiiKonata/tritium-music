@@ -103,7 +103,7 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
         boolean shouldResetMatrixState = this.transformations != null;
 
         if (shouldResetMatrixState) {
-            RenderContext.graphics().pose().pushMatrix();
+            RenderContext.graphics().pose().pushPose();
             this.transformations.run();
         }
 
@@ -139,7 +139,7 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
         }
 
         if (shouldResetMatrixState)
-            RenderContext.graphics().pose().popMatrix();
+            RenderContext.graphics().pose().popPose();
 
         this.hovering = !childHovering && this.testHovered(mouseX, mouseY);
 
@@ -156,7 +156,7 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
         return (SELF) this;
     }
 
-    public com.mojang.blaze3d.platform.cursor.CursorType getHoveringCursorType() {
+    public int getHoveringCursorType() {
         return CursorUtils.HAND;
     }
 

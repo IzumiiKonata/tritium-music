@@ -1,9 +1,10 @@
 package tritium.music.client.rendering.hud;
 
 import lombok.Setter;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
+import tritium.music.client.render.GuiStateReset;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.SharedRenderingConstants;
@@ -11,23 +12,27 @@ import tritium.music.client.rendering.animation.Interpolations;
 
 public abstract class HudWidget implements SharedRenderingConstants {
 
-    public static void renderInFrame(GuiGraphicsExtractor graphics, float partialTick, Runnable render) {
+    public static void renderInFrame(GuiGraphics graphics, float partialTick, Runnable render) {
         RenderContext.begin(graphics, partialTick);
         Interpolations.calcFrameDelta();
+        tritium.music.client.render.Render.setHudOverlay(true);
         try {
-            graphics.pose().pushMatrix();
+            graphics.pose().pushPose();
             try {
                 double normalizer = RenderSystem.getScaleNormalizer();
                 double offsetX = RenderSystem.getOffsetX();
                 double offsetY = RenderSystem.getOffsetY();
-                graphics.pose().translate((float) offsetX, (float) offsetY);
-                graphics.pose().scale((float) normalizer, (float) normalizer);
+                graphics.pose().translate((float) offsetX, (float) offsetY, 0f);
+                graphics.pose().scale((float) normalizer, (float) normalizer, 1f);
                 render.run();
             } finally {
-                graphics.pose().popMatrix();
+                graphics.pose().popPose();
             }
         } finally {
+            tritium.music.client.render.Render.setHudOverlay(false);
             tritium.music.client.rendering.font.TextureAtlas.flushAllDirty();
+            tritium.music.client.rendering.StencilClipManager.endFrame();
+            GuiStateReset.restore();
             RenderContext.end();
         }
     }

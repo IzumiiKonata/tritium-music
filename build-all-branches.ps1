@@ -6,7 +6,8 @@ $ErrorActionPreference = "Stop"
 $branches = @(
 	[pscustomobject]@{ Name = "main"; Directory = "m" },
 	[pscustomobject]@{ Name = "1.21.11"; Directory = "a" },
-	[pscustomobject]@{ Name = "26.2"; Directory = "b" }
+	[pscustomobject]@{ Name = "26.2"; Directory = "b" },
+	[pscustomobject]@{ Name = "1.20.1"; Directory = "c" }
 )
 $repositoryRoot = (& git -C $PSScriptRoot rev-parse --show-toplevel).Trim()
 if ($LASTEXITCODE -ne 0) {
@@ -21,7 +22,7 @@ if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
 
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 Get-ChildItem -LiteralPath $outputPath -File -ErrorAction SilentlyContinue |
-	Where-Object { $_.Name -like "tritium-music-fabric-*.jar" -or $_.Name -like "tritium-music-neoforge-*.jar" -or $_.Name -eq "manifest.json" } |
+	Where-Object { $_.Name -like "tritium-music-fabric-*.jar" -or $_.Name -like "tritium-music-forge-*.jar" -or $_.Name -like "tritium-music-neoforge-*.jar" -or $_.Name -eq "manifest.json" } |
 	Remove-Item -Force
 
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("tmb-" + [System.Guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -51,7 +52,15 @@ try {
 			$gradleWrapper = Join-Path $worktreePath "gradlew"
 		}
 
-		& $gradleWrapper -p $worktreePath :fabric:build :neoforge:build --no-daemon
+		$loaders = @(Get-ChildItem -LiteralPath $worktreePath -Directory |
+			Where-Object { $_.Name -in @("fabric", "forge", "neoforge") } |
+			Select-Object -ExpandProperty Name)
+		if ($loaders.Count -eq 0) {
+			throw "No loader modules found for $($branch.Name)"
+		}
+
+		$tasks = $loaders | ForEach-Object { ":$($_):build" }
+		& $gradleWrapper -p $worktreePath @tasks --no-daemon
 		if ($LASTEXITCODE -ne 0) {
 			throw "Gradle build failed for $($branch.Name)"
 		}
@@ -61,7 +70,7 @@ try {
 		$modVersion = ($properties | Where-Object { $_ -like "mod_version=*" } | Select-Object -First 1).Split("=", 2)[1]
 		$commit = (& git -C $worktreePath rev-parse HEAD).Trim()
 
-		foreach ($loader in @("fabric", "neoforge")) {
+		foreach ($loader in $loaders) {
 			$libraryPath = Join-Path $worktreePath "$loader/build/libs"
 			$artifacts = @(Get-ChildItem -LiteralPath $libraryPath -File -Filter "tritium-music-$loader-*.jar" |
 				Where-Object { $_.Name -notlike "*-sources.jar" })

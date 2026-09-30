@@ -7,6 +7,7 @@ import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.screens.WidgetEditorScreen;
+import tritium.music.client.util.Mth;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.lyric.LyricLine;
@@ -51,7 +52,7 @@ public class MusicInfoWidget extends HudWidget {
         double height = 56;
 
         Music playingMusic = CloudMusic.currentlyPlaying;
-        boolean editorPreview = Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
+        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
         boolean realPlayback = playingMusic != null && CloudMusic.player != null && !CloudMusic.player.isFinished();
         boolean hasMusic = playingMusic != null;
 
@@ -196,9 +197,7 @@ public class MusicInfoWidget extends HudWidget {
             this.roundedRect(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth, 5, 1, 1f, 1f, 1f, alpha * 0.3f);
 
             if (CloudMusic.player != null || editorPreview) {
-                double playbackProgress = CloudMusic.player != null
-                        ? (double) CloudMusic.player.getCurrentTimeMillis() / CloudMusic.player.getTotalTimeMillis()
-                        : 0.42;
+                final double playbackProgress = CloudMusic.player != null ? playbackRatio() : 0.42;
                 StencilClipManager.beginClip(() -> Rect.draw(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth * playbackProgress, 6, -1));
                 this.roundedRect(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth, 5, 1, 233, 233, 233, (int) (alpha * 255));
                 StencilClipManager.endClip();
@@ -222,5 +221,13 @@ public class MusicInfoWidget extends HudWidget {
 
         this.setWidth(width);
         this.setHeight(height + downloadProgHeight);
+    }
+
+    private static double playbackRatio() {
+        double totalTime = CloudMusic.player.getTotalTimeMillis();
+        if (totalTime <= 0) {
+            return 0.0;
+        }
+        return Mth.limit((double) CloudMusic.player.getCurrentTimeMillis() / totalTime, 0.0, 1.0);
     }
 }

@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import tritium.music.core.util.AsyncUtil;
 
 import java.awt.image.BufferedImage;
@@ -43,12 +43,12 @@ public class TextureAtlas {
         return destroyed;
     }
 
-    public Identifier identifier() {
-        return pages.isEmpty() ? Identifier.fromNamespaceAndPath("tritium-music", identifierPath + "_0") : pages.getFirst().identifier;
+    public ResourceLocation identifier() {
+        return pages.isEmpty() ? new ResourceLocation("tritium-music", identifierPath + "_0") : pages.get(0).identifier;
     }
 
     public NativeImage getImage() {
-        return pages.isEmpty() ? null : pages.getFirst().image;
+        return pages.isEmpty() ? null : pages.get(0).image;
     }
 
     public AtlasRegion upload(BufferedImage glyph) {
@@ -125,9 +125,10 @@ public class TextureAtlas {
         if (destroyed) {
             return null;
         }
-        Identifier identifier = Identifier.fromNamespaceAndPath("tritium-music", identifierPath + "_" + pages.size());
+        ResourceLocation identifier = new ResourceLocation("tritium-music", identifierPath + "_" + pages.size());
         NativeImage image = new NativeImage(ATLAS_SIZE, ATLAS_SIZE, true);
-        DynamicTexture texture = new DynamicTexture(identifier::toString, image);
+        DynamicTexture texture = new DynamicTexture(image);
+        texture.setFilter(true, false);
         Minecraft.getInstance().getTextureManager().register(identifier, texture);
         Page page = new Page(identifier, texture, image);
         pages.add(page);
@@ -135,7 +136,7 @@ public class TextureAtlas {
     }
 
     private static class Page {
-        private final Identifier identifier;
+        private final ResourceLocation identifier;
         private DynamicTexture texture;
         private NativeImage image;
         private int currentX = PADDING;
@@ -143,7 +144,7 @@ public class TextureAtlas {
         private int currentRowHeight;
         private boolean dirty;
 
-        private Page(Identifier identifier, DynamicTexture texture, NativeImage image) {
+        private Page(ResourceLocation identifier, DynamicTexture texture, NativeImage image) {
             this.identifier = identifier;
             this.texture = texture;
             this.image = image;
@@ -173,7 +174,7 @@ public class TextureAtlas {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     int alpha = glyph.getRGB(x, y) >>> 24;
-                    image.setPixelABGR(originX + x, originY + y, (alpha << 24) | 0x00FFFFFF);
+                    image.setPixelRGBA(originX + x, originY + y, (alpha << 24) | 0x00FFFFFF);
                 }
             }
 
@@ -193,11 +194,12 @@ public class TextureAtlas {
             if (dirty && texture != null) {
                 dirty = false;
                 texture.upload();
+                texture.setFilter(true, false);
             }
         }
     }
 
-    public record AtlasRegion(float u0, float v0, float u1, float v1, int width, int height, Identifier identifier,
+    public record AtlasRegion(float u0, float v0, float u1, float v1, int width, int height, ResourceLocation identifier,
                               NativeImage image) {
     }
 }
