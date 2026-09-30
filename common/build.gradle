@@ -33,8 +33,6 @@ dependencies {
 	api "com.google.zxing:core:${project.zxing_version}"
 	api "net.java.dev.jna:jna:${project.jna_version}"
 	api "net.java.dev.jna:jna-platform:${project.jna_version}"
-	api "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}"
-	api "org.lwjgl:lwjgl-freetype:${project.lwjgl_version}"
 	api "com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}"
 	api "com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}"
 	runtimeOnly "com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}"

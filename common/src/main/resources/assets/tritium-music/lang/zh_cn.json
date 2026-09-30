@@ -27,6 +27,7 @@
   "tritium-music.ui.feature.reason.platform": "当前平台没有可用的推理运行时（%s）",
   "tritium-music.ui.feature.reason.download": "下载失败，可在音乐界面点击重试（%s）",
   "tritium-music.ui.feature.reason.runtime": "ONNX 运行时加载失败（%s）",
+  "tritium-music.ui.feature.reason.runtime.library": "ONNX 原生库初始化失败，通常是 JDK 自带的 MSVC 运行库过旧（如 GraalVM ≤ 23 的 msvcp140.dll 为 14.31，而 ONNX Runtime 1.29 需要 14.40 以上）。请换用较新的 JDK，或删除该 JDK 的 bin 目录中的 msvcp140.dll（%s）",
   "tritium-music.ui.playback.waiting": "正在等待播放",
   "tritium-music.ui.playback.not_playing": "未在播放",
   "tritium-music.ui.playback.unplayable": "无法播放：%s - %s",

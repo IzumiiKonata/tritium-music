@@ -27,6 +27,7 @@
   "tritium-music.ui.feature.reason.platform": "no inference runtime for this platform (%s)",
   "tritium-music.ui.feature.reason.download": "download failed, retry from the music screen (%s)",
   "tritium-music.ui.feature.reason.runtime": "ONNX runtime failed to load (%s)",
+  "tritium-music.ui.feature.reason.runtime.library": "the ONNX native library failed to initialize, usually because the JDK ships an outdated MSVC runtime (msvcp140.dll 14.31 in GraalVM ≤ 23 while ONNX Runtime 1.29 needs 14.40+). Use a newer JDK, or delete msvcp140.dll from the JDK bin directory (%s)",
   "tritium-music.ui.playback.waiting": "Waiting for playback",
   "tritium-music.ui.playback.not_playing": "Not playing",
   "tritium-music.ui.playback.unplayable": "Unable to play: %s - %s",

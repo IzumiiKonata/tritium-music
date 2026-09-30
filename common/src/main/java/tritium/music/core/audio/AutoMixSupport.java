@@ -19,6 +19,7 @@ public final class AutoMixSupport {
     public static final String REASON_PLATFORM = "tritium-music.ui.feature.reason.platform";
     public static final String REASON_DOWNLOAD = "tritium-music.ui.feature.reason.download";
     public static final String REASON_RUNTIME = "tritium-music.ui.feature.reason.runtime";
+    public static final String REASON_RUNTIME_LIBRARY = "tritium-music.ui.feature.reason.runtime.library";
 
     public record State(boolean available, boolean terminal, String reasonKey, String detail) {
 
@@ -32,6 +33,7 @@ public final class AutoMixSupport {
     private static final Object LOCK = new Object();
 
     private static volatile boolean runtimeFailed;
+    private static volatile String runtimeReason = REASON_RUNTIME;
     private static volatile String runtimeDetail;
     private static volatile boolean nativePathConfigured;
     private static volatile State state = new State(false, false, REASON_DOWNLOAD, null);
@@ -111,8 +113,9 @@ public final class AutoMixSupport {
             return;
         }
         runtimeFailed = true;
-        runtimeDetail = throwable == null ? null : throwable.toString();
-        log("AutoMix runtime unavailable: " + runtimeDetail);
+        runtimeReason = throwable != null && OnnxRuntimeFailure.matches(throwable) ? REASON_RUNTIME_LIBRARY : REASON_RUNTIME;
+        runtimeDetail = throwable == null ? null : OnnxRuntimeFailure.detail(throwable);
+        log("AutoMix runtime unavailable: " + throwable);
         publish();
     }
 
@@ -162,7 +165,7 @@ public final class AutoMixSupport {
             return new State(false, true, REASON_PLATFORM, AssetPlatform.osName() + " / " + AssetPlatform.osArch());
         }
         if (runtimeFailed) {
-            return new State(false, true, REASON_RUNTIME, runtimeDetail);
+            return new State(false, true, runtimeReason, runtimeDetail);
         }
         boolean ready = ready();
         if (ready) {

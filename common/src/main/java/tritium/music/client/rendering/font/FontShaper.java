@@ -2,10 +2,8 @@ package tritium.music.client.rendering.font;
 
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.freetype.FT_Face;
-import org.lwjgl.util.harfbuzz.hb_feature_t;
-import org.lwjgl.util.harfbuzz.hb_glyph_info_t;
-import org.lwjgl.util.harfbuzz.hb_glyph_position_t;
+import tritium.music.client.rendering.font.binding.FreeTypeNative;
+import tritium.music.client.rendering.font.binding.HarfBuzzNative;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -14,8 +12,6 @@ import java.util.List;
 import java.util.Locale;
 
 import static org.lwjgl.system.MemoryUtil.*;
-import static org.lwjgl.util.freetype.FreeType.*;
-import static org.lwjgl.util.harfbuzz.HarfBuzz.*;
 
 public final class FontShaper {
 
@@ -24,13 +20,22 @@ public final class FontShaper {
     private static final String[] LIGATURE_FEATURES = {"dlig=1"};
     private static final String PROBE_CHARS = "AazZ0mWilM.,;:!?@#&%()[]{}\u00e9\u00fc\u4e2d\u6587";
 
+    private static final int GLYPH_INFO_SIZE = 20;
+    private static final int GLYPH_INFO_CODEPOINT = 0;
+    private static final int GLYPH_INFO_CLUSTER = 8;
+    private static final int GLYPH_POSITION_SIZE = 20;
+    private static final int GLYPH_POSITION_X_ADVANCE = 0;
+    private static final int GLYPH_POSITION_Y_ADVANCE = 4;
+    private static final int GLYPH_POSITION_X_OFFSET = 8;
+    private static final int GLYPH_POSITION_Y_OFFSET = 12;
+    private static final int FEATURE_SIZE = 16;
+
     private static volatile String language;
 
     private final String description;
 
     private long ftLibrary;
-    private long ftFaceAddress;
-    private FT_Face ftFace;
+    private long ftFace;
 
     private long hbBlob;
     private long hbFace;
@@ -49,12 +54,16 @@ public final class FontShaper {
             if (bytes == null || bytes.length == 0) {
                 throw new IllegalArgumentException("Empty font data: " + description);
             }
+            if (!HarfBuzzNative.available() || !FreeTypeNative.available()) {
+                throw new IllegalStateException("Font shaping natives unavailable: FreeType[" + FreeTypeNative.status()
+                        + "] HarfBuzz[" + HarfBuzzNative.status() + "]");
+            }
 
             long library;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                PointerBuffer libraryPtr = stack.mallocPointer(1);
-                checkFT(FT_Init_FreeType(libraryPtr));
-                library = libraryPtr.get();
+                PointerBuffer libraryPointer = stack.mallocPointer(1);
+                checkFT(FreeTypeNative.initFreeType(memAddress(libraryPointer)));
+                library = libraryPointer.get(0);
             }
             ftLibrary = library;
 
@@ -62,35 +71,35 @@ public final class FontShaper {
             fontData.put(bytes);
             fontData.flip();
 
-            hbBlob = hb_blob_create(fontData, fontData.remaining(), HB_MEMORY_MODE_READONLY, null);
+            hbBlob = HarfBuzzNative.hbBlobCreate(memAddress(fontData), fontData.remaining(),
+                    HarfBuzzNative.MEMORY_MODE_READONLY, NULL, NULL);
             if (hbBlob == NULL) {
                 throw new IllegalStateException("Failed to create HarfBuzz blob");
             }
 
             faceIndex = selectFace(postScriptName);
 
-            ftFaceAddress = openFace(faceIndex);
-            if (ftFaceAddress == NULL) {
+            ftFace = openFace(faceIndex);
+            if (ftFace == NULL) {
                 throw new IllegalStateException("Failed to open FreeType face " + faceIndex);
             }
-            ftFace = FT_Face.create(ftFaceAddress);
 
-            hbFace = hb_face_create(hbBlob, faceIndex);
+            hbFace = HarfBuzzNative.hbFaceCreate(hbBlob, faceIndex);
             if (hbFace == NULL) {
                 throw new IllegalStateException("Failed to create HarfBuzz face");
             }
 
-            hbFont = hb_font_create(hbFace);
+            hbFont = HarfBuzzNative.hbFontCreate(hbFace);
             if (hbFont == NULL) {
                 throw new IllegalStateException("Failed to create HarfBuzz font");
             }
 
-            hbBuffer = hb_buffer_create();
-            if (hbBuffer == NULL || !hb_buffer_allocation_successful(hbBuffer)) {
+            hbBuffer = HarfBuzzNative.hbBufferCreate();
+            if (hbBuffer == NULL || !HarfBuzzNative.hbBufferAllocationSuccessful(hbBuffer)) {
                 throw new IllegalStateException("Failed to allocate HarfBuzz buffer");
             }
 
-            glyphCount = Math.max(1, hb_face_get_glyph_count(hbFace));
+            glyphCount = Math.max(1, HarfBuzzNative.hbFaceGetGlyphCount(hbFace));
             usable = true;
         } catch (Throwable throwable) {
             throwable.printStackTrace();
@@ -129,7 +138,7 @@ public final class FontShaper {
             }
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 IntBuffer glyph = stack.mallocInt(1);
-                if (!hb_font_get_nominal_glyph(hbFont, codePoint, glyph)) {
+                if (!HarfBuzzNative.hbFontGetNominalGlyph(hbFont, codePoint, memAddress(glyph))) {
                     return -1;
                 }
                 return glyph.get(0);
@@ -185,45 +194,54 @@ public final class FontShaper {
 
             setSize(pixelSize);
 
-            hb_buffer_clear_contents(hbBuffer);
-            hb_buffer_set_direction(hbBuffer, HB_DIRECTION_INVALID);
-            hb_buffer_set_script(hbBuffer, HB_SCRIPT_INVALID);
-            hb_buffer_add_utf16(hbBuffer, text, start, end - start);
-            hb_buffer_guess_segment_properties(hbBuffer);
-            hb_buffer_set_language(hbBuffer, hb_language_from_string(language()));
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                HarfBuzzNative.hbBufferClearContents(hbBuffer);
+                HarfBuzzNative.hbBufferSetDirection(hbBuffer, HarfBuzzNative.DIRECTION_INVALID);
+                HarfBuzzNative.hbBufferSetScript(hbBuffer, HarfBuzzNative.SCRIPT_INVALID);
 
-            if (discretionaryLigatures) {
-                hb_feature_t.Buffer features = hb_feature_t.malloc(LIGATURE_FEATURES.length);
-                try {
+                int textLength = stack.nUTF16(text, false);
+                long textAddress = stack.getPointerAddress();
+                HarfBuzzNative.hbBufferAddUtf16(hbBuffer, textAddress, textLength, start, end - start);
+
+                HarfBuzzNative.hbBufferGuessSegmentProperties(hbBuffer);
+
+                String currentLanguage = language();
+                ByteBuffer languageText = stack.ASCII(currentLanguage);
+                long languageHandle = HarfBuzzNative.hbLanguageFromString(memAddress(languageText), currentLanguage.length());
+                HarfBuzzNative.hbBufferSetLanguage(hbBuffer, languageHandle);
+
+                if (discretionaryLigatures) {
+                    long features = stack.nmalloc(8, FEATURE_SIZE * LIGATURE_FEATURES.length);
                     for (int i = 0; i < LIGATURE_FEATURES.length; i++) {
-                        hb_feature_from_string(LIGATURE_FEATURES[i], features.get(i));
+                        ByteBuffer featureText = stack.ASCII(LIGATURE_FEATURES[i]);
+                        HarfBuzzNative.hbFeatureFromString(memAddress(featureText), LIGATURE_FEATURES[i].length(),
+                                features + (long) i * FEATURE_SIZE);
                     }
-                    hb_shape(hbFont, hbBuffer, features);
-                } finally {
-                    features.free();
+                    HarfBuzzNative.hbShape(hbFont, hbBuffer, features, LIGATURE_FEATURES.length);
+                } else {
+                    HarfBuzzNative.hbShape(hbFont, hbBuffer, NULL, 0);
                 }
-            } else {
-                hb_shape(hbFont, hbBuffer, null);
-            }
 
-            hb_glyph_info_t.Buffer infos = hb_buffer_get_glyph_infos(hbBuffer);
-            hb_glyph_position_t.Buffer positions = hb_buffer_get_glyph_positions(hbBuffer);
-            if (infos == null || positions == null) {
-                return result;
-            }
+                IntBuffer count = stack.mallocInt(1);
+                long infos = HarfBuzzNative.hbBufferGetGlyphInfos(hbBuffer, memAddress(count));
+                long positions = HarfBuzzNative.hbBufferGetGlyphPositions(hbBuffer, memAddress(count));
+                if (infos == NULL || positions == NULL) {
+                    return result;
+                }
 
-            int count = Math.min(infos.remaining(), positions.remaining());
-            for (int i = 0; i < count; i++) {
-                hb_glyph_info_t info = infos.get(i);
-                hb_glyph_position_t position = positions.get(i);
-                result.add(new ShapedGlyph(
-                        fontSlot,
-                        info.codepoint(),
-                        info.cluster(),
-                        position.x_advance() / 64.0f,
-                        position.y_advance() / 64.0f,
-                        position.x_offset() / 64.0f,
-                        position.y_offset() / 64.0f));
+                int glyphs = count.get(0);
+                for (int i = 0; i < glyphs; i++) {
+                    long info = infos + (long) i * GLYPH_INFO_SIZE;
+                    long position = positions + (long) i * GLYPH_POSITION_SIZE;
+                    result.add(new ShapedGlyph(
+                            fontSlot,
+                            memGetInt(info + GLYPH_INFO_CODEPOINT),
+                            memGetInt(info + GLYPH_INFO_CLUSTER),
+                            memGetInt(position + GLYPH_POSITION_X_ADVANCE) / 64.0f,
+                            memGetInt(position + GLYPH_POSITION_Y_ADVANCE) / 64.0f,
+                            memGetInt(position + GLYPH_POSITION_X_OFFSET) / 64.0f,
+                            memGetInt(position + GLYPH_POSITION_Y_OFFSET) / 64.0f));
+                }
             }
         }
 
@@ -232,11 +250,11 @@ public final class FontShaper {
 
     private void setSize(float pixelSize) {
         int scale = Math.max(1, Math.round(pixelSize * 64.0f));
-        hb_font_set_scale(hbFont, scale, scale);
+        HarfBuzzNative.hbFontSetScale(hbFont, scale, scale);
     }
 
     private int selectFace(String postScriptName) {
-        int faces = Math.max(1, hb_face_count(hbBlob));
+        int faces = Math.max(1, HarfBuzzNative.hbFaceCount(hbBlob));
         if (faces <= 1 || postScriptName == null || postScriptName.isBlank()) {
             return 0;
         }
@@ -244,17 +262,16 @@ public final class FontShaper {
         String wanted = postScriptName.trim().toLowerCase(Locale.ROOT);
         int regular = -1;
         for (int index = 0; index < faces; index++) {
-            long address = openFace(index);
-            if (address == NULL) {
+            long face = openFace(index);
+            if (face == NULL) {
                 continue;
             }
-            FT_Face face = FT_Face.create(address);
             try {
-                String name = FT_Get_Postscript_Name(face);
-                if (name == null) {
+                long nameAddress = FreeTypeNative.postScriptNameAddress(face);
+                if (nameAddress == NULL) {
                     continue;
                 }
-                String normalized = name.trim().toLowerCase(Locale.ROOT);
+                String normalized = memASCIISafe(nameAddress).trim().toLowerCase(Locale.ROOT);
                 if (normalized.equals(wanted)) {
                     return index;
                 }
@@ -263,7 +280,7 @@ public final class FontShaper {
                 }
             } catch (Throwable ignored) {
             } finally {
-                FT_Done_Face(face);
+                FreeTypeNative.doneFace(face);
             }
         }
         return regular < 0 ? 0 : regular;
@@ -271,12 +288,13 @@ public final class FontShaper {
 
     private long openFace(int index) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            PointerBuffer facePtr = stack.mallocPointer(1);
-            int error = FT_New_Memory_Face(ftLibrary, fontData, index, facePtr);
-            if (error != FT_Err_Ok) {
+            PointerBuffer facePointer = stack.mallocPointer(1);
+            int error = FreeTypeNative.newMemoryFace(ftLibrary, memAddress(fontData), fontData.remaining(), index,
+                    memAddress(facePointer));
+            if (error != FreeTypeNative.FT_ERR_OK) {
                 return NULL;
             }
-            return facePtr.get(0);
+            return facePointer.get(0);
         }
     }
 
@@ -288,28 +306,27 @@ public final class FontShaper {
         usable = false;
 
         if (hbBuffer != NULL) {
-            hb_buffer_destroy(hbBuffer);
+            HarfBuzzNative.hbBufferDestroy(hbBuffer);
             hbBuffer = NULL;
         }
         if (hbFont != NULL) {
-            hb_font_destroy(hbFont);
+            HarfBuzzNative.hbFontDestroy(hbFont);
             hbFont = NULL;
         }
         if (hbFace != NULL) {
-            hb_face_destroy(hbFace);
+            HarfBuzzNative.hbFaceDestroy(hbFace);
             hbFace = NULL;
         }
         if (hbBlob != NULL) {
-            hb_blob_destroy(hbBlob);
+            HarfBuzzNative.hbBlobDestroy(hbBlob);
             hbBlob = NULL;
         }
-        if (ftFaceAddress != NULL) {
-            FT_Done_Face(ftFace);
-            ftFaceAddress = NULL;
-            ftFace = null;
+        if (ftFace != NULL) {
+            FreeTypeNative.doneFace(ftFace);
+            ftFace = NULL;
         }
         if (ftLibrary != NULL) {
-            FT_Done_FreeType(ftLibrary);
+            FreeTypeNative.doneFreeType(ftLibrary);
             ftLibrary = NULL;
         }
         if (fontData != null) {
@@ -331,7 +348,7 @@ public final class FontShaper {
     }
 
     private static void checkFT(int err) {
-        if (err != FT_Err_Ok) {
+        if (err != FreeTypeNative.FT_ERR_OK) {
             throw new IllegalStateException("FreeType error: " + err);
         }
     }

@@ -59,8 +59,6 @@ dependencies {
 	implementation "net.java.dev.jna:jna-platform:${project.jna_version}"
 
 	jarJar(implementation("com.google.zxing:core:${project.zxing_version}"))
-	jarJar(implementation("org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}"))
-	jarJar(implementation("org.lwjgl:lwjgl-freetype:${project.lwjgl_version}"))
 	jarJar(implementation("com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}"))
 	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-core:${project.soundtouch_jni_version}"))
 	jarJar(implementation("com.tianscar.soundtouch:soundtouch-jni-javase:${project.soundtouch_jni_version}"))
