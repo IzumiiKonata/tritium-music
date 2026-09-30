@@ -43,7 +43,7 @@ public final class TritiumMusicNeoForge {
     public static final String MOD_ID = "tritium_music";
     public static final String KEY_CATEGORY = "key.category.tritium-music.ncm";
 
-    private static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, InputConstants.KEY_M, KEY_CATEGORY);
+    public static final KeyMapping OPEN_NCM_SCREEN = new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, InputConstants.KEY_M, KEY_CATEGORY);
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
@@ -87,29 +87,6 @@ public final class TritiumMusicNeoForge {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(TritiumMusicNeoForge::onClientStarted);
-    }
-
-    @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.screen != null) {
-            return;
-        }
-
-        if (OPEN_NCM_SCREEN.consumeClick()) {
-            NCMScreen.open();
-        }
-    }
-
-    @SubscribeEvent
-    public static void onGameShuttingDown(GameShuttingDownEvent event) {
-        CloudMusic.shutdownPlayback();
-        CloudMusic.onStop();
-        FontManager.dispose();
     }
 
     private static void onClientStarted() {
