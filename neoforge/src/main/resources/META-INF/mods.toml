@@ -10,9 +10,9 @@ authors = "IzumiiKonata"
 description = '''NetEase Cloud Music player'''
 
 [[dependencies.tritium_music]]
-modId = "neoforge"
+modId = "forge"
 mandatory = true
-versionRange = "[${neoforge_version},)"
+versionRange = "${neoforge_loader_version_range}"
 ordering = "NONE"
 side = "CLIENT"
 
