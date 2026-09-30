@@ -137,7 +137,7 @@
   "tritium-music.ui.settings.lyrics.shadow.description": "为歌词添加阴影以提高可读性",
   "tritium-music.ui.settings.lyrics.smooth_scroll.title": "平滑滚动",
   "tritium-music.ui.settings.lyrics.smooth_scroll.description": "切换歌词时使用平滑位移",
-  "tritium-music.ui.settings.lyrics.font_size.title": "歌词字号",
+  "tritium-music.ui.settings.lyrics.font_size.title": "歌词间隔",
   "tritium-music.ui.settings.lyrics.font_size.description": "控制主歌词的基础字号",
   "tritium-music.ui.settings.lyrics.lines.title": "显示行数",
   "tritium-music.ui.settings.lyrics.lines.description": "选择歌词组件同时显示的行数，只显示 1 行即为单行模式",
