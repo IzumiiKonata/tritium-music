@@ -155,7 +155,8 @@ public class NCMScreen extends BaseScreen {
         if (closing && alpha <= 0.02f) {
             Screen target = returnScreen;
             returnScreen = null;
-            Minecraft.getInstance().setScreenAndShow(target);
+            Minecraft.getInstance().setScreen(target);
+            return;
         }
 
         alpha = Interpolations.interpolate(alpha, closing ? 0f : 1f, 0.4f);
