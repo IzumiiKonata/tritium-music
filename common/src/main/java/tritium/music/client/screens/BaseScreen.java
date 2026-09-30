@@ -108,7 +108,7 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
             CursorUtils.applyOverride();
             TextureAtlas.flushAllDirty();
             tritium.music.client.rendering.StencilClipManager.endFrame();
-            GuiStateReset.audit("screen");
+            GuiStateReset.restore();
             RenderContext.end();
         }
     }

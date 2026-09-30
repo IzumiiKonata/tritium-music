@@ -157,20 +157,6 @@ public class MusicLyricsWidget extends HudWidget {
         renderAllLyrics(shouldNotDisplayOtherLyrics, songProgress);
 
         StencilClipManager.endClip();
-
-        if (ClientSettings.DEBUG_MODE.getValue()) {
-            LyricLine currentLine = currentLyric();
-            if (currentLine != null && !CloudMusic.haveNoWords) {
-                WordInfo wordInfo = calculateCurrentWordInfo(currentLine, songProgress);
-
-                LyricLine.Word current = currentLine.words.get(wordInfo.currentIndex);
-                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.current_word", current.word), 100, 100, -1);
-                double value = (songProgress - current.timestamp) / (double) (current.duration);
-                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.percentage", value), 100, 120, -1);
-                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.duration", current.duration), 100, 140, -1);
-                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.position", songProgress - current.timestamp), 100, 160, -1);
-            }
-        }
     }
 
     private boolean shouldRender() {

@@ -11,7 +11,6 @@ import java.util.Deque;
 
 public class StencilClipManager {
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("tritium-music/clip");
 
     private static final ThreadLocal<double[]> CAPTURE = new ThreadLocal<>();
     private static final Deque<ClipRect> stack = new ArrayDeque<>();
@@ -34,10 +33,6 @@ public class StencilClipManager {
         if (state[0] != 0) {
             GlStateManager._enableScissorTest();
         }
-    }
-
-    public static boolean stencilClipping() {
-        return !stack.isEmpty();
     }
 
     public static boolean capturing() {
@@ -90,18 +85,12 @@ public class StencilClipManager {
     }
 
     public static void endFrame() {
-        int leakedClips = stack.size();
-        boolean leakedScissor = !SUSPENDED.isEmpty();
-        if (leakedClips > 0) {
+        if (!stack.isEmpty()) {
             clear();
         }
         SUSPENDED.clear();
-        boolean scissorOn = GL11.glGetBoolean(GL11.GL_SCISSOR_TEST);
-        if (scissorOn) {
+        if (GL11.glGetBoolean(GL11.GL_SCISSOR_TEST)) {
             com.mojang.blaze3d.systems.RenderSystem.disableScissor();
-        }
-        if (leakedClips > 0 || leakedScissor || scissorOn) {
-            LOGGER.warn("repaired leaked clip state: clips={} suspended={} scissor={}", leakedClips, leakedScissor, scissorOn);
         }
     }
 

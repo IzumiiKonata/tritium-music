@@ -19,7 +19,6 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import tritium.music.client.AssetBootstrap;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.platform.MinecraftMusicPlatform;
-import tritium.music.client.render.GuiStateReset;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
@@ -83,7 +82,6 @@ public final class TritiumMusicForge {
         event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "music_spectrum", (gui, graphics, partialTick, width, height) -> renderWidget(graphics, partialTick, MUSIC_SPECTRUM));
         event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "music_lyrics", (gui, graphics, partialTick, width, height) -> renderWidget(graphics, partialTick, MUSIC_LYRICS));
         event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "music_info", (gui, graphics, partialTick, width, height) -> renderWidget(graphics, partialTick, MUSIC_INFO));
-        event.registerAboveAll("music_state_reset", (gui, graphics, partialTick, width, height) -> GuiStateReset.audit("hud_tail"));
     }
 
     @SubscribeEvent
