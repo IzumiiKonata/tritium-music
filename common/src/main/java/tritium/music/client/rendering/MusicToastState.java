@@ -16,6 +16,8 @@ public final class MusicToastState {
 
     @Nullable
     private static volatile String text = null;
+    private static volatile boolean owned = false;
+    private static boolean claiming = false;
 
     private MusicToastState() {
     }
@@ -26,7 +28,12 @@ public final class MusicToastState {
     }
 
     public static boolean active() {
-        return text != null && mode() != WidgetConfig.MusicToastMode.OFF;
+        return owned && text != null && mode() != WidgetConfig.MusicToastMode.OFF;
+    }
+
+    public static void nowPlayingToastShown() {
+        owned = claiming;
+        claiming = false;
     }
 
     public static void push(String value) {
@@ -43,6 +50,7 @@ public final class MusicToastState {
             }
 
             text = value;
+            owned = true;
 
             if (mode == WidgetConfig.MusicToastMode.FOLLOW_GAME && !gameState.renderToast()) {
                 return;
@@ -52,7 +60,12 @@ public final class MusicToastState {
             if (!gameState.renderToast()) {
                 toastManager.setMusicToastDisplayState(MusicToastDisplayState.PAUSE);
             }
-            toastManager.showNowPlayingToast();
+            claiming = true;
+            try {
+                toastManager.showNowPlayingToast();
+            } finally {
+                claiming = false;
+            }
         });
     }
 
