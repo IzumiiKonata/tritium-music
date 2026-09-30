@@ -198,7 +198,7 @@ public class FontSettingsPage extends NCMPanel {
     }
 
     private RoundedButtonWidget lockedToggle(String key) {
-        RoundedButtonWidget button = new RoundedButtonWidget("✔ " + I18n.get(key), FontManager.pf14bold);
+        RoundedButtonWidget button = new RoundedButtonWidget("√ " + I18n.get(key), FontManager.pf14bold);
         button.setRadius(5);
         button.setClickable(false);
         button.setShouldOverrideMouseCursor(false);

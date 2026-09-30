@@ -127,7 +127,7 @@
   "tritium-music.ui.settings.lyrics.shadow.description": "Add a shadow to improve lyric readability",
   "tritium-music.ui.settings.lyrics.smooth_scroll.title": "Smooth Scrolling",
   "tritium-music.ui.settings.lyrics.smooth_scroll.description": "Use smooth movement when switching lyric lines",
-  "tritium-music.ui.settings.lyrics.font_size.title": "Lyric Font Size",
+  "tritium-music.ui.settings.lyrics.font_size.title": "Lyric Line Spacing",
   "tritium-music.ui.settings.lyrics.font_size.description": "Set the base size of the main lyrics",
   "tritium-music.ui.settings.lyrics.lines.title": "Lines Shown",
   "tritium-music.ui.settings.lyrics.lines.description": "Choose how many lyric lines the widget shows; a single line means single-line mode",
