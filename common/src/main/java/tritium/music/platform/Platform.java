@@ -1,5 +1,6 @@
 package tritium.music.platform;
 
+import javax.sound.sampled.AudioFormat;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
@@ -31,6 +32,10 @@ public final class Platform {
 
     public static void runOnRenderThread(Runnable task) {
         get().runOnRenderThread(task);
+    }
+
+    public static PcmOutput openPcmOutput(AudioFormat format, int bufferBytes) {
+        return get().openPcmOutput(format, bufferBytes);
     }
 
     public static void uploadTexture(TextureHandle handle, BufferedImage image) {

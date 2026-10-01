@@ -2,11 +2,13 @@ package tritium.music.core.ncm;
 
 import com.sun.jna.platform.win32.Advapi32Util;
 import tritium.music.core.ncm.api.CloudMusicApi;
+import tritium.music.platform.Platform;
 
 import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import static com.sun.jna.platform.win32.WinReg.HKEY_LOCAL_MACHINE;
@@ -20,9 +22,15 @@ public final class DeviceIdGenerator {
     private static final String SALT = "Would you rather watch a tree grow or a knee grow";
 
     public static String generate() {
+        String fingerprint;
         try {
-            String fingerprint = collect();
+            fingerprint = collect();
+        } catch (Throwable throwable) {
+            log("Device fingerprint unavailable, falling back to a reduced one: " + throwable);
+            fingerprint = System.getProperty("os.name", "") + "/" + System.getProperty("os.arch", "");
+        }
 
+        try {
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
             sha256.update(SALT.getBytes(StandardCharsets.UTF_8));
             sha256.update(fingerprint.getBytes(StandardCharsets.UTF_8));
@@ -69,15 +77,17 @@ public final class DeviceIdGenerator {
         properties.put("OSVersion", System.getProperty("os.version"));
         properties.put("Arch", System.getProperty("os.arch"));
 
-        try {
-            String processorNameString = Advapi32Util.registryGetStringValue
-                    (HKEY_LOCAL_MACHINE,
-                            "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0\\",
-                            "ProcessorNameString");
+        if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
+            try {
+                String processorNameString = Advapi32Util.registryGetStringValue
+                        (HKEY_LOCAL_MACHINE,
+                                "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0\\",
+                                "ProcessorNameString");
 
-            if (processorNameString != null)
-                properties.put("CPU", processorNameString);
-        } catch (Exception ignored) {
+                if (processorNameString != null)
+                    properties.put("CPU", processorNameString);
+            } catch (Throwable ignored) {
+            }
         }
 
         try {
@@ -87,10 +97,10 @@ public final class DeviceIdGenerator {
                         return;
                     properties.put("AdapterName#" + networkInterface.getIndex(), networkInterface.getDisplayName());
                     properties.put("AdapterMAC#" + networkInterface.getIndex(), macBytesToHexString(networkInterface.getHardwareAddress()));
-                } catch (Exception ignored) {
+                } catch (Throwable ignored) {
                 }
             });
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
         }
 
         for (Map.Entry<String, String> stringStringEntry : properties.entrySet()) {
@@ -98,5 +108,12 @@ public final class DeviceIdGenerator {
         }
 
         return sb.substring(0, sb.length() - 1);
+    }
+
+    private static void log(String message) {
+        try {
+            Platform.log("[NCM] " + message);
+        } catch (Throwable ignored) {
+        }
     }
 }

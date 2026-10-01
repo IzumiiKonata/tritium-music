@@ -1,5 +1,6 @@
 package tritium.music.core.audio;
 
+import tritium.music.core.assets.AndroidNatives;
 import tritium.music.core.assets.AssetCatalog;
 import tritium.music.core.assets.AssetManager;
 import tritium.music.core.assets.AssetPlatform;
@@ -7,6 +8,7 @@ import tritium.music.core.assets.RemoteAsset;
 import tritium.music.platform.Platform;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -90,10 +92,27 @@ public final class AutoMixSupport {
         if (!nativePathConfigured) {
             synchronized (LOCK) {
                 if (!nativePathConfigured) {
-                    File directory = AssetManager.get().directoryOf(AssetCatalog.activeNatives());
-                    if (directory == null) {
+                    List<RemoteAsset> natives = AssetCatalog.activeNatives();
+                    File source = AssetManager.get().directoryOf(natives);
+                    if (source == null) {
                         publish();
                         return false;
+                    }
+                    File directory;
+                    try {
+                        directory = AndroidNatives.stage(natives, source);
+                    } catch (IOException exception) {
+                        log("native staging failed: " + exception);
+                        publish();
+                        return false;
+                    }
+                    if (AssetPlatform.isAndroid()) {
+                        String failure = AndroidNatives.preload(natives, directory, source);
+                        if (failure != null) {
+                            log("native preload failed: " + failure);
+                            publish();
+                            return false;
+                        }
                     }
                     System.setProperty("onnxruntime.native.path", directory.getAbsolutePath());
                     nativePathConfigured = true;
