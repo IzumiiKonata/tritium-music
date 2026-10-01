@@ -2,10 +2,10 @@ package tritium.music.core.audio;
 
 import lombok.Getter;
 import lombok.Setter;
-import tritium.music.repackage.processing.sound.Engine;
 
 public class SpectrumVisualizer {
 
+    private static final int DEFAULT_SAMPLE_RATE = 44100;
     private static final float MIN_FREQ = 20.0f;
     private static final float MAX_FREQ = 20000.0f;
 
@@ -67,13 +67,10 @@ public class SpectrumVisualizer {
         }
     }
 
-    public float[] processFFT(float[] magnitudes) {
-        int sr = Engine.getEngine().getSampleRate();
-        if (sr <= 0) {
-            sr = 44100;
-        }
+    public float[] processFFT(float[] magnitudes, int sampleRate) {
+        int sr = sampleRate > 0 ? sampleRate : DEFAULT_SAMPLE_RATE;
 
-        if (sr != sampleRate || edgeBinLow == null) {
+        if (sr != this.sampleRate || edgeBinLow == null) {
             rebuild(sr);
         }
 

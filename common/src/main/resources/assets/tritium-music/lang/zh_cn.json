@@ -210,5 +210,6 @@
   "tritium-music.ui.settings.font.loading": "正在应用字体...",
   "tritium-music.ui.settings.font.shaping": "高级排版",
   "tritium-music.ui.settings.font.shaping_unavailable": "当前字体没有可用的塑形数据，已退回基础排版",
-  "tritium-music.ui.settings.font.warning.cjk": "当前主字体无法显示中文，中文可能显示为方块"
+  "tritium-music.ui.settings.font.warning.cjk": "当前主字体无法显示中文，中文可能显示为方块",
+  "tritium-music.ui.settings.font.error.unreadable": "%s 不是可用的字体文件"
 }

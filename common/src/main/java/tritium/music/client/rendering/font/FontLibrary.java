@@ -3,6 +3,7 @@ package tritium.music.client.rendering.font;
 import tritium.music.client.config.FontConfig;
 import tritium.music.core.assets.AssetCatalog;
 import tritium.music.core.assets.AssetManager;
+import tritium.music.platform.Platform;
 
 import java.awt.Font;
 import java.io.ByteArrayInputStream;
@@ -18,6 +19,8 @@ import java.util.Map;
 public final class FontLibrary {
 
     public static final String FONT_PATH = "/assets/tritium-music/fonts/";
+
+    private static final long MAX_FONT_BYTES = 64L * 1024L * 1024L;
 
     public record Key(String source, String value, String style) {
     }
@@ -39,6 +42,15 @@ public final class FontLibrary {
             entry.refs++;
             return new Loaded(key, entry);
         }
+    }
+
+    public static boolean canLoad(String source, String value, String style) {
+        Entry entry;
+        synchronized (LOCK) {
+            entry = create(new Key(source, value, style));
+        }
+        entry.dispose();
+        return entry.available();
     }
 
     public static void disposeAll() {
@@ -99,6 +111,17 @@ public final class FontLibrary {
     }
 
     private static Entry create(Key key) {
+        try {
+            return createUnsafe(key);
+        } catch (Throwable throwable) {
+            Platform.log("[font] unable to load font " + key.source() + ":" + key.value()
+                    + " (" + throwable.getClass().getSimpleName()
+                    + (throwable.getMessage() == null ? "" : ": " + throwable.getMessage()) + ")");
+            return new Entry(null, null);
+        }
+    }
+
+    private static Entry createUnsafe(Key key) {
         int style = FontConfig.styleValue(key.style());
         if (style < 0) {
             style = Font.PLAIN;
@@ -133,37 +156,68 @@ public final class FontLibrary {
                 return new Entry(font, null);
             }
         } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            Platform.log("[font] system font lookup failed for " + family + ": " + throwable.getClass().getSimpleName());
         }
         return new Entry(null, null);
     }
 
     private static Entry createFromBytes(byte[] data, int style, String description) {
-        Font font = null;
-        try {
-            font = Font.createFont(Font.TRUETYPE_FONT, new ByteArrayInputStream(data));
-        } catch (Throwable throwable) {
-            throwable.printStackTrace();
-        }
-
+        Font font = createFont(data);
         if (font == null) {
             return new Entry(null, null);
         }
 
         font = font.deriveFont(style);
 
-        FontShaper shaper = null;
-        try {
-            shaper = new FontShaper(data, font.getPSName(), description);
-            if (!shaper.isUsable() || !shaper.matchesGlyphIds(font)) {
-                shaper.dispose();
-                shaper = null;
-            }
-        } catch (Throwable throwable) {
-            throwable.printStackTrace();
+        FontShaper shaper = FontShaper.create(font, data, postScriptName(font), description);
+        if (shaper != null && (!shaper.isUsable() || !shaper.matchesGlyphIds(font))) {
+            shaper.dispose();
+            shaper = null;
         }
 
         return new Entry(font, shaper);
+    }
+
+    public static Font createFont(byte[] data) {
+        if (data == null || data.length == 0) {
+            return null;
+        }
+        try {
+            return Font.createFont(Font.TRUETYPE_FONT, new ByteArrayInputStream(data));
+        } catch (Throwable throwable) {
+            return null;
+        }
+    }
+
+    public static boolean isPlausibleFontFile(File file) {
+        try {
+            if (file == null || !file.isFile()) {
+                return false;
+            }
+            long length = file.length();
+            if (length < 12L || length > MAX_FONT_BYTES) {
+                return false;
+            }
+            byte[] header = new byte[4];
+            try (InputStream input = Files.newInputStream(file.toPath())) {
+                if (input.read(header) != header.length) {
+                    return false;
+                }
+            }
+            int tag = (header[0] & 0xFF) << 24 | (header[1] & 0xFF) << 16 | (header[2] & 0xFF) << 8 | (header[3] & 0xFF);
+            return tag == 0x00010000 || tag == 0x4F54544F || tag == 0x74727565
+                    || tag == 0x74797031 || tag == 0x74746366;
+        } catch (Throwable throwable) {
+            return false;
+        }
+    }
+
+    private static String postScriptName(Font font) {
+        try {
+            return font.getPSName();
+        } catch (Throwable throwable) {
+            return null;
+        }
     }
 
     private static byte[] readBytes(Key key) {
@@ -175,7 +229,8 @@ public final class FontLibrary {
             try (InputStream stream = FontLibrary.class.getResourceAsStream(FONT_PATH + key.value())) {
                 return stream == null ? null : stream.readAllBytes();
             } catch (Throwable throwable) {
-                throwable.printStackTrace();
+                Platform.log("[font] bundled font " + key.value() + " could not be read: "
+                        + throwable.getClass().getSimpleName());
                 return null;
             }
         }
@@ -200,12 +255,16 @@ public final class FontLibrary {
 
     private static byte[] readFile(File file) {
         try {
-            if (!file.isFile()) {
+            if (file == null || !file.isFile()) {
+                return null;
+            }
+            long length = file.length();
+            if (length <= 0 || length > MAX_FONT_BYTES) {
                 return null;
             }
             return Files.readAllBytes(Path.of(file.getAbsolutePath()));
         } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            Platform.log("[font] " + file + " could not be read: " + throwable.getClass().getSimpleName());
             return null;
         }
     }
