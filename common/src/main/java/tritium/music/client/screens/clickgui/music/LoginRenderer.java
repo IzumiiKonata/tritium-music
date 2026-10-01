@@ -43,7 +43,8 @@ public class LoginRenderer implements SharedRenderingConstants {
                 OptionsUtil.setCookie(cookie);
                 success = true;
                 this.closing = true;
-            } catch (Throwable ignored) {
+            } catch (Throwable throwable) {
+                Platform.log("[NCM] QR login failed: " + throwable);
                 failed = true;
             }
         }, "Tritium Music QR Login");

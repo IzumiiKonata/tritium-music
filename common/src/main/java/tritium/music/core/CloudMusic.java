@@ -552,14 +552,17 @@ public class CloudMusic {
         return hasAvailableLyrics && showTranslationEnabled;
     }
 
-    @SneakyThrows
     public static void initNCM() {
-        String cookie = getCookieFromFileOrOptions();
+        try {
+            String cookie = getCookieFromFileOrOptions();
 
-        if (cookie.isEmpty()) {
-            Platform.log("[NCM] Not logged in.");
-        } else {
-            loadNCM(cookie);
+            if (cookie.isEmpty()) {
+                Platform.log("[NCM] Not logged in.");
+            } else {
+                loadNCM(cookie);
+            }
+        } catch (Throwable throwable) {
+            Platform.log("[NCM] Failed to restore the session: " + throwable);
         }
     }
 

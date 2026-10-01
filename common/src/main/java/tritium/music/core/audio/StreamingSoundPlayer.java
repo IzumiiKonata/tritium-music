@@ -1,6 +1,7 @@
 package tritium.music.core.audio;
 
 import tritium.music.core.util.HttpUtils;
+import tritium.music.platform.PcmOutput;
 import tritium.music.platform.Platform;
 import tritium.music.repackage.javazoom.jl.decoder.*;
 import tritium.music.repackage.org.kc7bfi.jflac.sound.spi.FlacAudioFileReader;
@@ -37,7 +38,7 @@ final class StreamingSoundPlayer {
     private final AtomicLong requestedPositionMillis = new AtomicLong(-1);
     private final AtomicLong seekingPositionMillis = new AtomicLong(-1);
     private final CountDownLatch preparedLatch = new CountDownLatch(1);
-    private volatile SourceDataLine line;
+    private volatile PcmOutput line;
     private volatile InputStream input;
     private volatile Thread worker;
     private volatile boolean closed;
@@ -201,15 +202,15 @@ final class StreamingSoundPlayer {
             if (paused) {
                 playbackClockNanos = System.nanoTime();
                 playbackClockRate = playbackRate;
-                SourceDataLine currentLine = line;
+                PcmOutput currentLine = line;
                 if (currentLine != null) {
-                    playbackClockFramePosition = currentLine.getLongFramePosition();
-                    playbackClockFrameRate = currentLine.getFormat().getFrameRate();
+                    playbackClockFramePosition = currentLine.framePosition();
+                    playbackClockFrameRate = currentLine.format().getFrameRate();
                 }
             }
             paused = false;
         }
-        SourceDataLine currentLine = line;
+        PcmOutput currentLine = line;
         if (currentLine != null) {
             currentLine.start();
         }
@@ -341,7 +342,7 @@ final class StreamingSoundPlayer {
 
     void pause() {
         freezePlaybackClock();
-        SourceDataLine currentLine = line;
+        PcmOutput currentLine = line;
         if (currentLine != null) {
             currentLine.stop();
         }
@@ -373,7 +374,7 @@ final class StreamingSoundPlayer {
         }
         seekingPositionMillis.set(-1);
         closeInput();
-        SourceDataLine currentLine = line;
+        PcmOutput currentLine = line;
         if (currentLine != null) {
             currentLine.stop();
             currentLine.flush();
@@ -395,10 +396,10 @@ final class StreamingSoundPlayer {
             playbackClockPositionMillis = positionMillisAt(now);
             playbackClockNanos = now;
             playbackClockRate = nextRate;
-            SourceDataLine currentLine = line;
+            PcmOutput currentLine = line;
             if (currentLine != null) {
-                playbackClockFramePosition = currentLine.getLongFramePosition();
-                playbackClockFrameRate = currentLine.getFormat().getFrameRate();
+                playbackClockFramePosition = currentLine.framePosition();
+                playbackClockFrameRate = currentLine.format().getFrameRate();
             }
             this.playbackRate = nextRate;
         }
@@ -439,9 +440,9 @@ final class StreamingSoundPlayer {
         if (paused || finished || closed) {
             return Math.min(decodedPosition, playbackClockPositionMillis);
         }
-        SourceDataLine currentLine = line;
+        PcmOutput currentLine = line;
         if (currentLine != null && playbackClockFrameRate > 0) {
-            long elapsedFrames = Math.max(0, currentLine.getLongFramePosition() - playbackClockFramePosition);
+            long elapsedFrames = Math.max(0, currentLine.framePosition() - playbackClockFramePosition);
             long playedPosition = playbackClockPositionMillis + Math.round(elapsedFrames * 1000.0 / playbackClockFrameRate * playbackClockRate);
             return Math.min(durationMillis, playedPosition);
         }
@@ -477,7 +478,7 @@ final class StreamingSoundPlayer {
                 input = prefetched;
                 try (PcmStream decoded = openPcmStream(new BufferedInputStream(prefetched), type)) {
                     PcmStream pcm = decoded;
-                    SourceDataLine currentLine;
+                    PcmOutput currentLine;
                     try {
                         currentLine = openLine(pcm.format());
                     } catch (IllegalArgumentException e) {
@@ -494,7 +495,7 @@ final class StreamingSoundPlayer {
                             playbackClockPositionMillis = positionMillis;
                             playbackClockNanos = System.nanoTime();
                             playbackClockRate = playbackRate;
-                            playbackClockFramePosition = currentLine.getLongFramePosition();
+                            playbackClockFramePosition = currentLine.framePosition();
                             playbackClockFrameRate = pcm.format().getFrameRate();
                         }
                         if (!paused) {
@@ -588,7 +589,7 @@ final class StreamingSoundPlayer {
             } finally {
                 positionMillis = positionMillis();
                 input = null;
-                SourceDataLine currentLine = line;
+                PcmOutput currentLine = line;
                 line = null;
                 if (currentLine != null) {
                     currentLine.close();
@@ -611,10 +612,20 @@ final class StreamingSoundPlayer {
         }
     }
 
-    private SourceDataLine openLine(AudioFormat format) throws LineUnavailableException {
+    private PcmOutput openLine(AudioFormat format) throws LineUnavailableException {
+        int bufferBytes = (int) Math.max(16 * 1024, millisToBytes(OUTPUT_BUFFER_MILLIS, format));
+        try {
+            PcmOutput output = Platform.openPcmOutput(format, bufferBytes);
+            if (output != null) {
+                return output;
+            }
+        } catch (IllegalArgumentException unsupportedFormat) {
+            throw unsupportedFormat;
+        } catch (Throwable ignored) {
+        }
         SourceDataLine result = AudioSystem.getSourceDataLine(format);
-        result.open(format, (int) Math.max(16 * 1024, millisToBytes(OUTPUT_BUFFER_MILLIS, format)));
-        return result;
+        result.open(format, bufferBytes);
+        return new JavaSoundPcmOutput(result);
     }
 
     static void applySoftwareVolume(byte[] data, int offset, int length, AudioFormat format, float gain) {
@@ -634,7 +645,7 @@ final class StreamingSoundPlayer {
         }
     }
 
-    private boolean writeFully(SourceDataLine target, PcmChunk output, AudioFormat format) {
+    private boolean writeFully(PcmOutput target, PcmChunk output, AudioFormat format) {
         int offset = output.offset();
         int remaining = output.length();
         int callbackChunk = (int) Math.max(format.getFrameSize(), millisToBytes(PCM_UPDATE_MILLIS, format));
@@ -751,6 +762,54 @@ final class StreamingSoundPlayer {
         @Override
         public void close() throws IOException {
             stream.close();
+        }
+    }
+
+    private static final class JavaSoundPcmOutput implements PcmOutput {
+        private final SourceDataLine line;
+
+        private JavaSoundPcmOutput(SourceDataLine line) {
+            this.line = line;
+        }
+
+        @Override
+        public AudioFormat format() {
+            return line.getFormat();
+        }
+
+        @Override
+        public int write(byte[] data, int offset, int length) {
+            return line.write(data, offset, length);
+        }
+
+        @Override
+        public long framePosition() {
+            return line.getLongFramePosition();
+        }
+
+        @Override
+        public void start() {
+            line.start();
+        }
+
+        @Override
+        public void stop() {
+            line.stop();
+        }
+
+        @Override
+        public void flush() {
+            line.flush();
+        }
+
+        @Override
+        public void drain() {
+            line.drain();
+        }
+
+        @Override
+        public void close() {
+            line.close();
         }
     }
 

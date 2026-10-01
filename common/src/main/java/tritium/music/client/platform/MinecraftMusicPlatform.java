@@ -9,9 +9,13 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tritium.music.client.audio.OpenAlPcmOutput;
+import tritium.music.core.assets.AssetPlatform;
 import tritium.music.platform.MusicPlatform;
+import tritium.music.platform.PcmOutput;
 import tritium.music.platform.TextureHandle;
 
+import javax.sound.sampled.AudioFormat;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.Map;
@@ -57,6 +61,14 @@ public class MinecraftMusicPlatform implements MusicPlatform {
     @Override
     public void runOnRenderThread(Runnable task) {
         mc().execute(task);
+    }
+
+    @Override
+    public PcmOutput openPcmOutput(AudioFormat format, int bufferBytes) {
+        if (!AssetPlatform.isAndroid()) {
+            return null;
+        }
+        return OpenAlPcmOutput.open(format, bufferBytes);
     }
 
     @Override
