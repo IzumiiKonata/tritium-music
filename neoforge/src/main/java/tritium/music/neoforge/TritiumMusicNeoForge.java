@@ -153,7 +153,7 @@ public final class TritiumMusicNeoForge {
     }
 
     private static void updateSpectrumSettings() {
-        AudioPlayer.spectrumEnabled = MUSIC_SPECTRUM.isEnabled() || MUSIC_LYRICS.isEnabled();
+        AudioPlayer.spectrumEnabled = WidgetConfig.spectrumRequested();
         WidgetConfig.Spectrum spectrum = WidgetConfig.get().spectrum;
         AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
         AudioPlayer.absoluteVolume = spectrum.absVol;

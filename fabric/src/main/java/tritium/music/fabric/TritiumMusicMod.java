@@ -63,12 +63,24 @@ public class TritiumMusicMod implements ClientModInitializer {
         Platform.set(new MinecraftMusicPlatform());
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-            FontManager.loadFonts();
-            FontCatalog.preload();
-            SystemFontIndex.preload(FontManager::retryShaping);
-            WidgetConfig.get();
-            AssetBootstrap.start();
-            AsyncUtil.runAsync(CloudMusic::initNCM);
+            try {
+                FontManager.loadFonts();
+                FontCatalog.preload();
+                SystemFontIndex.preload(FontManager::retryShaping);
+            } catch (Throwable throwable) {
+                LOGGER.error("Font initialisation failed, continuing with the bundled defaults", throwable);
+                try {
+                    FontManager.loadFonts();
+                } catch (Throwable ignored) {
+                }
+            }
+            try {
+                WidgetConfig.get();
+                AssetBootstrap.start();
+                AsyncUtil.runAsync(CloudMusic::initNCM);
+            } catch (Throwable throwable) {
+                LOGGER.error("Music backend initialisation failed", throwable);
+            }
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             CloudMusic.shutdownPlayback();
@@ -106,7 +118,7 @@ public class TritiumMusicMod implements ClientModInitializer {
 
     private void registerWidget(String id, HudWidget widget) {
         HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Identifier.fromNamespaceAndPath(MOD_ID, id), (graphics, deltaTracker) -> {
-            AudioPlayer.spectrumEnabled = musicSpectrum.isEnabled() || musicLyrics.isEnabled();
+            AudioPlayer.spectrumEnabled = WidgetConfig.spectrumRequested();
             WidgetConfig.Spectrum spectrum = WidgetConfig.get().spectrum;
             AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
             AudioPlayer.absoluteVolume = spectrum.absVol;
