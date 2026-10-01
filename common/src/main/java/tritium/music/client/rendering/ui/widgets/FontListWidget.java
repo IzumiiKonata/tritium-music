@@ -212,6 +212,11 @@ public class FontListWidget extends AbstractWidget<FontListWidget> {
     }
 
     @Override
+    public boolean dragOnPress() {
+        return true;
+    }
+
+    @Override
     public boolean onMouseClicked(double relativeX, double relativeY, int mouseButton) {
         if (mouseButton != 0) {
             return false;

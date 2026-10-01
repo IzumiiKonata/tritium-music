@@ -2,6 +2,7 @@ package tritium.music.core.audio;
 
 import lombok.Getter;
 import tritium.music.core.MusicState;
+import tritium.music.platform.Platform;
 import tritium.music.repackage.processing.sound.FFT;
 import tritium.music.repackage.processing.sound.JSynFFT;
 
@@ -30,6 +31,7 @@ public class AudioPlayer {
     public static volatile boolean spectrumEnabled = false;
     public static volatile float spectrumTilt = 3.0f;
     public static volatile boolean absoluteVolume = true;
+    private static final AtomicBoolean SPECTRUM_FAILURE_LOGGED = new AtomicBoolean();
     private static volatile AudioPlayer spectrumSource;
     private static volatile SpectrumFrame spectrumFrame = new SpectrumFrame(new float[0], new float[0], System.nanoTime(), DEFAULT_SPECTRUM_FRAME_NANOS);
     private final SpectrumVisualizer visualizer = new SpectrumVisualizer(JSynFFT.FFT_SIZE, BAR_COUNT);
@@ -39,7 +41,8 @@ public class AudioPlayer {
     public Runnable afterPlayed;
     @Getter
     public float volume = 0.25f;
-    private volatile float[] pendingSpectrumWindow;
+    private volatile SpectrumWindow pendingSpectrumWindow;
+    private volatile int analysisSampleRate = 44_100;
     private StreamingSoundPlayer player;
     private volatile AutoMixAnalyzer autoMixAnalyzer = new AutoMixAnalyzer();
     private int fftWindowOffset;
@@ -154,7 +157,7 @@ public class AudioPlayer {
         });
     }
 
-    private void onFFT(float[] magnitudes) {
+    private void onFFT(float[] magnitudes, int sampleRate) {
         if (!spectrumEnabled) {
             return;
         }
@@ -162,7 +165,7 @@ public class AudioPlayer {
         visualizer.setVolume(this.volume);
         visualizer.setSpectrumTilt(spectrumTilt);
         visualizer.setAbsoluteVolume(absoluteVolume);
-        float[] next = Arrays.copyOf(visualizer.processFFT(magnitudes), BAR_COUNT);
+        float[] next = Arrays.copyOf(visualizer.processFFT(magnitudes, sampleRate), BAR_COUNT);
         long now = System.nanoTime();
         SpectrumFrame previous = spectrumFrame;
         float[] from = interpolateSpectrum(previous, now);
@@ -178,6 +181,7 @@ public class AudioPlayer {
     }
 
     private void onOutputPcm(byte[] data, int offset, int length, AudioFormat format) {
+        analysisSampleRate = (int) format.getFrameRate();
         if (!spectrumEnabled || spectrumSource != this) {
             fftSamplesSinceAnalysis = 0;
             return;
@@ -211,7 +215,7 @@ public class AudioPlayer {
         for (int i = 0; i < ordered.length; i++) {
             ordered[i] *= FFT_WINDOW[i];
         }
-        pendingSpectrumWindow = ordered;
+        pendingSpectrumWindow = new SpectrumWindow(ordered, analysisSampleRate);
         queueSpectrumTask();
     }
 
@@ -221,16 +225,21 @@ public class AudioPlayer {
         }
         FFT_EXECUTOR.execute(() -> {
             try {
-                float[] samples;
-                while ((samples = pendingSpectrumWindow) != null) {
+                SpectrumWindow window;
+                while ((window = pendingSpectrumWindow) != null) {
                     pendingSpectrumWindow = null;
+                    float[] samples = window.samples();
                     float[] magnitudes = FFT.analyzeSample(samples, samples.length);
                     for (int i = 0; i < magnitudes.length; i++) {
                         magnitudes[i] *= 2.0f;
                     }
                     if (spectrumSource == this) {
-                        onFFT(magnitudes);
+                        onFFT(magnitudes, window.sampleRate());
                     }
+                }
+            } catch (Throwable throwable) {
+                if (SPECTRUM_FAILURE_LOGGED.compareAndSet(false, true)) {
+                    Platform.log("[NCM] Spectrum analysis disabled after a failure: " + throwable);
                 }
             } finally {
                 spectrumTaskQueued.set(false);
@@ -484,5 +493,8 @@ public class AudioPlayer {
     }
 
     private record SpectrumFrame(float[] previous, float[] current, long publishedNanos, long intervalNanos) {
+    }
+
+    private record SpectrumWindow(float[] samples, int sampleRate) {
     }
 }

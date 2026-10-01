@@ -5,6 +5,7 @@ import tritium.music.client.config.FontConfig;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontCatalog;
+import tritium.music.client.rendering.font.FontLibrary;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.FontOption;
 import tritium.music.client.rendering.font.FontPreview;
@@ -539,11 +540,31 @@ public class FontSettingsPage extends NCMPanel {
 
     private void apply() {
         pending.normalize();
+
+        FontConfig.SlotType invalid = unreadableSlot();
+        if (invalid != null) {
+            setStatus(I18n.get("tritium-music.ui.settings.font.error.unreadable", slotLabel(invalid)), 0xFFEB5757);
+            return;
+        }
+
         FontConfig config = FontConfig.get();
         config.assign(pending);
         config.save();
         FontManager.reload();
         setStatus(I18n.get("tritium-music.ui.settings.font.applied"), 0xFF6FCF97);
+    }
+
+    private FontConfig.SlotType unreadableSlot() {
+        for (FontConfig.SlotType type : FontConfig.SlotType.values()) {
+            FontConfig.Slot slot = pending.slot(type);
+            if (slot == null || !FontConfig.SOURCE_FILE.equals(slot.source)) {
+                continue;
+            }
+            if (!FontLibrary.isPlausibleFontFile(new File(slot.value))) {
+                return type;
+            }
+        }
+        return null;
     }
 
     public void resetToDefault() {
