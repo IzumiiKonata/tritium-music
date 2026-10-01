@@ -1,6 +1,8 @@
 package tritium.music.core.audio;
 
 import com.tianscar.soundtouch.SoundTouch;
+import tritium.music.core.assets.AndroidNatives;
+import tritium.music.core.assets.AssetPlatform;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -63,7 +65,14 @@ final class SoundTouchNativeLoader {
         String directory;
         String library;
         String binding;
-        if (os.contains("win")) {
+        if (AssetPlatform.isAndroid()) {
+            if (!arch.contains("aarch64") && !arch.contains("arm64")) {
+                throw new IOException("Unsupported SoundTouch platform " + os + " " + arch);
+            }
+            directory = "android-arm64-v8a";
+            library = "libSoundTouchDLL.so";
+            binding = "libsoundtouchjni.so";
+        } else if (os.contains("win")) {
             directory = arch.contains("aarch64") || arch.contains("arm64") ? "windows-aarch64" : arch.contains("64") ? "windows-x86_64" : "windows-x86";
             library = "SoundTouchDLL.dll";
             binding = "soundtouchjni.dll";
@@ -78,7 +87,7 @@ final class SoundTouchNativeLoader {
         } else {
             throw new IOException("Unsupported SoundTouch platform " + os + " " + arch);
         }
-        Path extraction = Files.createTempDirectory("tritium-soundtouch-");
+        Path extraction = AndroidNatives.executableDirectory("soundtouch");
         Path libraryPath = extract(directory, library, extraction);
         Path bindingPath = extract(directory, binding, extraction);
         System.load(libraryPath.toAbsolutePath().toString());
@@ -105,7 +114,7 @@ final class SoundTouchNativeLoader {
 
     private static Path extract(String directory, String name, Path destination) throws IOException {
         String resource = "/" + directory + "/" + name;
-        try (InputStream input = SoundTouch.class.getResourceAsStream(resource)) {
+        try (InputStream input = SoundTouchNativeLoader.class.getResourceAsStream(resource)) {
             if (input == null) {
                 throw new IOException("Missing SoundTouch native " + resource);
             }

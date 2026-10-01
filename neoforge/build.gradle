@@ -90,7 +90,7 @@ dependencies {
 		}
 	}
 
-	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
+	['natives-windows', 'natives-windows-arm64', 'natives-linux', 'natives-linux-arm64', 'natives-macos', 'natives-macos-arm64'].each {
 		add(harfbuzzNatives.name, "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$it")
 	}
 
@@ -101,7 +101,7 @@ dependencies {
 			? (aarch64 ? 'natives-windows-arm64' : 'natives-windows')
 			: osName.contains('mac')
 			? (aarch64 ? 'natives-macos-arm64' : 'natives-macos')
-			: 'natives-linux'
+			: (aarch64 ? 'natives-linux-arm64' : 'natives-linux')
 	runtimeOnly "org.lwjgl:lwjgl-harfbuzz:${project.lwjgl_version}:$lwjglNatives"
 
 	jarJar files(harfbuzzNativesJar)

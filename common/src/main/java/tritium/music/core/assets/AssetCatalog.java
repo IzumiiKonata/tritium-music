@@ -123,6 +123,11 @@ public final class AssetCatalog {
                         "07c5a23fecedb27d9325b1b2ba0c87830173f87b64edf2b294e32931af5c09cb"),
                 nativeAsset("osx-aarch64/libonnxruntime4j_jni.dylib", 104_456L,
                         "dcd561b282af0d83523f637f8a28752fd638f9b0c1d3bf8a6de22e4a67f44a85")));
+        map.put(AssetPlatform.ANDROID_AARCH64, List.of(
+                nativeAsset("android-aarch64/libonnxruntime.so", 32_120_992L,
+                        "3a602b463d434d20fbf69cd1b8bdfd2f86a2cb67d08de97aec8f62476fa4ab87"),
+                nativeAsset("android-aarch64/libonnxruntime4j_jni.so", 111_648L,
+                        "45673d7fba377fe0555892460766051b5993d65c9f65e528dc9d515c07c9f683")));
         return Map.copyOf(map);
     }
 
