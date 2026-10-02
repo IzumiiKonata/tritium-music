@@ -8,6 +8,8 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tritium.music.client.AssetBootstrap;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.platform.MinecraftMusicPlatform;
@@ -31,6 +33,8 @@ public class TritiumMusicMod implements ClientModInitializer {
 
     public static final String MOD_ID = "tritium-music";
 
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
     public static final String KEY_CATEGORY = KeyMapping.CATEGORY_MISC;
 
     public static final KeyMapping openNcmScreen = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.tritium-music.open", InputConstants.Type.KEYSYM, InputConstants.KEY_M, KEY_CATEGORY));
@@ -44,12 +48,24 @@ public class TritiumMusicMod implements ClientModInitializer {
         Platform.set(new MinecraftMusicPlatform());
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-            FontManager.loadFonts();
-            FontCatalog.preload();
-            SystemFontIndex.preload(FontManager::retryShaping);
-            WidgetConfig.get();
-            AssetBootstrap.start();
-            AsyncUtil.runAsync(CloudMusic::initNCM);
+            try {
+                FontManager.loadFonts();
+                FontCatalog.preload();
+                SystemFontIndex.preload(FontManager::retryShaping);
+            } catch (Throwable throwable) {
+                LOGGER.error("Font initialisation failed, continuing with the bundled defaults", throwable);
+                try {
+                    FontManager.loadFonts();
+                } catch (Throwable ignored) {
+                }
+            }
+            try {
+                WidgetConfig.get();
+                AssetBootstrap.start();
+                AsyncUtil.runAsync(CloudMusic::initNCM);
+            } catch (Throwable throwable) {
+                LOGGER.error("Music backend initialisation failed", throwable);
+            }
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             CloudMusic.shutdownPlayback();
@@ -76,7 +92,7 @@ public class TritiumMusicMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
     }
 
-    public static void renderHudWidgets(GuiGraphics graphics, float partialTick) {
+public static void renderHudWidgets(GuiGraphics graphics, float partialTick) {
         updateSpectrumSettings();
         renderWidget(graphics, partialTick, MUSIC_SPECTRUM);
         renderWidget(graphics, partialTick, MUSIC_LYRICS);
@@ -84,7 +100,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     }
 
     private static void updateSpectrumSettings() {
-        AudioPlayer.spectrumEnabled = MUSIC_SPECTRUM.isEnabled() || MUSIC_LYRICS.isEnabled();
+        AudioPlayer.spectrumEnabled = WidgetConfig.spectrumRequested();
         WidgetConfig.Spectrum spectrum = WidgetConfig.get().spectrum;
         AudioPlayer.spectrumTilt = (float) spectrum.spectrumTilt;
         AudioPlayer.absoluteVolume = spectrum.absVol;

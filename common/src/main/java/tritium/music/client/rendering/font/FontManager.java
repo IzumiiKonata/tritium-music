@@ -73,12 +73,38 @@ public class FontManager {
         FontConfig config = FontConfig.get().copy();
         config.normalize();
 
-        apply(config,
-                acquire(config.main, FontConfig.DEFAULT_MAIN, FontConfig.DEFAULT_ENGLISH),
-                acquire(config.english, FontConfig.DEFAULT_ENGLISH, FontConfig.DEFAULT_ENGLISH),
-                acquire(config.mainBold, FontConfig.DEFAULT_MAIN_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
-                acquire(config.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
-                true);
+        try {
+            apply(config,
+                    acquire(config.main, FontConfig.DEFAULT_MAIN, FontConfig.DEFAULT_ENGLISH),
+                    acquire(config.english, FontConfig.DEFAULT_ENGLISH, FontConfig.DEFAULT_ENGLISH),
+                    acquire(config.mainBold, FontConfig.DEFAULT_MAIN_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
+                    acquire(config.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
+                    true);
+        } catch (Throwable throwable) {
+            Platform.log("[font] the configured fonts could not be loaded (" + describe(throwable)
+                    + "), falling back to the bundled defaults");
+            loadDefaults();
+        }
+    }
+
+    private static void loadDefaults() {
+        FontConfig defaults = new FontConfig();
+        defaults.normalize();
+        try {
+            apply(defaults,
+                    acquire(defaults.main, FontConfig.DEFAULT_MAIN, FontConfig.DEFAULT_ENGLISH),
+                    acquire(defaults.english, FontConfig.DEFAULT_ENGLISH, FontConfig.DEFAULT_ENGLISH),
+                    acquire(defaults.mainBold, FontConfig.DEFAULT_MAIN_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
+                    acquire(defaults.englishBold, FontConfig.DEFAULT_ENGLISH_BOLD, FontConfig.DEFAULT_ENGLISH_BOLD),
+                    true);
+        } catch (Throwable throwable) {
+            Platform.log("[font] the bundled fonts could not be loaded: " + describe(throwable));
+        }
+    }
+
+    private static String describe(Throwable throwable) {
+        String message = throwable.getMessage();
+        return throwable.getClass().getSimpleName() + (message == null || message.isBlank() ? "" : ": " + message);
     }
 
     public static void reload() {
@@ -212,14 +238,20 @@ public class FontManager {
                                         FontLibrary.Loaded englishBold) {
         try {
             Platform.log(String.format(java.util.Locale.ROOT,
-                    "[font] advanced shaping=%s | english=%s:%s shaper=%s | main=%s:%s shaper=%s | englishBold shaper=%s | mainBold shaper=%s",
+                    "[font] advanced shaping=%s | harfbuzz=%s | english=%s:%s shaper=%s | main=%s:%s shaper=%s | englishBold shaper=%s | mainBold shaper=%s",
                     shapingActive,
-                    config.english.source, config.english.value, english.shaper() != null,
-                    config.main.source, config.main.value, main.shaper() != null,
-                    englishBold.shaper() != null,
-                    mainBold.shaper() != null));
+                    HarfBuzzSupport.isAvailable(),
+                    config.english.source, config.english.value, backend(english),
+                    config.main.source, config.main.value, backend(main),
+                    backend(englishBold),
+                    backend(mainBold)));
         } catch (Throwable ignored) {
         }
+    }
+
+    private static String backend(FontLibrary.Loaded resource) {
+        FontShaper shaper = resource == null ? null : resource.shaper();
+        return shaper == null ? "none" : shaper.backendName();
     }
 
     private static CFontRenderer.Face face(FontLibrary.Loaded resource) {

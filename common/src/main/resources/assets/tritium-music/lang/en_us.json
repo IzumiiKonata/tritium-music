@@ -201,5 +201,6 @@
   "tritium-music.ui.settings.font.loading": "Applying fonts...",
   "tritium-music.ui.settings.font.shaping": "Advanced shaping",
   "tritium-music.ui.settings.font.shaping_unavailable": "No shaping data for the current fonts; fell back to basic layout",
-  "tritium-music.ui.settings.font.warning.cjk": "The main font cannot display Chinese characters; they may render as boxes"
+  "tritium-music.ui.settings.font.warning.cjk": "The main font cannot display Chinese characters; they may render as boxes",
+  "tritium-music.ui.settings.font.error.unreadable": "%s is not a usable font file"
 }

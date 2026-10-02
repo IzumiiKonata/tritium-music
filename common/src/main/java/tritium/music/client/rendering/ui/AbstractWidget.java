@@ -10,6 +10,7 @@ import tritium.music.client.util.ClientSettings;
 import tritium.music.client.util.CursorUtils;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -332,8 +333,48 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
         }
     }
 
+    public boolean dragOnPress() {
+        return false;
+    }
+
     public boolean onMouseClicked(double relativeX, double relativeY, int mouseButton) {
-        return this.clickCallback != null && this.isClickable() && this.clickCallback.onClick(relativeX, relativeY, mouseButton);
+        if (this.clickCallback == null || !this.isClickable()) {
+            return false;
+        }
+        if (this.dragOnPress()) {
+            return this.clickCallback.onClick(relativeX, relativeY, mouseButton);
+        }
+        PENDING_CLICKS.add(new PendingClick(this, relativeX, relativeY, mouseButton));
+        return true;
+    }
+
+    private record PendingClick(AbstractWidget<?> widget, double x, double y, int button) {
+    }
+
+    private static final List<PendingClick> PENDING_CLICKS = new ArrayList<>(4);
+
+    public static void clearPendingClick() {
+        PENDING_CLICKS.clear();
+    }
+
+    public static boolean commitPendingClick(double mouseX, double mouseY) {
+        if (PENDING_CLICKS.isEmpty()) {
+            return false;
+        }
+        List<PendingClick> pending = List.copyOf(PENDING_CLICKS);
+        PENDING_CLICKS.clear();
+
+        for (PendingClick click : pending) {
+            AbstractWidget<?> widget = click.widget();
+            if (widget.isHidden() || !widget.isClickable() || !widget.testHovered(mouseX, mouseY)) {
+                continue;
+            }
+            OnClickCallback callback = widget.clickCallback;
+            if (callback != null && callback.onClick(click.x(), click.y(), click.button())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     protected boolean iterateChildrenKeyType(List<AbstractWidget<?>> children, char typedChar, int keyCode) {

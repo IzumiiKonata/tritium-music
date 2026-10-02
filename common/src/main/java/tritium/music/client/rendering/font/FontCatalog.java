@@ -25,6 +25,7 @@ public final class FontCatalog {
     private static final String FONT_PATH = "/assets/tritium-music/fonts";
     private static final String[] EXTENSIONS = {".ttf", ".otf"};
     private static final Set<String> ICON_FONTS = Set.of("music.ttf", "icomoon.ttf");
+    private static final int MAX_USER_FONTS = 512;
 
     private static final String[] FALLBACK_BUILTINS = {
             "pf_normal.ttf", "pf_middleblack.ttf", "sfregular.otf", "sfbold.otf"
@@ -53,8 +54,16 @@ public final class FontCatalog {
     }
 
     public static void refresh() {
-        builtin = scanBuiltins();
-        user = scanUserFonts();
+        try {
+            builtin = scanBuiltins();
+        } catch (Throwable throwable) {
+            Platform.log("[font] built-in font scan failed: " + throwable.getClass().getSimpleName());
+        }
+        try {
+            user = scanUserFonts();
+        } catch (Throwable throwable) {
+            Platform.log("[font] user font scan failed: " + throwable.getClass().getSimpleName());
+        }
         cached = combine();
     }
 
@@ -134,7 +143,7 @@ public final class FontCatalog {
                 options.add(new FontOption(FontConfig.SOURCE_SYSTEM, family, family, SOURCE_KEY_SYSTEM));
             }
         } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            Platform.log("[font] enumerating system font families failed: " + throwable.getClass().getSimpleName());
         }
         options.sort(Comparator.comparing(FontOption::displayName, String.CASE_INSENSITIVE_ORDER));
         system = options;
@@ -181,7 +190,7 @@ public final class FontCatalog {
                 }
             }
         } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            Platform.log("[font] bundled font scan failed: " + throwable.getClass().getSimpleName());
         }
         return names;
     }
@@ -199,23 +208,41 @@ public final class FontCatalog {
 
     private static List<FontOption> scanUserFonts() {
         List<FontOption> options = new ArrayList<>();
+        File directory = null;
         try {
-            File dir = userFontDir();
-            Path root = dir.toPath();
-            try (var stream = Files.walk(root, 4)) {
-                stream.filter(Files::isRegularFile)
-                        .filter(path -> hasFontExtension(path.getFileName().toString().toLowerCase(Locale.ROOT)))
-                        .forEach(path -> options.add(new FontOption(
-                                FontConfig.SOURCE_FILE,
-                                path.toAbsolutePath().toString(),
-                                stripExtension(path.getFileName().toString()),
-                                SOURCE_KEY_USER)));
-            }
+            directory = userFontDir();
         } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            return List.of();
         }
+
+        try (var stream = Files.walk(directory.toPath(), 4)) {
+            stream.filter(Files::isRegularFile).forEach(path -> {
+                try {
+                    if (options.size() >= MAX_USER_FONTS) {
+                        return;
+                    }
+                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                    if (!hasFontExtension(name) || ICON_FONTS.contains(name) || !isUsableFontFile(path)) {
+                        return;
+                    }
+                    options.add(new FontOption(
+                            FontConfig.SOURCE_FILE,
+                            path.toAbsolutePath().toString(),
+                            stripExtension(path.getFileName().toString()),
+                            SOURCE_KEY_USER));
+                } catch (Throwable ignored) {
+                }
+            });
+        } catch (Throwable throwable) {
+            Platform.log("[font] scanning " + directory + " failed: " + throwable.getClass().getSimpleName());
+        }
+
         options.sort(Comparator.comparing(FontOption::displayName, String.CASE_INSENSITIVE_ORDER));
         return List.copyOf(options);
+    }
+
+    private static boolean isUsableFontFile(Path path) {
+        return FontLibrary.isPlausibleFontFile(path.toFile());
     }
 
     private static boolean hasFontExtension(String name) {

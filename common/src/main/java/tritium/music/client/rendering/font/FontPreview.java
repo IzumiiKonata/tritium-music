@@ -61,22 +61,41 @@ public final class FontPreview implements AutoCloseable {
 
         long id = requestId.incrementAndGet();
         AsyncUtil.runAsync(() -> {
-            FontLibrary.Loaded main = FontLibrary.acquire(snapshot.main.source, snapshot.main.value, snapshot.main.style);
-            FontLibrary.Loaded english = FontLibrary.acquire(snapshot.english.source, snapshot.english.value, snapshot.english.style);
-            FontLibrary.Loaded mainBold = FontLibrary.acquire(snapshot.mainBold.source, snapshot.mainBold.value, snapshot.mainBold.style);
-            FontLibrary.Loaded englishBold = FontLibrary.acquire(snapshot.englishBold.source, snapshot.englishBold.value, snapshot.englishBold.style);
+            FontLibrary.Loaded main = null;
+            FontLibrary.Loaded english = null;
+            FontLibrary.Loaded mainBold = null;
+            FontLibrary.Loaded englishBold = null;
+            try {
+                main = FontLibrary.acquire(snapshot.main.source, snapshot.main.value, snapshot.main.style);
+                english = FontLibrary.acquire(snapshot.english.source, snapshot.english.value, snapshot.english.style);
+                mainBold = FontLibrary.acquire(snapshot.mainBold.source, snapshot.mainBold.value, snapshot.mainBold.style);
+                englishBold = FontLibrary.acquire(snapshot.englishBold.source, snapshot.englishBold.value, snapshot.englishBold.style);
+            } catch (Throwable throwable) {
+                closeAll(main, english, mainBold, englishBold);
+                ready = false;
+                return;
+            }
 
             if (closed || id != requestId.get()) {
                 closeAll(main, english, mainBold, englishBold);
                 return;
             }
 
+            FontLibrary.Loaded finalMain = main;
+            FontLibrary.Loaded finalEnglish = english;
+            FontLibrary.Loaded finalMainBold = mainBold;
+            FontLibrary.Loaded finalEnglishBold = englishBold;
             AsyncUtil.runOnRenderThread(() -> {
                 if (closed || id != requestId.get()) {
-                    closeAll(main, english, mainBold, englishBold);
+                    closeAll(finalMain, finalEnglish, finalMainBold, finalEnglishBold);
                     return;
                 }
-                install(snapshot, main, english, mainBold, englishBold);
+                try {
+                    install(snapshot, finalMain, finalEnglish, finalMainBold, finalEnglishBold);
+                } catch (Throwable throwable) {
+                    ready = false;
+                    closeAll(finalMain, finalEnglish, finalMainBold, finalEnglishBold);
+                }
             });
         });
     }
@@ -87,6 +106,12 @@ public final class FontPreview implements AutoCloseable {
                          FontLibrary.Loaded mainBold,
                          FontLibrary.Loaded englishBold) {
         releaseResources();
+
+        if (!usable(main, english, mainBold, englishBold)) {
+            ready = false;
+            closeAll(main, english, mainBold, englishBold);
+            return;
+        }
 
         mainResource = main;
         englishResource = english;
@@ -120,6 +145,15 @@ public final class FontPreview implements AutoCloseable {
             return true;
         }
         return fallback != null && fallback.canDisplayUpTo(CJK_SAMPLE) < 0;
+    }
+
+    private static boolean usable(FontLibrary.Loaded... resources) {
+        for (FontLibrary.Loaded resource : resources) {
+            if (resource != null && resource.available()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Font derive(FontLibrary.Loaded resource, FontConfig.Slot slot) {

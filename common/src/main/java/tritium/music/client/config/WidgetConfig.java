@@ -24,6 +24,11 @@ public class WidgetConfig {
         return instance;
     }
 
+    public static boolean spectrumRequested() {
+        WidgetConfig config = get();
+        return config.musicSpectrum.enabled || (config.musicLyrics.enabled && config.lyrics.audioReactive);
+    }
+
     public WidgetSettings musicInfo = new WidgetSettings(8f / 1920f, 8f / 1080f, 1.0, true);
     public WidgetSettings musicLyrics = new WidgetSettings(0.5f - 225f / 1920f, 1f - 140f / 1080f, 1.0, false);
     public WidgetSettings musicSpectrum = new WidgetSettings(0f, 0f, 1.0, false);

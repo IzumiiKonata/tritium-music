@@ -112,6 +112,11 @@ public class WidgetEditorScreen extends BaseScreen {
     }
 
     @Override
+    protected boolean clickOnPress() {
+        return true;
+    }
+
+    @Override
     public void onMouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (mouseButton == 0 && mouseX >= settingsBtnX() && mouseX <= settingsBtnX() + SETTINGS_BTN_W
                 && mouseY >= SETTINGS_BTN_Y && mouseY <= SETTINGS_BTN_Y + SETTINGS_BTN_H) {

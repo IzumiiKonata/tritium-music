@@ -115,9 +115,12 @@ public class CFontRenderer implements Closeable {
                 }
             }
         }
+        if (list.isEmpty()) {
+            list.add(new Face(new Font(Font.SANS_SERIF, Font.PLAIN, 1), null));
+        }
 
         this.sizePx = sizePx;
-        int count = Math.max(1, list.size());
+        int count = list.size();
 
         Font[] fonts = new Font[count];
         FontShaper[] slotShapers = new FontShaper[count];
@@ -125,7 +128,7 @@ public class CFontRenderer implements Closeable {
         int bandCap = (int) Math.ceil(sizePx * 2 * MAX_BAND_RATIO);
 
         for (int i = 0; i < count; i++) {
-            Face face = i < list.size() ? list.get(i) : list.get(list.size() - 1);
+            Face face = list.get(i);
             Font derived = face.font().deriveFont(sizePx * 2);
             fonts[i] = derived;
             slotShapers[i] = face.shaper() != null && face.shaper().isUsable() ? face.shaper() : null;
