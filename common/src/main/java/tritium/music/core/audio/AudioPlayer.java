@@ -3,8 +3,6 @@ package tritium.music.core.audio;
 import lombok.Getter;
 import tritium.music.core.MusicState;
 import tritium.music.platform.Platform;
-import tritium.music.repackage.processing.sound.FFT;
-import tritium.music.repackage.processing.sound.JSynFFT;
 
 import javax.sound.sampled.AudioFormat;
 import java.io.File;
@@ -34,8 +32,8 @@ public class AudioPlayer {
     private static final AtomicBoolean SPECTRUM_FAILURE_LOGGED = new AtomicBoolean();
     private static volatile AudioPlayer spectrumSource;
     private static volatile SpectrumFrame spectrumFrame = new SpectrumFrame(new float[0], new float[0], System.nanoTime(), DEFAULT_SPECTRUM_FRAME_NANOS);
-    private final SpectrumVisualizer visualizer = new SpectrumVisualizer(JSynFFT.FFT_SIZE, BAR_COUNT);
-    private final float[] fftWindow = new float[JSynFFT.FFT_SIZE];
+    private final SpectrumVisualizer visualizer = new SpectrumVisualizer(Fft.SIZE, BAR_COUNT);
+    private final float[] fftWindow = new float[Fft.SIZE];
     private final AtomicBoolean spectrumTaskQueued = new AtomicBoolean();
     private final AtomicLong seekRevision = new AtomicLong();
     public Runnable afterPlayed;
@@ -74,7 +72,7 @@ public class AudioPlayer {
     }
 
     private static float[] createFftWindow() {
-        float[] window = new float[JSynFFT.FFT_SIZE];
+        float[] window = new float[Fft.SIZE];
         for (int i = 0; i < window.length; i++) {
             window[i] = (float) (0.5 - 0.5 * Math.cos(2.0 * Math.PI * i / (window.length - 1)));
         }
@@ -229,7 +227,7 @@ public class AudioPlayer {
                 while ((window = pendingSpectrumWindow) != null) {
                     pendingSpectrumWindow = null;
                     float[] samples = window.samples();
-                    float[] magnitudes = FFT.analyzeSample(samples, samples.length);
+                    float[] magnitudes = Fft.analyzeSample(samples, samples.length);
                     for (int i = 0; i < magnitudes.length; i++) {
                         magnitudes[i] *= 2.0f;
                     }

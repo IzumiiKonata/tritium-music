@@ -5,28 +5,15 @@ import tritium.music.platform.Platform;
 
 public final class OpenALContext {
 
-    private static final ThreadLocal<Long> BOUND = ThreadLocal.withInitial(() -> 0L);
+    private static final Object LOCK = new Object();
 
-    private static volatile long context;
-    private static volatile boolean reported;
+    private static long handle;
+    private static long generation;
 
     private OpenALContext() {
     }
 
-    public static void set(long handle) {
-        context = handle;
-        BOUND.set(0L);
-    }
-
-    public static long handle() {
-        return context;
-    }
-
-    public static void invalidate() {
-        context = 0;
-    }
-
-    public static long current() {
+    public static long live() {
         try {
             return ALC10.alcGetCurrentContext();
         } catch (Throwable throwable) {
@@ -34,35 +21,26 @@ public final class OpenALContext {
         }
     }
 
-    public static boolean bind() {
-        long target = context;
-        if (target == 0) {
-            return false;
+    public static long generation() {
+        long current = live();
+        synchronized (LOCK) {
+            if (current == 0) {
+                return 0;
+            }
+            if (current != handle) {
+                handle = current;
+                generation++;
+                log("bound to the Minecraft OpenAL context 0x" + Long.toHexString(current)
+                        + " (generation " + generation + ")");
+            }
+            return generation;
         }
-        if (BOUND.get() == target) {
-            return true;
-        }
+    }
 
-        try {
-            if (current() == target) {
-                BOUND.set(target);
-                return true;
-            }
-            boolean made = ALC10.alcMakeContextCurrent(target);
-            if (made) {
-                BOUND.set(target);
-            }
-            if (!reported) {
-                reported = true;
-                log("attached the Minecraft OpenAL context to the music thread (success=" + made + ")");
-            }
-            return made;
-        } catch (Throwable throwable) {
-            if (!reported) {
-                reported = true;
-                log("attaching the Minecraft OpenAL context failed: " + throwable);
-            }
-            return false;
+    public static void invalidate() {
+        synchronized (LOCK) {
+            handle = 0;
+            generation++;
         }
     }
 

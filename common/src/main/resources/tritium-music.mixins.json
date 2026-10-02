@@ -6,6 +6,7 @@
   "client": [
     "GuiRendererMixin",
     "NowPlayingToastMixin",
+    "SoundEngineMixin",
     "ToastManagerMixin"
   ],
   "injectors": {
