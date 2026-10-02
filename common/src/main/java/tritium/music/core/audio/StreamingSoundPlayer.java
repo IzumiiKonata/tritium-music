@@ -27,6 +27,7 @@ final class StreamingSoundPlayer {
     private static final int PREFETCH_BUFFER_BYTES = 8 * 1024 * 1024;
     private static final AtomicBoolean BEAT_THIS_FAILURE_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean BASIC_PITCH_FAILURE_LOGGED = new AtomicBoolean();
+    private static final AtomicBoolean JAVA_SOUND_FALLBACK_LOGGED = new AtomicBoolean();
     private static final Semaphore AUTO_MIX_ANALYSIS_SLOT = new Semaphore(1);
     private final StreamFactory streamFactory;
     private final String type;
@@ -622,6 +623,9 @@ final class StreamingSoundPlayer {
         } catch (IllegalArgumentException unsupportedFormat) {
             throw unsupportedFormat;
         } catch (Throwable ignored) {
+        }
+        if (JAVA_SOUND_FALLBACK_LOGGED.compareAndSet(false, true)) {
+            Platform.log("[NCM] OpenAL output unavailable, falling back to javax.sound playback");
         }
         SourceDataLine result = AudioSystem.getSourceDataLine(format);
         result.open(format, bufferBytes);

@@ -5,11 +5,8 @@ Those components remain governed by their respective licenses and copyright noti
 
 | Component | Vendored package | License |
 | --- | --- | --- |
-| Processing Sound | `processing.sound` | LGPL-2.1-only |
-| Jipes | `com.tagtraum.jipes` | LGPL-2.1-only |
-| JLayer | `javazoom.jl` | LGPL-2.0-or-later |
+| JLayer | `javazoom.jl.decoder` | LGPL-2.0-or-later |
 | jFLAC | `org.kc7bfi.jflac` | LGPL-2.0-or-later |
-| JSyn and SoftSynth support code | `com.jsyn`, `com.softsynth` | Apache-2.0 |
 | Beat This! `final0` model | `assets/tritium-music/automix/beat_this.onnx` | MIT |
 | beat-this-rs Mel spectrogram model | `assets/tritium-music/automix/mel_spectrogram.onnx` | MIT |
 | Spotify Basic Pitch ICASSP 2022 model | `assets/tritium-music/automix/basic_pitch.onnx` | Apache-2.0 |
