@@ -1,7 +1,5 @@
 package tritium.music.core.audio;
 
-import tritium.music.repackage.com.jsyn.util.FourierMath;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -144,7 +142,7 @@ final class BasicPitchAnalyzer {
                 double window = 0.5 - 0.5 * Math.cos(2 * Math.PI * sample / (FFT_SIZE - 1));
                 real[sample] = (float) (audio[start + sample] * window);
             }
-            FourierMath.transform(1, FFT_SIZE, real, imaginary);
+            Fft.transform(1, FFT_SIZE, real, imaginary);
             int center = Math.min(audio.length - 1, start + copied / 2);
             int feature = Math.min(featureCount - 1, (int) (center * 1_000L / SAMPLE_RATE / FEATURE_MILLIS));
             accumulateSpectrum(accumulators[feature], real, imaginary);
