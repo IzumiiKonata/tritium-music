@@ -8,6 +8,7 @@ import tritium.music.platform.Platform;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -21,6 +22,7 @@ public final class OpenALPCMOutput implements PcmOutput {
     private static final long RECOVERY_COOLDOWN_NANOS = 8_000_000_000L;
     private static final long RETRY_NANOS = 10_000_000_000L;
     private static final long RECOVERY_WINDOW_NANOS = 60_000_000_000L;
+    private static final long CONTEXT_WAIT_NANOS = 2_000_000_000L;
     private static final int MAX_RECOVERIES = 3;
     private static final int VERIFY_POLLS = 12;
     private static final int OFFSET_SAMPLES = 0;
@@ -45,6 +47,7 @@ public final class OpenALPCMOutput implements PcmOutput {
     private int offsetMode = OFFSET_SAMPLES;
     private long queuedFrames;
     private long unqueuedFrames;
+    private long deviceGeneration;
     private int underruns;
     private long recoveryWindowStart;
     private long lastRecoveryNanos;
@@ -77,17 +80,29 @@ public final class OpenALPCMOutput implements PcmOutput {
         long cushion = Math.max(bufferBytes, CUSHION_BYTES);
         int inFlight = (int) Math.max(MIN_IN_FLIGHT, Math.min(MAX_IN_FLIGHT, cushion / bufferLength));
 
-        OpenALPCMOutput output = new OpenALPCMOutput(format, alFormat, frames, inFlight);
-        try {
-            if (output.initialize()) {
-                return output;
+        long deadline = System.nanoTime() + CONTEXT_WAIT_NANOS;
+        while (true) {
+            if (OpenALContext.live() == 0) {
+                if (System.nanoTime() >= deadline || !sleep(20L)) {
+                    return null;
+                }
+                continue;
             }
-        } catch (Throwable throwable) {
-            report("startup", throwable.getClass().getSimpleName() + ": " + throwable.getMessage());
+
+            OpenALPCMOutput output = new OpenALPCMOutput(format, alFormat, frames, inFlight);
+            try {
+                if (output.initialize()) {
+                    return output;
+                }
+            } catch (Throwable throwable) {
+                report("startup", throwable.getClass().getSimpleName() + ": " + throwable.getMessage());
+            }
+            output.closed = true;
+            output.release();
+            if (OpenALContext.live() != 0) {
+                return null;
+            }
         }
-        output.release();
-        output.closed = true;
-        return null;
     }
 
     @Override
@@ -102,7 +117,7 @@ public final class OpenALPCMOutput implements PcmOutput {
             if (!closed) {
                 retryAfterFailure();
             }
-            if (inactive()) {
+            if (!syncDevice()) {
                 dropped = length;
             } else {
                 int written = 0;
@@ -150,10 +165,12 @@ public final class OpenALPCMOutput implements PcmOutput {
             }
             retryAfterFailure();
             playing = true;
-            if (!started && queueCount >= startThreshold()) {
-                started = true;
+            if (syncDevice()) {
+                if (!started && queueCount >= startThreshold()) {
+                    started = true;
+                }
+                ensurePlaying();
             }
-            ensurePlaying();
             lock.notifyAll();
         }
     }
@@ -165,7 +182,7 @@ public final class OpenALPCMOutput implements PcmOutput {
                 return;
             }
             playing = false;
-            if (source != 0 && state() == AL10.AL_PLAYING) {
+            if (syncDevice() && state() == AL10.AL_PLAYING) {
                 AL10.alSourcePause(source);
                 refreshPosition();
             }
@@ -180,7 +197,7 @@ public final class OpenALPCMOutput implements PcmOutput {
                 return;
             }
             pendingBytes = 0;
-            if (source != 0) {
+            if (syncDevice()) {
                 unqueueProcessed();
                 ensurePlaying();
             }
@@ -191,13 +208,13 @@ public final class OpenALPCMOutput implements PcmOutput {
     @Override
     public void drain() {
         synchronized (lock) {
-            if (inactive()) {
+            if (closed) {
                 return;
             }
             draining = true;
             try {
                 submit();
-                while (!inactive() && playing && queueCount > 0) {
+                while (!closed && playing && syncDevice() && queueCount > 0) {
                     refreshPosition();
                     if (queueCount == 0) {
                         break;
@@ -232,7 +249,10 @@ public final class OpenALPCMOutput implements PcmOutput {
     }
 
     private boolean initialize() {
-        OpenALContext.bind();
+        deviceGeneration = OpenALContext.generation();
+        if (deviceGeneration == 0) {
+            return false;
+        }
         drainErrors("startup");
         if (!createObjects()) {
             return false;
@@ -283,10 +303,7 @@ public final class OpenALPCMOutput implements PcmOutput {
                 playing = true;
                 break;
             }
-            try {
-                Thread.sleep(2L);
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
+            if (!sleep(2L)) {
                 break;
             }
         }
@@ -306,9 +323,52 @@ public final class OpenALPCMOutput implements PcmOutput {
         return playing && createObjects();
     }
 
+    private boolean syncDevice() {
+        long observed = OpenALContext.generation();
+        if (observed == deviceGeneration) {
+            return source != 0 && !failed;
+        }
+
+        deviceGeneration = observed;
+        abandon();
+        if (observed == 0) {
+            log("the Minecraft OpenAL context is gone, waiting for an audio device");
+            return false;
+        }
+        if (!createObjects()) {
+            return false;
+        }
+
+        failed = false;
+        recoveries = 0;
+        recoveryWindowStart = 0L;
+        underruns = 0;
+        started = false;
+        observedPlaying = false;
+        log("moved the OpenAL output onto the audio device Minecraft switched to");
+        return true;
+    }
+
+    private void abandon() {
+        long lost = queuedFrames + pendingBytes / frameSize;
+        source = 0;
+        Arrays.fill(bufferIds, 0);
+        queueCount = 0;
+        queueHead = 0;
+        nextBuffer = 0;
+        queuedFrames = 0;
+        started = false;
+        observedPlaying = false;
+        advance((int) Math.min(Integer.MAX_VALUE, lost));
+    }
+
     private void release() {
         try {
-            deleteObjects();
+            if (deviceGeneration != 0 && OpenALContext.generation() == deviceGeneration) {
+                deleteObjects();
+            } else {
+                abandon();
+            }
             drainErrors("cleanup");
         } catch (Throwable throwable) {
             log("OpenAL cleanup failed: " + throwable);
@@ -334,12 +394,7 @@ public final class OpenALPCMOutput implements PcmOutput {
         if (pendingBytes == 0) {
             return;
         }
-        if (inactive() || source == 0) {
-            advance(pendingBytes / frameSize);
-            pendingBytes = 0;
-            return;
-        }
-        if (!awaitSlot()) {
+        if (!syncDevice() || !awaitSlot()) {
             advance(pendingBytes / frameSize);
             pendingBytes = 0;
             return;
@@ -386,6 +441,9 @@ public final class OpenALPCMOutput implements PcmOutput {
     private boolean awaitSlot() {
         long stalledSince = 0L;
         while (!inactive() && (queueCount >= bufferIds.length || (!playing && queueCount >= 1))) {
+            if (!syncDevice()) {
+                return false;
+            }
             refreshPosition();
             if (inactive()) {
                 return false;
@@ -457,6 +515,9 @@ public final class OpenALPCMOutput implements PcmOutput {
             return;
         }
         if (System.nanoTime() - lastRecoveryNanos < RETRY_NANOS) {
+            return;
+        }
+        if (OpenALContext.generation() != deviceGeneration) {
             return;
         }
         recoveryWindowStart = 0L;
@@ -578,10 +639,7 @@ public final class OpenALPCMOutput implements PcmOutput {
         if (millis <= 0) {
             return;
         }
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
+        if (!sleep(millis)) {
             closed = true;
         }
     }
@@ -597,7 +655,7 @@ public final class OpenALPCMOutput implements PcmOutput {
     }
 
     private boolean inactive() {
-        return closed || failed;
+        return closed || failed || source == 0;
     }
 
     private int startThreshold() {
@@ -606,6 +664,16 @@ public final class OpenALPCMOutput implements PcmOutput {
 
     private int state() {
         return source == 0 ? AL10.AL_STOPPED : AL10.alGetSourcei(source, AL10.AL_SOURCE_STATE);
+    }
+
+    private static boolean sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+            return true;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     private static void drainErrors(String operation) {

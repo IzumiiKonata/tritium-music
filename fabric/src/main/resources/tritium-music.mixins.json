@@ -4,7 +4,8 @@
   "package": "tritium.music.fabric.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "GuiMixin"
+    "GuiMixin",
+    "SoundEngineMixin"
   ],
   "injectors": {
     "defaultRequire": 1

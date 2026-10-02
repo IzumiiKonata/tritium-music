@@ -9,9 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tritium.music.client.audio.OpenALContext;
 import tritium.music.client.audio.OpenALPCMOutput;
-import tritium.music.core.assets.AssetPlatform;
 import tritium.music.platform.MusicPlatform;
 import tritium.music.platform.PcmOutput;
 import tritium.music.platform.TextureHandle;
@@ -21,10 +19,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class MinecraftMusicPlatform implements MusicPlatform {
 
@@ -32,9 +28,8 @@ public class MinecraftMusicPlatform implements MusicPlatform {
 
     private final java.util.concurrent.ExecutorService executor;
     private final Set<TextureHandle> uploaded = ConcurrentHashMap.newKeySet();
-    private final Map<ResourceLocation, DynamicTexture> textureCache = new ConcurrentHashMap<>();
+private final Map<ResourceLocation, DynamicTexture> textureCache = new ConcurrentHashMap<>();
     private final Map<ResourceLocation, NativeImage> imageCache = new ConcurrentHashMap<>();
-    private volatile long alcContext;
 
     public MinecraftMusicPlatform() {
         this.executor = Executors.newCachedThreadPool();
@@ -69,44 +64,7 @@ public class MinecraftMusicPlatform implements MusicPlatform {
 
     @Override
     public PcmOutput openPcmOutput(AudioFormat format, int bufferBytes) {
-        if (!AssetPlatform.isAndroid()) {
-            return null;
-        }
-
-        for (int attempt = 0; attempt < 2; attempt++) {
-            OpenALContext.set(captureAlcContext());
-            PcmOutput output = OpenALPCMOutput.open(format, bufferBytes);
-            if (output != null) {
-                return output;
-            }
-            OpenALContext.invalidate();
-            this.alcContext = 0;
-        }
-        return null;
-    }
-
-    private long captureAlcContext() {
-        long live = resolveAlcContext();
-        if (live != 0) {
-            this.alcContext = live;
-            return live;
-        }
-        return this.alcContext;
-    }
-
-    private static long resolveAlcContext() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.isSameThread()) {
-            return OpenALContext.current();
-        }
-
-        CompletableFuture<Long> future = new CompletableFuture<>();
-        minecraft.execute(() -> future.complete(OpenALContext.current()));
-        try {
-            return future.get(1000L, TimeUnit.MILLISECONDS);
-        } catch (Throwable throwable) {
-            return 0;
-        }
+        return OpenALPCMOutput.open(format, bufferBytes);
     }
 
     @Override

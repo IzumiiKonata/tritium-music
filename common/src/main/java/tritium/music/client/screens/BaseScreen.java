@@ -304,7 +304,7 @@ boolean flinging = this.flingVelocity != 0;
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         double mx = RenderSystem.getMouseX();
         double my = RenderSystem.getMouseY();
-        if (button == MouseUtil.LEGACY_LEFT) this.lmbPressed = false;
+if (button == MouseUtil.LEGACY_LEFT) this.lmbPressed = false;
         if (button == MouseUtil.LEGACY_RIGHT) this.rmbPressed = false;
         MouseUtil.setButtonDown(MouseUtil.fromLegacy(button), false);
 
