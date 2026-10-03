@@ -223,14 +223,18 @@ $buildJob = {
 		throw "Gradle wrapper not found: $gradleWrapper"
 	}
 
-	$buildTasks = @(":fabric:build", ":neoforge:build")
-	$loaders = @("fabric", "neoforge")
-
-	# Only 1.20.1 contains Forge.
-	if ($BranchName -eq "1.20.1") {
-		$buildTasks += ":forge:build"
-		$loaders += "forge"
+	# Loader modules differ per branch (1.20.1 has no NeoForge, only 1.20.1 has
+	# Forge), so the modules are discovered from the worktree instead of being
+	# hardcoded. The order keeps the manifest stable across runs.
+	$loaders = @("fabric", "forge", "neoforge") | Where-Object {
+		Test-Path -LiteralPath (Join-Path $WorktreePath "$_\build.gradle") -PathType Leaf
 	}
+
+	if ($loaders.Count -eq 0) {
+		throw "No loader modules found for $BranchName in $WorktreePath"
+	}
+
+	$buildTasks = @($loaders | ForEach-Object { ":$($_):build" })
 
 	$start = Get-Date
 	Write-Host "[$BranchName] Build started"
