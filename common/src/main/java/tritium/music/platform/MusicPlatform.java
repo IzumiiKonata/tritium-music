@@ -24,5 +24,7 @@ public interface MusicPlatform {
 
     String translate(String key, Object... arguments);
 
+    String gameLanguage();
+
     void log(String message);
 }

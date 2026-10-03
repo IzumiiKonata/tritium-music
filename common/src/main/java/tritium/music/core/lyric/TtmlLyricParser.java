@@ -5,13 +5,17 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
+import tritium.music.platform.Platform;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 final class TtmlLyricParser {
     private TtmlLyricParser() {
@@ -28,10 +32,11 @@ final class TtmlLyricParser {
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             Document document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(input)));
+            Map<String, String> itunesTranslations = itunesTranslations(document);
             NodeList paragraphs = document.getElementsByTagNameNS("*", "p");
             for (int i = 0; i < paragraphs.getLength(); i++) {
                 Element paragraph = (Element) paragraphs.item(i);
-                LyricLine line = parseParagraph(paragraph);
+                LyricLine line = parseParagraph(paragraph, itunesTranslations);
                 if (line != null) lines.add(line);
             }
         } catch (Exception ignored) {
@@ -41,7 +46,43 @@ final class TtmlLyricParser {
         return lines;
     }
 
-    private static LyricLine parseParagraph(Element paragraph) {
+    private static Map<String, String> itunesTranslations(Document document) {
+        Map<String, String> byKey = new LinkedHashMap<>();
+        List<String> preferred = preferredLanguages();
+        for (String code : preferred) {
+            for (Element translation : descendants(document.getDocumentElement(), "translation")) {
+                if (!matchesLanguage(attribute(translation, "lang"), code)) continue;
+                for (Element text : descendants(translation, "text")) {
+                    String key = attribute(text, "for");
+                    if (key.isEmpty()) continue;
+                    byKey.putIfAbsent(key, normalizedText(text));
+                }
+            }
+            if (!byKey.isEmpty()) return byKey;
+        }
+        return byKey;
+    }
+
+    private static List<String> preferredLanguages() {
+        List<String> languages = new ArrayList<>(2);
+        try {
+            String selected = Platform.gameLanguage();
+            if (!selected.isBlank()) languages.add(selected);
+        } catch (Exception ignored) {
+        }
+        languages.add(Locale.getDefault().toLanguageTag().replace('_', '-'));
+        languages.add("zh-Hans");
+        return languages;
+    }
+
+    private static boolean matchesLanguage(String lang, String code) {
+        if (lang.isEmpty() || code.isEmpty()) return false;
+        String left = lang.replace('_', '-').toLowerCase(Locale.ROOT);
+        String right = code.replace('_', '-').toLowerCase(Locale.ROOT);
+        return left.equals(right) || left.startsWith(right + "-") || right.startsWith(left + "-");
+    }
+
+    private static LyricLine parseParagraph(Element paragraph, Map<String, String> itunesTranslations) {
         long begin = time(attribute(paragraph, "begin"));
         long end = time(attribute(paragraph, "end"));
         List<LyricLine.Word> words = new ArrayList<>();
@@ -72,6 +113,7 @@ final class TtmlLyricParser {
         line.duration = Math.max(0, end - begin);
         line.words.addAll(words);
         String translation = translation(paragraph);
+        if (translation.isBlank()) translation = itunesTranslations.getOrDefault(attribute(paragraph, "key"), "");
         if (!translation.isBlank()) line.translationText = translation;
         return line;
     }
