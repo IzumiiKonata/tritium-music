@@ -147,6 +147,11 @@ private final Map<ResourceLocation, DynamicTexture> textureCache = new Concurren
     }
 
     @Override
+    public String gameLanguage() {
+        return mc().getLanguageManager().getSelected();
+    }
+
+    @Override
     public void log(String message) {
         LOGGER.info(stripFormatting(message));
     }

@@ -58,6 +58,10 @@ public final class Platform {
         return get().translate(key, arguments);
     }
 
+    public static String gameLanguage() {
+        return get().gameLanguage();
+    }
+
     public static void log(String message) {
         get().log(message);
     }
