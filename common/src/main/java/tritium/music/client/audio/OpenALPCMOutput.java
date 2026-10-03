@@ -15,9 +15,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class OpenALPCMOutput implements PcmOutput {
 
     private static final int BUFFER_MILLIS = 20;
-    private static final int MIN_IN_FLIGHT = 10;
-    private static final int MAX_IN_FLIGHT = 20;
-    private static final long CUSHION_BYTES = 320L * 1024L;
+    private static final int MIN_IN_FLIGHT = 3;
+    private static final int MAX_IN_FLIGHT = 4;
+    private static final long CUSHION_BYTES = 64L * 1024L;
     private static final long STALL_NANOS = 3_000_000_000L;
     private static final long RECOVERY_COOLDOWN_NANOS = 8_000_000_000L;
     private static final long RETRY_NANOS = 10_000_000_000L;
@@ -538,7 +538,7 @@ public final class OpenALPCMOutput implements PcmOutput {
             started = true;
         }
         int current = state();
-        if (current == AL10.AL_PLAYING || current == AL10.AL_PAUSED) {
+        if (current == AL10.AL_PLAYING) {
             return;
         }
         AL10.alSourcePlay(source);
