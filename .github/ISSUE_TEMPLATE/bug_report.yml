@@ -64,7 +64,7 @@ body:
       description: 问题出现在哪个平台？
       options:
         - Fabric
-        - NeoForge
+        - Forge
 
   - type: textarea
     id: screenshots

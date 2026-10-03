@@ -22,7 +22,7 @@ Everything bulky lives in the repository root instead of the mod jar and is down
 Only the natives of the running platform are downloaded. The mod jar ships the ONNX Runtime Java
 classes with all natives stripped out (~0.15 MB instead of ~53 MB) and points
 `onnxruntime.native.path` at the downloaded directory, so the shippable jar is ~10 MB (Fabric) /
-~7 MB (NeoForge) instead of ~150 MB.
+~7 MB (Forge) instead of ~150 MB.
 
 Downloads are verified against a SHA-256 digest, fetched from GitHub first, and automatically routed
 through a `gh-proxy` mirror when GitHub is unreachable (mainland China). Progress shows up as a panel
