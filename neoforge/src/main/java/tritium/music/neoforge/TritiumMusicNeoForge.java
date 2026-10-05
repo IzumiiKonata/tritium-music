@@ -29,11 +29,13 @@ import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
+import tritium.music.client.rendering.hud.DanceWidget;
 import tritium.music.client.rendering.hud.GrooveDebugHud;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
 import tritium.music.client.rendering.hud.MusicSpectrumWidget;
+import tritium.music.client.rendering.hud.dance.DanceStyleRegistry;
 import tritium.music.client.rendering.shader.EffectPipelines;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.screens.ncm.panels.HudSettingsPanel;
@@ -55,6 +57,7 @@ public final class TritiumMusicNeoForge {
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
+    private static final DanceWidget MUSIC_DANCE = new DanceWidget();
     private static final GrooveDebugHud GROOVE_DEBUG = new GrooveDebugHud();
 
     public TritiumMusicNeoForge(ModContainer modContainer) {
@@ -101,11 +104,13 @@ public final class TritiumMusicNeoForge {
         Identifier infoId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_info");
         Identifier lyricsId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_lyrics");
         Identifier spectrumId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_spectrum");
+        Identifier danceId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_dance");
         Identifier grooveId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "groove_debug");
         registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, spectrumId, MUSIC_SPECTRUM);
         registerWidgetAbove(event, spectrumId, lyricsId, MUSIC_LYRICS);
         registerWidgetAbove(event, lyricsId, infoId, MUSIC_INFO);
-        registerWidgetAbove(event, infoId, grooveId, GROOVE_DEBUG);
+        registerWidgetAbove(event, infoId, danceId, MUSIC_DANCE);
+        registerWidgetAbove(event, danceId, grooveId, GROOVE_DEBUG);
 //        registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, infoId, MUSIC_INFO);
 //        registerWidgetAbove(event, infoId, lyricsId, MUSIC_LYRICS);
 //        registerWidgetAbove(event, lyricsId, spectrumId, MUSIC_SPECTRUM);
@@ -117,6 +122,8 @@ public final class TritiumMusicNeoForge {
         FontCatalog.preload();
         SystemFontIndex.preload(FontManager::retryShaping);
         WidgetConfig.get();
+        DanceStyleRegistry.refresh();
+        DanceStyleRegistry.writeReadme();
         AssetBootstrap.start();
         AsyncUtil.runAsync(CloudMusic::initNCM);
     }
@@ -142,7 +149,7 @@ public final class TritiumMusicNeoForge {
             if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
-            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::onRender);
+            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::render);
         });
     }
 
@@ -152,7 +159,7 @@ public final class TritiumMusicNeoForge {
             if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
-            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::onRender);
+            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::render);
         });
     }
 

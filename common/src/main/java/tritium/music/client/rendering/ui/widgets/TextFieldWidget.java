@@ -65,7 +65,12 @@ public class TextFieldWidget extends AbstractWidget<TextFieldWidget> implements 
     }
 
     @Override
-    public boolean onMouseClicked(double relativeX, double relativeY, int mouseButton) {
+    public boolean dragOnPress() {
+        return true;
+    }
+
+    @Override
+    public boolean onMousePressed(double relativeX, double relativeY, int mouseButton) {
         return this.textField.mouseClicked(this.getX() + relativeX, this.getY() + relativeY, mouseButton);
     }
 

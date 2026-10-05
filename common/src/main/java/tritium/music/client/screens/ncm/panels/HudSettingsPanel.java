@@ -2,11 +2,18 @@ package tritium.music.client.screens.ncm.panels;
 
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
+import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.Rect;
+import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.hud.DanceWidget;
+import tritium.music.client.rendering.hud.HudWidget;
+import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
+import tritium.music.client.rendering.hud.MusicSpectrumWidget;
+import tritium.music.client.rendering.hud.dance.DanceStyleRegistry;
 import tritium.music.client.rendering.ui.AbstractWidget;
 import tritium.music.client.rendering.ui.container.Panel;
 import tritium.music.client.rendering.ui.container.ScrollPanel;
@@ -15,11 +22,14 @@ import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMPanel;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.client.screens.widget.ColorPickerWidget;
+import tritium.music.core.audio.AudioPlayer;
 import tritium.music.core.audio.AutoMixSupport;
-import tritium.music.core.audio.AutoMixTempoPolicy;
+import tritium.music.core.audio.MusicBeatTracker;
 import tritium.music.core.model.Quality;
 import tritium.music.platform.Platform;
 
+import java.awt.Desktop;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -27,9 +37,27 @@ import java.util.function.*;
 
 public class HudSettingsPanel extends NCMPanel {
 
+    private static final double ROW_HEIGHT = 24;
+    private static final double ROW_INSET = 12;
+    private static final double CONTROL_GAP = 12;
+    private static final double SECTION_HEIGHT = 16;
+    private static final double TAB_WIDTH = 78;
+    private static final double TAB_SPACING = 6;
+    private static final double TAB_ROW_Y = 52;
+    private static final double CONTENT_TOP = 86;
+
     private final ScrollPanel content = new ScrollPanel();
     private final FontSettingsPage fontPage = new FontSettingsPage();
+    private final PreviewPanel preview = new PreviewPanel();
+
+    private final MusicInfoWidget previewMusicInfo = new MusicInfoWidget();
+    private final MusicLyricsWidget previewLyrics = new MusicLyricsWidget();
+    private final MusicSpectrumWidget previewSpectrum = new MusicSpectrumWidget();
+    private final DanceWidget previewDance = new DanceWidget();
+
     private Page page = Page.GENERAL;
+    private HudWidget previewTarget;
+    private HudWidget previewCurrent;
 
     @Override
     public void onInit() {
@@ -37,27 +65,14 @@ public class HudSettingsPanel extends NCMPanel {
 
         LabelWidget title = new LabelWidget(text("title"), FontManager.pf34bold);
         title.setColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
-        title.setBeforeRenderCallback(() -> title.setPosition(24, 22));
+        title.setBeforeRenderCallback(() -> title.setPosition(24, 18));
         addChild(title);
 
-//        LabelWidget subtitle = new LabelWidget(text("subtitle"), FontManager.pf12);
-//        subtitle.setColor(getColor(NCMScreen.ColorType.SECONDARY_TEXT));
-//        subtitle.setBeforeRenderCallback(() -> {
-//            double titleHeight = FontManager.pf25bold.getStringHeight(title.getLabel());
-//            subtitle.setPosition(24, 22 + titleHeight + 5);
-//        });
-//        addChild(subtitle);
-
-        double tabWidth = 82;
-        double tabSpacing = 6;
         RoundedButtonWidget layoutTab = new RoundedButtonWidget(text("layout"), FontManager.pf14bold);
         layoutTab.setRadius(5);
-        layoutTab.setBounds(tabWidth, 26);
-
-        double tabRowY = 56;
-
+        layoutTab.setBounds(TAB_WIDTH, 24);
         layoutTab.setBeforeRenderCallback(() -> {
-            layoutTab.setPosition(24, tabRowY);
+            layoutTab.setPosition(24, TAB_ROW_Y);
             layoutTab.setColor(getColor(NCMScreen.ColorType.ELEMENT_HOVER));
             layoutTab.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         });
@@ -80,9 +95,9 @@ public class HudSettingsPanel extends NCMPanel {
             int tabIndex = index;
             RoundedButtonWidget tab = new RoundedButtonWidget(target.label(), FontManager.pf14bold);
             tab.setRadius(5);
-            tab.setBounds(tabWidth, 26);
+            tab.setBounds(TAB_WIDTH, 24);
             tab.setBeforeRenderCallback(() -> {
-                tab.setPosition(24 + (tabIndex + 1) * (tabWidth + tabSpacing), tabRowY);
+                tab.setPosition(24 + (tabIndex + 1) * (TAB_WIDTH + TAB_SPACING), TAB_ROW_Y);
                 tab.setColor(page == target ? 0xFFC30218 : getColor(NCMScreen.ColorType.ELEMENT_HOVER));
                 tab.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
             });
@@ -99,9 +114,9 @@ public class HudSettingsPanel extends NCMPanel {
 
         RoundedButtonWidget reset = new RoundedButtonWidget(text("reset_page"), FontManager.pf14bold);
         reset.setRadius(5);
-        reset.setBounds(88, 26);
+        reset.setBounds(84, 24);
         reset.setBeforeRenderCallback(() -> {
-            reset.setPosition(reset.getParentWidth() - reset.getWidth() - 24, tabRowY);
+            reset.setPosition(reset.getParentWidth() - reset.getWidth() - 24, TAB_ROW_Y);
             reset.setColor(getColor(NCMScreen.ColorType.ELEMENT_HOVER));
             reset.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
         });
@@ -114,18 +129,31 @@ public class HudSettingsPanel extends NCMPanel {
         });
         addChild(reset);
 
-        content.setSpacing(3);
+        content.setSpacing(2);
         content.setBeforeRenderCallback(() -> content.setBounds(
                 24,
-                94,
+                CONTENT_TOP,
                 content.getParentWidth() - 48,
-                content.getParentHeight() - 130));
+                content.getParentHeight() - CONTENT_TOP - 36));
         addChild(content);
 
-        fontPage.setContentInsets(24, 94, 24, 36);
+        fontPage.setContentInsets(24, CONTENT_TOP, 24, 32);
         addChild(fontPage);
 
+        preview.setClickable(false);
+        addChild(preview);
+
         rebuildContent();
+    }
+
+    @Override
+    public void onRender(double mouseX, double mouseY) {
+        previewTarget = null;
+        if (page == Page.SPECTRUM || page == Page.LYRICS) {
+            AudioPlayer.spectrumEnabled = true;
+            AudioPlayer.spectrumTilt = (float) WidgetConfig.get().spectrum.spectrumTilt;
+            AudioPlayer.absoluteVolume = WidgetConfig.get().spectrum.absVol;
+        }
     }
 
     private void rebuildContent() {
@@ -148,6 +176,7 @@ public class HudSettingsPanel extends NCMPanel {
             case GENERAL -> buildGeneralPage();
             case LYRICS -> buildLyricsPage();
             case SPECTRUM -> buildSpectrumPage();
+            case DANCE -> buildDancePage();
             case MYSTERY -> buildMysteryPage();
             default -> {
             }
@@ -185,13 +214,15 @@ public class HudSettingsPanel extends NCMPanel {
         content.addChild(row(
                 text("automix.title"),
                 autoMixAvailable ? text("automix.description") : autoMixUnavailableDescription(),
-                autoMixToggle(autoMixAvailable, () -> config.autoMix, value -> config.autoMix = value)));
+                autoMixToggle(autoMixAvailable, () -> config.autoMix, value -> config.autoMix = value),
+                null));
         content.addChild(row(
                 text("automix.tune_whenever_possible.title"),
                 text("automix.tune_whenever_possible.description"),
                 autoMixToggle(autoMixAvailable,
                         () -> config.autoMixTuneWheneverPossible,
-                        value -> config.autoMixTuneWheneverPossible = value)));
+                        value -> config.autoMixTuneWheneverPossible = value),
+                null));
         content.addChild(row(
                 text("quality.title"),
                 text("quality.description"),
@@ -199,17 +230,20 @@ public class HudSettingsPanel extends NCMPanel {
                         () -> config.quality,
                         value -> config.quality = value,
                         Quality.values(),
-                        HudSettingsPanel::qualityName)));
+                        HudSettingsPanel::qualityName),
+                null));
 
         content.addChild(new SectionRow(text("section.music_info")));
         content.addChild(row(
                 text("visible.title"),
                 text("music_info.visible.description"),
-                toggle(() -> config.musicInfo.enabled, value -> config.musicInfo.enabled = value)));
+                toggle(() -> config.musicInfo.enabled, value -> config.musicInfo.enabled = value),
+                previewMusicInfo));
         content.addChild(row(
                 text("scale.title"),
                 text("music_info.scale.description"),
-                slider(() -> config.musicInfo.scale, value -> config.musicInfo.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
+                slider(() -> config.musicInfo.scale, value -> config.musicInfo.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent),
+                previewMusicInfo));
 
         content.addChild(new SectionRow(text("section.notifications")));
         content.addChild(row(
@@ -219,7 +253,8 @@ public class HudSettingsPanel extends NCMPanel {
                         () -> config.musicToastMode,
                         value -> config.musicToastMode = value,
                         WidgetConfig.MusicToastMode.values(),
-                        HudSettingsPanel::musicToastModeName)));
+                        HudSettingsPanel::musicToastModeName),
+                null));
     }
 
     private void buildLyricsPage() {
@@ -228,32 +263,32 @@ public class HudSettingsPanel extends NCMPanel {
 
         content.addChild(new SectionRow(text("section.general")));
         content.addChild(row(text("visible.title"), text("lyrics.visible.description"),
-                toggle(() -> config.musicLyrics.enabled, value -> config.musicLyrics.enabled = value)));
+                toggle(() -> config.musicLyrics.enabled, value -> config.musicLyrics.enabled = value), previewLyrics));
         content.addChild(row(text("scale.title"), text("lyrics.scale.description"),
-                slider(() -> config.musicLyrics.scale, value -> config.musicLyrics.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
+                slider(() -> config.musicLyrics.scale, value -> config.musicLyrics.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent), previewLyrics));
         content.addChild(row(text("lyrics.effect.title"), text("lyrics.effect.description"),
                 dropdown(
                         () -> lyrics.scrollEffect,
                         value -> lyrics.scrollEffect = value,
                         MusicLyricsWidget.ScrollEffects.values(),
-                        HudSettingsPanel::scrollEffectName)));
+                        HudSettingsPanel::scrollEffectName), previewLyrics));
         content.addChild(row(text("lyrics.alignment.title"), text("lyrics.alignment.description"),
                 dropdown(
                         () -> lyrics.alignMode,
                         value -> lyrics.alignMode = value,
                         MusicLyricsWidget.AlignMode.values(),
                         HudSettingsPanel::alignName)
-                        .setDisabled(value -> value == MusicLyricsWidget.AlignMode.Karaoke && lyrics.singleLine())));
+                        .setDisabled(value -> value == MusicLyricsWidget.AlignMode.Karaoke && lyrics.singleLine()), previewLyrics));
 
         content.addChild(new SectionRow(text("section.content")));
         content.addChild(row(text("lyrics.translation.title"), text("lyrics.translation.description"),
-                toggle(() -> lyrics.showTranslation, value -> lyrics.showTranslation = value)));
+                toggle(() -> lyrics.showTranslation, value -> lyrics.showTranslation = value), previewLyrics));
         content.addChild(row(text("lyrics.romanization.title"), text("lyrics.romanization.description"),
-                toggle(() -> lyrics.showRoman, value -> lyrics.showRoman = value)));
+                toggle(() -> lyrics.showRoman, value -> lyrics.showRoman = value), previewLyrics));
         content.addChild(row(text("lyrics.shadow.title"), text("lyrics.shadow.description"),
-                toggle(() -> lyrics.shadow, value -> lyrics.shadow = value)));
+                toggle(() -> lyrics.shadow, value -> lyrics.shadow = value), previewLyrics));
         content.addChild(row(text("lyrics.smooth_scroll.title"), text("lyrics.smooth_scroll.description"),
-                toggle(() -> lyrics.graceScroll, value -> lyrics.graceScroll = value)));
+                toggle(() -> lyrics.graceScroll, value -> lyrics.graceScroll = value), previewLyrics));
 
         content.addChild(new SectionRow(text("section.size")));
         content.addChild(row(text("lyrics.lines.title"), text("lyrics.lines.description"),
@@ -261,19 +296,19 @@ public class HudSettingsPanel extends NCMPanel {
                     lyrics.lines = (int) value;
                     lyrics.sanitize();
                 }, WidgetConfig.Lyrics.MIN_LINES, WidgetConfig.Lyrics.MAX_LINES, WidgetConfig.Lyrics.LINE_STEP,
-                        HudSettingsPanel::lines)));
+                        HudSettingsPanel::lines), previewLyrics));
         content.addChild(row(text("lyrics.font_size.title"), text("lyrics.font_size.description"),
-                slider(() -> lyrics.lyricHeight, value -> lyrics.lyricHeight = value, 12, 40, 1, HudSettingsPanel::pixels)));
+                slider(() -> lyrics.lyricHeight, value -> lyrics.lyricHeight = value, 12, 40, 1, HudSettingsPanel::pixels), previewLyrics));
 
         content.addChild(new SectionRow(text("section.aurora")));
         content.addChild(row(text("lyrics.aurora_bloom.title"), text("lyrics.aurora_bloom.description"),
-                toggle(() -> lyrics.auroraBloom, value -> lyrics.auroraBloom = value)));
+                toggle(() -> lyrics.auroraBloom, value -> lyrics.auroraBloom = value), previewLyrics));
         content.addChild(row(text("lyrics.audio_reactive.title"), text("lyrics.audio_reactive.description"),
-                toggle(() -> lyrics.audioReactive, value -> lyrics.audioReactive = value)));
+                toggle(() -> lyrics.audioReactive, value -> lyrics.audioReactive = value), previewLyrics));
         content.addChild(row(text("lyrics.unsung_opacity.title"), text("lyrics.unsung_opacity.description"),
-                slider(() -> lyrics.auroraUnsungOpacity, value -> lyrics.auroraUnsungOpacity = value, 0.05, 1, 0.05, HudSettingsPanel::percent)));
+                slider(() -> lyrics.auroraUnsungOpacity, value -> lyrics.auroraUnsungOpacity = value, 0.05, 1, 0.05, HudSettingsPanel::percent), previewLyrics));
         content.addChild(row(text("lyrics.glow_color.title"), text("lyrics.glow_color.description"),
-                colorPicker(() -> lyrics.glowColor, value -> lyrics.glowColor = value, true)));
+                colorPicker(() -> lyrics.glowColor, value -> lyrics.glowColor = value, true), previewLyrics));
     }
 
     private void buildSpectrumPage() {
@@ -282,25 +317,120 @@ public class HudSettingsPanel extends NCMPanel {
 
         content.addChild(new SectionRow(text("section.general")));
         content.addChild(row(text("visible.title"), text("spectrum.visible.description"),
-                toggle(() -> config.musicSpectrum.enabled, value -> config.musicSpectrum.enabled = value)));
+                toggle(() -> config.musicSpectrum.enabled, value -> config.musicSpectrum.enabled = value), previewSpectrum));
         content.addChild(row(text("scale.title"), text("spectrum.scale.description"),
-                slider(() -> config.musicSpectrum.scale, value -> config.musicSpectrum.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent)));
+                slider(() -> config.musicSpectrum.scale, value -> config.musicSpectrum.scale = value, 0.5, 2, 0.05, HudSettingsPanel::percent), previewSpectrum));
         content.addChild(row(text("spectrum.indicator.title"), text("spectrum.indicator.description"),
-                toggle(() -> spectrum.indicator, value -> spectrum.indicator = value)));
+                toggle(() -> spectrum.indicator, value -> spectrum.indicator = value), previewSpectrum));
 
         content.addChild(new SectionRow(text("section.audio_analysis")));
         content.addChild(row(text("spectrum.multiplier.title"), text("spectrum.multiplier.description"),
-                slider(() -> spectrum.multiplier, value -> spectrum.multiplier = value, 0.1, 4, 0.1, value -> format(value, 1) + "×")));
+                slider(() -> spectrum.multiplier, value -> spectrum.multiplier = value, 0.1, 4, 0.1, value -> format(value, 1) + "×"), previewSpectrum));
         content.addChild(row(text("spectrum.smoothing.title"), text("spectrum.smoothing.description"),
-                slider(() -> spectrum.smoothing, value -> spectrum.smoothing = value, 0, 0.95, 0.05, HudSettingsPanel::percent)));
+                slider(() -> spectrum.smoothing, value -> spectrum.smoothing = value, 0, 0.95, 0.05, HudSettingsPanel::percent), previewSpectrum));
         content.addChild(row(text("spectrum.tilt.title"), text("spectrum.tilt.description"),
-                slider(() -> spectrum.spectrumTilt, value -> spectrum.spectrumTilt = value, 0, 8, 0.25, value -> format(value, 2))));
-//        content.addChild(row(text("spectrum.absolute_volume.title"), text("spectrum.absolute_volume.description"),
-//                toggle(() -> spectrum.absVol, value -> spectrum.absVol = value)));
+                slider(() -> spectrum.spectrumTilt, value -> spectrum.spectrumTilt = value, 0, 8, 0.25, value -> format(value, 2)), previewSpectrum));
 
         content.addChild(new SectionRow(text("section.color")));
         content.addChild(row(text("spectrum.color.title"), text("spectrum.color.description"),
-                colorPicker(() -> spectrum.rectColor, value -> spectrum.rectColor = value, true)));
+                colorPicker(() -> spectrum.rectColor, value -> spectrum.rectColor = value, true), previewSpectrum));
+    }
+
+    private void buildDancePage() {
+        WidgetConfig config = WidgetConfig.get();
+        WidgetConfig.Dance dance = config.dance;
+
+        List<DanceStyleRegistry.StyleInfo> styles = DanceStyleRegistry.styles();
+
+        content.addChild(new SectionRow(text("section.dance")));
+        content.addChild(row(text("visible.title"), text("dance.visible.description"),
+                toggle(() -> config.musicDance.enabled, value -> config.musicDance.enabled = value), previewDance));
+
+        if (styles.isEmpty()) {
+            content.addChild(row(text("dance.style.title"), danceEmptyDescription(), beatCacheStyleButton("dance.rescan"), null));
+        } else {
+            content.addChild(row(text("dance.style.title"), text("dance.style.description"),
+                    dropdown(
+                            () -> currentStyle(styles),
+                            value -> dance.style = value.id(),
+                            styles.toArray(new DanceStyleRegistry.StyleInfo[0]),
+                            DanceStyleRegistry.StyleInfo::name), previewDance));
+        }
+
+        content.addChild(row(text("scale.title"), text("dance.scale.description"),
+                slider(() -> config.musicDance.scale, value -> config.musicDance.scale = value, 0.2, 3, 0.05, HudSettingsPanel::percent), previewDance));
+
+        content.addChild(new SectionRow(text("section.dance_animation")));
+        content.addChild(row(text("dance.beat_sync.title"), text("dance.beat_sync.description"),
+                toggle(() -> dance.beatSync, value -> dance.beatSync = value), previewDance));
+        content.addChild(row(text("dance.speed.title"), text("dance.speed.description"),
+                slider(() -> dance.speed, value -> dance.speed = value,
+                        WidgetConfig.Dance.MIN_SPEED, WidgetConfig.Dance.MAX_SPEED, 0.05, value -> format(value, 2) + "×"), previewDance));
+        content.addChild(row(text("dance.pulse.title"), text("dance.pulse.description"),
+                slider(() -> dance.beatPulse, value -> dance.beatPulse = value,
+                        0, WidgetConfig.Dance.MAX_PULSE, 0.01, HudSettingsPanel::percent), previewDance));
+        content.addChild(row(text("dance.shadow.title"), text("dance.shadow.description"),
+                toggle(() -> dance.shadow, value -> dance.shadow = value), previewDance));
+        content.addChild(row(text("dance.mirror.title"), text("dance.mirror.description"),
+                toggle(() -> dance.mirror, value -> dance.mirror = value), previewDance));
+        content.addChild(row(text("dance.opacity.title"), text("dance.opacity.description"),
+                slider(() -> dance.opacity, value -> dance.opacity = value, 0.1, 1, 0.05, HudSettingsPanel::percent), previewDance));
+
+        content.addChild(new SectionRow(text("section.dance_styles")));
+        content.addChild(row(text("dance.style_folder.title"), text("dance.style_folder.description"),
+                beatCacheStyleButton("dance.open_folder"), null));
+        content.addChild(row(text("dance.rescan.title"), text("dance.rescan.description"),
+                beatCacheStyleButton("dance.rescan"), null));
+    }
+
+    private static DanceStyleRegistry.StyleInfo currentStyle(List<DanceStyleRegistry.StyleInfo> styles) {
+        String configured = WidgetConfig.get().dance.style;
+        if (configured != null && !configured.isBlank()) {
+            for (DanceStyleRegistry.StyleInfo info : styles) {
+                if (info.id().equals(configured)) {
+                    return info;
+                }
+            }
+        }
+        return styles.getFirst();
+    }
+
+    private String danceEmptyDescription() {
+        return I18n.get("tritium-music.ui.settings.dance.style.empty", DanceStyleRegistry.directory().getAbsolutePath());
+    }
+
+    private RoundedButtonWidget beatCacheStyleButton(String key) {
+        double width = key.equals("dance.open_folder") ? 96 : 78;
+        RoundedButtonWidget button = new RoundedButtonWidget(text(key), FontManager.pf14bold);
+        button.setRadius(5);
+        button.setBounds(width, 18);
+        button.setColor(getColor(NCMScreen.ColorType.ELEMENT_HOVER));
+        button.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
+        button.setOnClickCallback((x, y, mouseButton) -> {
+            if (mouseButton != 0) {
+                return false;
+            }
+            if (key.equals("dance.open_folder")) {
+                openDanceFolder();
+            } else {
+                DanceStyleRegistry.refresh();
+                rebuildContent();
+            }
+            return true;
+        });
+        return button;
+    }
+
+    private void openDanceFolder() {
+        File directory = DanceStyleRegistry.directory();
+        try {
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                Desktop.getDesktop().open(directory);
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        Platform.sendChatMessage("§a" + directory.getAbsolutePath());
     }
 
     private void buildMysteryPage() {
@@ -309,7 +439,7 @@ public class HudSettingsPanel extends NCMPanel {
 
         content.addChild(new SectionRow(text("section.groove")));
         content.addChild(row(text("groove.title"), text("groove.description"),
-                toggle(() -> config.songGroove, value -> config.songGroove = value)));
+                toggle(() -> config.songGroove, value -> config.songGroove = value), previewLyrics));
         content.addChild(subRow(text("groove.cover.title"), text("groove.cover.description"),
                 toggle(() -> groove.cover, value -> groove.cover = value)));
         content.addChild(subRow(text("groove.cover_strength.title"), text("groove.cover_strength.description"),
@@ -341,21 +471,51 @@ public class HudSettingsPanel extends NCMPanel {
 
         content.addChild(new SectionRow(text("section.debug")));
         content.addChild(row(text("widget_boundary.title"), text("widget_boundary.description"),
-                toggle(() -> config.showWidgetBoundary, value -> config.showWidgetBoundary = value)));
+                toggle(() -> config.showWidgetBoundary, value -> config.showWidgetBoundary = value), null));
         content.addChild(row(text("debug_mode.title"), text("debug_mode.description"),
-                toggle(() -> config.debugMode, value -> config.debugMode = value)));
+                toggle(() -> config.debugMode, value -> config.debugMode = value), null));
         content.addChild(row(text("groove_info.title"), text("groove_info.description"),
-                toggle(() -> config.grooveInfo, value -> config.grooveInfo = value)));
+                toggle(() -> config.grooveInfo, value -> config.grooveInfo = value), null));
         content.addChild(row(text("groove_markers.title"), text("groove_markers.description"),
-                toggle(() -> config.grooveMarkers, value -> config.grooveMarkers = value)));
+                toggle(() -> config.grooveMarkers, value -> config.grooveMarkers = value), null));
+
+        content.addChild(new SectionRow(text("section.beat_cache")));
+        content.addChild(row(text("beat_cache.title"), text("beat_cache.description"), beatCacheButton(), null));
     }
 
-    private SettingRow row(String title, String description, AbstractWidget<?> control) {
-        return new SettingRow(title, description, control, 0);
+    private RoundedButtonWidget beatCacheButton() {
+        RoundedButtonWidget button = new RoundedButtonWidget(
+                () -> I18n.get("tritium-music.ui.settings.beat_cache.clear", MusicBeatTracker.cachedEntryCount()),
+                FontManager.pf14bold);
+        button.setRadius(5);
+        button.setBounds(120, 18);
+        button.setColor(getColor(NCMScreen.ColorType.ELEMENT_HOVER));
+        button.setTextColor(getColor(NCMScreen.ColorType.PRIMARY_TEXT));
+        button.setOnClickCallback((x, y, mouseButton) -> {
+            if (mouseButton != 0) {
+                return false;
+            }
+            long bytes = MusicBeatTracker.cachedCacheBytes();
+            int removed = MusicBeatTracker.clearCache();
+            String message = removed == 0
+                    ? text("beat_cache.none")
+                    : I18n.get("tritium-music.ui.settings.beat_cache.cleared", removed, megabytes(bytes));
+            Platform.sendChatMessage("§a" + message);
+            return true;
+        });
+        return button;
+    }
+
+    private static String megabytes(long bytes) {
+        return String.format(Locale.ROOT, "%.1f MB", bytes / 1048576.0);
+    }
+
+    private SettingRow row(String title, String description, AbstractWidget<?> control, HudWidget preview) {
+        return new SettingRow(title, description, control, 0, preview);
     }
 
     private SettingRow subRow(String title, String description, AbstractWidget<?> control) {
-        return new SettingRow(title, description, control, 18);
+        return new SettingRow(title, description, control, 16, null);
     }
 
     private ToggleWidget toggle(BooleanSupplier getter, Consumer<Boolean> setter) {
@@ -438,6 +598,10 @@ public class HudSettingsPanel extends NCMPanel {
                 config.musicSpectrum = new WidgetConfig.WidgetSettings(0, 0, 1, false);
                 config.spectrum = new WidgetConfig.Spectrum();
             }
+            case DANCE -> {
+                config.musicDance = new WidgetConfig.WidgetSettings(0.5f - 102f / 1920f, 1f - 250f / 1080f, 1, false);
+                config.dance = new WidgetConfig.Dance();
+            }
             case MYSTERY -> {
                 config.songGroove = false;
                 config.groove = new WidgetConfig.Groove();
@@ -462,63 +626,54 @@ public class HudSettingsPanel extends NCMPanel {
     private final class SettingRow extends Panel {
 
         private final LabelWidget title;
-        private final LabelWidget description;
         private final AbstractWidget<?> control;
+        private final HudWidget previewWidget;
         private final int indent;
         private float hoverAnimation;
 
-        private SettingRow(String titleText, String descriptionText, AbstractWidget<?> control, int indent) {
+        private SettingRow(String titleText, String descriptionText, AbstractWidget<?> control, int indent,
+                           HudWidget previewWidget) {
             this.title = new LabelWidget(titleText, FontManager.pf14bold);
-            this.description = new LabelWidget(descriptionText, FontManager.pf12);
             this.control = control;
+            this.previewWidget = previewWidget;
             this.indent = indent;
-            setBounds(720, 40);
+            setBounds(720, ROW_HEIGHT);
 
             title.setColor(HudSettingsPanel.this.getColor(NCMScreen.ColorType.PRIMARY_TEXT));
-//            description.setColor(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT));
             title.setClickable(false);
-//            description.setClickable(false);
-            addChild(title/*, description*/, control);
+            addChild(title, control);
 
             setBeforeRenderCallback(() -> {
+                double controlHeight = Math.max(control.getHeight(), 18);
                 setWidth(getParentWidth());
-                setHeight(Math.max(40, 14 + control.getHeight()));
+                setHeight(Math.max(ROW_HEIGHT, controlHeight + 8));
             });
             title.setBeforeRenderCallback(() -> {
                 double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
-//                double descriptionHeight = FontManager.pf12.getStringHeight(description.getLabel());
-                double blockHeight = titleHeight + 2;
-                title.setPosition(16 + indent, (40 - blockHeight) * 0.5 + .5);
+                title.setPosition(ROW_INSET + indent, (getHeight() - titleHeight) * 0.5);
             });
-//            description.setBeforeRenderCallback(() -> {
-//                double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
-//                description.setPosition(16, title.getRelativeY() + titleHeight + 2);
-//            });
             control.setBeforeRenderCallback(() -> control.setPosition(
-                    control.getParentWidth() - control.getWidth() - 16,
-                    (40 - Math.min(control.getHeight(), 22)) * 0.5));
+                    control.getParentWidth() - control.getWidth() - CONTROL_GAP,
+                    (getHeight() - control.getHeight()) * 0.5));
         }
 
         @Override
         public void onRender(double mouseX, double mouseY) {
             boolean hovered = isHovered(mouseX, mouseY, getX(), getY(), getWidth(), getHeight());
             hoverAnimation = Interpolations.interpolate(hoverAnimation, hovered ? 1f : 0f, 0.25f);
-            roundedRect(getX(), getY(), getWidth(), getHeight(), 7,
+            roundedRect(getX(), getY(), getWidth(), getHeight(), 6,
                     reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.ELEMENT_BACKGROUND), getAlpha()));
             if (hoverAnimation > 0.004f) {
-                roundedRect(
-                        getX(),
-                        getY(),
-                        getWidth(),
-                        getHeight(),
-                        7,
-                        reAlpha(
-                                HudSettingsPanel.this.getColor(NCMScreen.ColorType.ELEMENT_HOVER),
+                roundedRect(getX(), getY(), getWidth(), getHeight(), 6,
+                        reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.ELEMENT_HOVER),
                                 getAlpha() * hoverAnimation));
             }
             if (indent > 0) {
-                Rect.draw(getX() + indent * 0.5, getY() + getHeight() * 0.5 - 7, 1, 14,
+                Rect.draw(getX() + indent * 0.5, getY() + getHeight() * 0.5 - 6, 1, 12,
                         reAlpha(0xFFFFFFFF, getAlpha() * 0.08f));
+            }
+            if (hovered && previewWidget != null) {
+                previewTarget = previewWidget;
             }
         }
     }
@@ -529,7 +684,7 @@ public class HudSettingsPanel extends NCMPanel {
 
         private SectionRow(String label) {
             this.label = label;
-            setBounds(720, 18);
+            setBounds(720, SECTION_HEIGHT);
             setClickable(false);
             setBeforeRenderCallback(() -> setWidth(getParentWidth()));
         }
@@ -541,8 +696,119 @@ public class HudSettingsPanel extends NCMPanel {
             font.drawString(label, getX() + 4, textY,
                     reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT), getAlpha()));
             double textWidth = font.getStringWidthD(label);
-            Rect.draw(getX() + textWidth + 16, getY() + getHeight() * 0.5, getWidth() - textWidth - 16, 1,
+            Rect.draw(getX() + textWidth + 14, getY() + getHeight() * 0.5, getWidth() - textWidth - 14, 1,
                     reAlpha(0xFFFFFFFF, getAlpha() * 0.06f));
+        }
+    }
+
+    private final class PreviewPanel extends Panel {
+
+        private static final double CARD_WIDTH = 360;
+        private static final double CARD_HEIGHT = 236;
+        private static final double HEADER_HEIGHT = 26;
+        private static final double FOOTER_HEIGHT = 18;
+        private static final double INNER_PADDING = 8;
+
+        private float fade;
+        private double measuredWidth = 320;
+        private double measuredHeight = 120;
+        private double lastX;
+        private double lastY;
+
+        @Override
+        public void onRender(double mouseX, double mouseY) {
+            HudWidget target = previewTarget;
+            if (target != null && target != previewCurrent) {
+                previewCurrent = target;
+                measuredWidth = target.editorWidth() > 1 ? target.editorWidth() : 320;
+                measuredHeight = target.editorHeight() > 1 ? target.editorHeight() : 120;
+            }
+
+            fade = Interpolations.interpolate(fade, target != null ? 1f : 0f, 0.3f);
+            HudWidget shown = target != null ? target : previewCurrent;
+            if (shown == null) {
+                return;
+            }
+            if (fade < 0.02f) {
+                previewCurrent = null;
+                return;
+            }
+
+            if (target != null) {
+                lastX = cardX(mouseX);
+                lastY = cardY(mouseY);
+            }
+            drawCard(lastX, lastY, shown, fade);
+        }
+
+        private double cardX(double mouseX) {
+            double min = getX() + 12;
+            double max = getX() + getWidth() - CARD_WIDTH - 12;
+            double x = mouseX + 22;
+            if (x > max) {
+                x = mouseX - CARD_WIDTH - 22;
+            }
+            return Math.max(min, Math.min(Math.max(min, max), x));
+        }
+
+        private double cardY(double mouseY) {
+            double min = getY() + 12;
+            double max = getY() + getHeight() - CARD_HEIGHT - 12;
+            return Math.max(min, Math.min(Math.max(min, max), mouseY + 18));
+        }
+
+        private void drawCard(double x, double y, HudWidget target, float alpha) {
+            roundedRect(x - 1, y - 1, CARD_WIDTH + 2, CARD_HEIGHT + 2, 10, reAlpha(0xFFFFFFFF, alpha * 0.08f));
+            roundedRect(x, y, CARD_WIDTH, CARD_HEIGHT, 9, reAlpha(0xF0121316, alpha));
+
+            CFontRenderer font = FontManager.pf14bold;
+            font.drawString(target.getName(), x + 12,
+                    y + (HEADER_HEIGHT - font.getStringHeight(target.getName())) * 0.5 - 1,
+                    reAlpha(0xFFF2F3F5, alpha));
+            String label = text("preview");
+            font.drawString(label, x + CARD_WIDTH - 12 - font.getStringWidthD(label),
+                    y + (HEADER_HEIGHT - font.getStringHeight(label)) * 0.5 - 1,
+                    reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT), alpha));
+
+            double innerX = x + INNER_PADDING;
+            double innerY = y + HEADER_HEIGHT;
+            double innerWidth = CARD_WIDTH - INNER_PADDING * 2;
+            double innerHeight = CARD_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT;
+            roundedRect(innerX, innerY, innerWidth, innerHeight, 6, reAlpha(0xFF07080A, alpha));
+            Rect.draw(innerX, innerY + innerHeight * 0.5, innerWidth, 1, reAlpha(0xFFFFFFFF, alpha * 0.04f));
+
+            if (target.editorWidth() > 1 && target.editorHeight() > 1) {
+                measuredWidth = target.editorWidth();
+                measuredHeight = target.editorHeight();
+            }
+
+            double widgetWidth = Math.max(1, measuredWidth);
+            double widgetHeight = Math.max(1, measuredHeight);
+            double scale = Math.min(1.0, Math.min(innerWidth / widgetWidth, innerHeight / widgetHeight));
+            double centerX = innerX + innerWidth * 0.5;
+            double centerY = innerY + innerHeight * 0.5;
+            double anchorX = target.getX() + widgetWidth * 0.5;
+            double anchorY = target.getY() + widgetHeight * 0.5;
+
+            StencilClipManager.beginClip(innerX, innerY, innerWidth, innerHeight);
+            var pose = RenderContext.graphics().pose();
+            pose.pushMatrix();
+            try {
+                pose.translate((float) centerX, (float) centerY);
+                pose.scale((float) scale, (float) scale);
+                pose.translate((float) -anchorX, (float) -anchorY);
+                target.setPreview(true);
+                target.render();
+            } finally {
+                target.setPreview(false);
+                pose.popMatrix();
+                StencilClipManager.endClip();
+            }
+
+            String hint = text("preview.hint");
+            FontManager.pf12.drawCenteredString(hint, x + CARD_WIDTH * 0.5,
+                    y + CARD_HEIGHT - FOOTER_HEIGHT + (FOOTER_HEIGHT - FontManager.pf12.getStringHeight(hint)) * 0.5,
+                    reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT), alpha * 0.85f));
         }
     }
 
@@ -605,14 +871,11 @@ public class HudSettingsPanel extends NCMPanel {
         return String.format("%." + digits + "f", value);
     }
 
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
     private enum Page {
         GENERAL("page.general"),
         LYRICS("page.lyrics"),
         SPECTRUM("page.spectrum"),
+        DANCE("page.dance"),
         FONT("page.font"),
         MYSTERY("page.mystery");
 

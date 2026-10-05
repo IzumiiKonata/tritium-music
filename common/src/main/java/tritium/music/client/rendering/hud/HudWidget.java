@@ -1,6 +1,7 @@
 package tritium.music.client.rendering.hud;
 
 import lombok.Setter;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
@@ -8,6 +9,7 @@ import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.SharedRenderingConstants;
 import tritium.music.client.rendering.animation.Interpolations;
+import tritium.music.client.screens.WidgetEditorScreen;
 
 public abstract class HudWidget implements SharedRenderingConstants {
 
@@ -37,6 +39,9 @@ public abstract class HudWidget implements SharedRenderingConstants {
     @Setter
     private double width = -1, height = -1;
 
+    @Setter
+    private boolean preview;
+
     protected HudWidget(String nameKey) {
         this.nameKey = nameKey;
     }
@@ -59,14 +64,22 @@ public abstract class HudWidget implements SharedRenderingConstants {
         return settings().scale;
     }
 
+    public boolean isPreview() {
+        return preview;
+    }
+
+    public boolean editorOrPreview() {
+        return preview || Minecraft.getInstance().gui.screen() instanceof WidgetEditorScreen;
+    }
+
     @Override
     public double getWidth() {
-        return this.width * scaleFactor();
+        return this.width;
     }
 
     @Override
     public double getHeight() {
-        return this.height * scaleFactor();
+        return this.height;
     }
 
     public double getX() {
@@ -86,12 +99,31 @@ public abstract class HudWidget implements SharedRenderingConstants {
     }
 
     public double editorWidth() {
-        return getWidth();
+        return this.width * scaleFactor();
     }
 
     public double editorHeight() {
-        return getHeight();
+        return this.height * scaleFactor();
+    }
+
+    public final void render() {
+        double scale = scaleFactor();
+        if (Math.abs(scale - 1) < 0.0001) {
+            onRender();
+            return;
+        }
+        var pose = RenderContext.graphics().pose();
+        pose.pushMatrix();
+        try {
+            pose.translate((float) getX(), (float) getY());
+            pose.scale((float) scale, (float) scale);
+            pose.translate((float) -getX(), (float) -getY());
+            onRender();
+        } finally {
+            pose.popMatrix();
+        }
     }
 
     public abstract void onRender();
 }
+
