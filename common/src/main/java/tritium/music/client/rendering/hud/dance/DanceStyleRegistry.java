@@ -1,11 +1,11 @@
 package tritium.music.client.rendering.hud.dance;
 
-import net.minecraft.client.Minecraft;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.Platform;
 
 import java.io.File;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -17,8 +17,9 @@ public final class DanceStyleRegistry {
 
     public static final String DIRECTORY_PROPERTY = "tritium.dance.dir";
     private static final String CONFIG_FILE = "dance.json";
+    private static final String RESOURCE_ROOT = "assets/tritium-music/dance";
+    private static final String RESOURCE_INDEX = RESOURCE_ROOT + "/index.json";
     private static final int MAXIMUM_DEPTH = 3;
-    private static final int GAME_DIR_PARENTS = 4;
 
     private static final Map<String, DanceStyle> STYLES = new LinkedHashMap<>();
     private static volatile boolean scanned;
@@ -40,6 +41,7 @@ public final class DanceStyleRegistry {
             }
             collect(root, root, discovered, 0);
         }
+        collectPackaged(discovered);
 
         for (Map.Entry<String, DanceStyle> entry : STYLES.entrySet()) {
             if (!discovered.containsKey(entry.getKey())) {
@@ -53,6 +55,7 @@ public final class DanceStyleRegistry {
             active = null;
         }
         scanned = true;
+        Platform.log("[NCM] Dance styles available: " + STYLES.size());
     }
 
     public static synchronized List<StyleInfo> styles() {
@@ -62,11 +65,6 @@ public final class DanceStyleRegistry {
             infos.add(new StyleInfo(style.getId(), style.displayName()));
         }
         return infos;
-    }
-
-    public static synchronized DanceStyle byId(String id) {
-        ensureScanned();
-        return id == null ? null : STYLES.get(id);
     }
 
     public static synchronized DanceStyle active() {
@@ -86,11 +84,6 @@ public final class DanceStyleRegistry {
             style.requestLoad();
         }
         return style;
-    }
-
-    public static synchronized boolean isEmpty() {
-        ensureScanned();
-        return STYLES.isEmpty();
     }
 
     public static File directory() {
@@ -136,6 +129,59 @@ public final class DanceStyleRegistry {
         }
     }
 
+    private static void collectPackaged(Map<String, DanceStyle> discovered) {
+        for (String id : packagedIds()) {
+            if (id.isBlank() || discovered.containsKey(id)) {
+                continue;
+            }
+            String base = RESOURCE_ROOT + "/" + id;
+            DanceStyleSpec spec = readPackagedConfig(base);
+            if (spec != null) {
+                discovered.put(id, new DanceStyle(id, DanceFrameSource.resource(base), spec));
+            }
+        }
+    }
+
+    private static List<String> packagedIds() {
+        String json = readResource(RESOURCE_INDEX);
+        if (json == null) {
+            return List.of();
+        }
+        try {
+            PackagedStyles index = JsonUtils.parse(json, PackagedStyles.class);
+            return index == null || index.styles == null ? List.of() : index.styles;
+        } catch (Throwable throwable) {
+            Platform.log("[NCM] Failed to read the packaged dance style index: " + throwable);
+            return List.of();
+        }
+    }
+
+    private static DanceStyleSpec readPackagedConfig(String base) {
+        String json = readResource(base + "/" + CONFIG_FILE);
+        if (json == null) {
+            Platform.log("[NCM] Missing packaged dance style " + base);
+            return null;
+        }
+        try {
+            return JsonUtils.parse(json, DanceStyleSpec.class);
+        } catch (Throwable throwable) {
+            Platform.log("[NCM] Failed to read packaged dance style " + base + ": " + throwable);
+            return null;
+        }
+    }
+
+    private static String readResource(String path) {
+        try (InputStream stream = DanceStyleRegistry.class.getResourceAsStream("/" + path)) {
+            if (stream == null) {
+                return null;
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Throwable throwable) {
+            Platform.log("[NCM] Failed to read the packaged dance resource " + path + ": " + throwable);
+            return null;
+        }
+    }
+
     private static DanceStyle parse(String id, File directory, File config) {
         try {
             String json = Files.readString(config.toPath(), StandardCharsets.UTF_8);
@@ -144,7 +190,7 @@ public final class DanceStyleRegistry {
                 Platform.log("[NCM] Dance style " + id + " has an empty configuration");
                 return null;
             }
-            return new DanceStyle(id, directory, spec);
+            return new DanceStyle(id, DanceFrameSource.directory(directory), spec);
         } catch (Throwable throwable) {
             Platform.log("[NCM] Failed to read dance style " + id + ": " + throwable);
             return null;
@@ -169,19 +215,7 @@ public final class DanceStyleRegistry {
         if (!override.isEmpty()) {
             roots.add(new File(override));
         }
-        roots.add(new File(Platform.configDir(), "dance"));
-
-        File gameDirectory = Minecraft.getInstance().gameDirectory;
-        if (gameDirectory != null) {
-            File current = gameDirectory.getAbsoluteFile();
-            for (int depth = 0; depth < GAME_DIR_PARENTS && current != null; depth++) {
-                File candidate = new File(current, "dance");
-                if (!roots.contains(candidate)) {
-                    roots.add(candidate);
-                }
-                current = current.getParentFile();
-            }
-        }
+        roots.add(directory());
         return roots;
     }
 
@@ -191,9 +225,6 @@ public final class DanceStyleRegistry {
         }
         readmeWritten = true;
         File readme = new File(directory(), "README.md");
-        if (readme.isFile()) {
-            return;
-        }
         try {
             Files.writeString(readme.toPath(), README, StandardCharsets.UTF_8);
         } catch (Exception exception) {
@@ -201,21 +232,31 @@ public final class DanceStyleRegistry {
         }
     }
 
+    private static final class PackagedStyles {
+        public List<String> styles;
+    }
+
     private static final String README = """
             # 自定义舞蹈样式
 
-            每个样式是 `dance` 文件夹下的一个子文件夹（可以再套一层分组文件夹），
-            里面放一堆静态帧图片，外加一个 `dance.json`：
+            模组自带一套 Fruity Dance 样式（在设置里显示为 `Fruity · 名字`），
+            它们打包在模组 jar 里，不需要手动安装。
+
+            你自己写的样式放在这个 `dance` 文件夹里（可以再套一层分组文件夹），
+            每个样式是一个子文件夹，里面放一堆静态帧图片，外加一个 `dance.json`：
 
             ```
-            dance/
+            <游戏目录>/tritium-music/dance/
               my_dance/
                 00.png
                 01.png
                 dance.json
             ```
 
-            帧图片按文件名排序后依次播放。`dance.json` 的字段（除 `frames` / `atlas` 外都可省略）：
+            帧图片按文件名排序后依次播放。和内置样式同名的文件夹会覆盖内置样式。
+            也可以用 `-Dtritium.dance.dir=<路径>` 指向别的文件夹。
+
+            `dance.json` 的字段（除 `frames` / `atlas` 外都可省略）：
 
             | 字段 | 默认值 | 说明 |
             | --- | --- | --- |
@@ -250,6 +291,6 @@ public final class DanceStyleRegistry {
             }
             ```
 
-            改完之后在设置的 Dance 页点一下 `重新扫描` 即可。
+            改完之后在设置的舞蹈页点一下 `重新扫描` 即可。
             """;
 }
