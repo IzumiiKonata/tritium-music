@@ -290,7 +290,7 @@
   "tritium-music.ui.settings.section.dance_styles": "Dance Styles",
   "tritium-music.ui.settings.dance.visible.description": "Show the dancing character in the HUD",
   "tritium-music.ui.settings.dance.style.title": "Dance Style",
-  "tritium-music.ui.settings.dance.style.description": "Frames and dance.json are read from the dance folder; drop your own style in there",
+  "tritium-music.ui.settings.dance.style.description": "Fruity Dance styles ship with the mod; drop your own style folder into tritium-music/dance to add more",
   "tritium-music.ui.settings.dance.style.empty": "No dance style found. Put a folder with frames and a dance.json into %s",
   "tritium-music.ui.settings.dance.scale.description": "Adjust the overall size of the dancing character",
   "tritium-music.ui.settings.dance.beat_sync.title": "Beat Sync",
