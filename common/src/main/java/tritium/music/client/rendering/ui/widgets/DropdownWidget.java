@@ -12,8 +12,8 @@ import java.util.function.Supplier;
 
 public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
 
-    private static final double WIDTH = 128;
-    private static final double ITEM_HEIGHT = 22;
+    private static final double WIDTH = 116;
+    private static final double ITEM_HEIGHT = 18;
 
     private final Supplier<T> getter;
     private final Consumer<T> setter;
@@ -128,8 +128,5 @@ public class DropdownWidget<T> extends AbstractWidget<DropdownWidget<T>> {
 
     private void updateHeight() {
         setHeight(expanded ? ITEM_HEIGHT + 2 + values.length * ITEM_HEIGHT : ITEM_HEIGHT);
-        if (getParent() != null) {
-            getParent().setHeight(Math.max(40, 14 + getHeight()));
-        }
     }
 }

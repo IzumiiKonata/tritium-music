@@ -15,7 +15,7 @@ public class ToggleWidget extends AbstractWidget<ToggleWidget> {
     public ToggleWidget(BooleanSupplier getter, Consumer<Boolean> setter) {
         this.getter = getter;
         this.setter = setter;
-        this.setBounds(32, 16);
+        this.setBounds(30, 14);
         this.setShouldOverrideMouseCursor(true);
     }
 

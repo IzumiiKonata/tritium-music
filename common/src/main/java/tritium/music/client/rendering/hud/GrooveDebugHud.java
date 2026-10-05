@@ -56,7 +56,7 @@ public class GrooveDebugHud extends HudWidget {
         double x = 14;
         double y = 14;
         double lineHeight = font.getStringHeight("A") + 4;
-        int lines = grid == null ? 2 : 6;
+        int lines = grid == null ? 2 : 7;
 
         Rect.draw(x - 6, y - 6, 360, lineHeight * lines + 10, RGBA.color(0, 0, 0, 150));
 
@@ -93,6 +93,30 @@ public class GrooveDebugHud extends HudWidget {
         font.drawString(I18n.get("tritium-music.ui.groove.info.pulse",
                 String.format(Locale.ROOT, "%.3f", SongGroove.sample()),
                 WidgetConfig.get().groove.beatShift), (float) x, (float) y, -1);
+        y += lineHeight;
+
+        font.drawString(I18n.get("tritium-music.ui.groove.info.source", sourceText(), prefetchText()),
+                (float) x, (float) y, -1);
+    }
+
+    private static String sourceText() {
+        String source = MusicBeatTracker.gridSource();
+        if (source == null) {
+            return I18n.get("tritium-music.ui.groove.source.none");
+        }
+        return I18n.get("tritium-music.ui.groove.source." + source);
+    }
+
+    private static String prefetchText() {
+        long songId = MusicBeatTracker.prefetchSongId();
+        if (songId >= 0) {
+            return I18n.get("tritium-music.ui.groove.prefetch.running", songId);
+        }
+        int pending = MusicBeatTracker.prefetchPending();
+        if (pending > 0) {
+            return I18n.get("tritium-music.ui.groove.prefetch.queued", pending);
+        }
+        return I18n.get("tritium-music.ui.groove.prefetch.idle");
     }
 
     private static String stateText(MusicBeatGrid grid) {

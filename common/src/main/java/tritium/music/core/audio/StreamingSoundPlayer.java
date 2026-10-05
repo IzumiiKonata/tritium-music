@@ -363,7 +363,7 @@ final class StreamingSoundPlayer {
                 decodedMillis += Math.round(read * 1000.0 / frameSize / frameRate);
                 if (!published && decodedMillis >= firstPublishMillis && decodedMillis < analysisLimitMillis) {
                     published = true;
-                    if (!publishBeatGrid(tempoAnalyzer, listener, decodedMillis)) {
+                    if (!publishBeatGrid(tempoAnalyzer, listener, decodedMillis, false)) {
                         return;
                     }
                 }
@@ -371,7 +371,7 @@ final class StreamingSoundPlayer {
             if (Thread.currentThread().isInterrupted()) {
                 return;
             }
-            publishBeatGrid(tempoAnalyzer, listener, Math.min(analysisLimitMillis, decodedMillis));
+            publishBeatGrid(tempoAnalyzer, listener, Math.min(analysisLimitMillis, decodedMillis), true);
         } finally {
             beatGridInput = null;
         }
@@ -388,7 +388,7 @@ final class StreamingSoundPlayer {
         }
     }
 
-    private boolean publishBeatGrid(BeatThisTempoAnalyzer tempoAnalyzer, Consumer<MusicBeatGrid> listener, long coverageMillis) {
+    private boolean publishBeatGrid(BeatThisTempoAnalyzer tempoAnalyzer, Consumer<MusicBeatGrid> listener, long coverageMillis, boolean complete) {
         boolean acquired = false;
         try {
             AUTO_MIX_ANALYSIS_SLOT.acquire();
@@ -397,7 +397,7 @@ final class StreamingSoundPlayer {
             if (analysis == null || analysis.beatGrid() == null) {
                 return true;
             }
-            listener.accept(MusicBeatGrid.build(analysis.beatGrid(), analysis.audio(), coverageMillis));
+            listener.accept(MusicBeatGrid.build(analysis.beatGrid(), analysis.audio(), coverageMillis, complete));
             return true;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

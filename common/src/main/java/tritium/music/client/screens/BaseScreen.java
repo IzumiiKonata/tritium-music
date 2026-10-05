@@ -89,6 +89,9 @@ public class BaseScreen extends Screen implements SharedRenderingConstants {
     public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
     }
 
+    public void mousePressed(double mouseX, double mouseY, int mouseButton) {
+    }
+
     public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
     }
 
@@ -299,6 +302,8 @@ boolean flinging = this.flingVelocity != 0;
         this.lastDragNanos = System.nanoTime();
 
         TextField.clearFocusOutside(mx, my);
+
+        this.mousePressed(mx, my, toLegacyButton(event.button()));
 
         if (clickOnPress()) {
             this.pressActive = false;

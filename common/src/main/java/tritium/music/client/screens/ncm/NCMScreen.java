@@ -556,6 +556,20 @@ public class NCMScreen extends BaseScreen {
     }
 
     @Override
+    public void mousePressed(double mouseX, double mouseY, int mouseButton) {
+        if (musicLyricsPanel != null) {
+            return;
+        }
+
+        this.basePanel.onMousePressReceived(mouseX, mouseY, mouseButton);
+
+        if (this.currentPanel != null)
+            this.currentPanel.onMousePressReceived(mouseX, mouseY, mouseButton);
+
+        this.controlsBar.onMousePressReceived(mouseX, mouseY, mouseButton);
+    }
+
+    @Override
     public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
         if (musicLyricsPanel == null && currentPanel instanceof PlaylistPanel playlistPanel) {
             playlistPanel.onMouseReleased(mouseX, mouseY, mouseButton);

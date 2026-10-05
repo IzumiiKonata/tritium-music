@@ -1,0 +1,22 @@
+{
+    "name":  "Stepping",
+    "pack":  "Fruity",
+    "frameDurationMs":  110,
+    "beatsPerCycle":  2,
+    "speed":  1,
+    "scale":  1,
+    "anchorX":  0.5,
+    "anchorY":  0.92,
+    "shadowWidth":  0.46,
+    "shadowOffsetY":  0.02,
+    "frames":  [
+                   "00.png",
+                   "01.png",
+                   "02.png",
+                   "03.png",
+                   "04.png",
+                   "05.png",
+                   "06.png",
+                   "07.png"
+               ]
+}

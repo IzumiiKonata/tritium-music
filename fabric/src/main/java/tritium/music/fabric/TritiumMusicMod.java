@@ -26,11 +26,13 @@ import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
+import tritium.music.client.rendering.hud.DanceWidget;
 import tritium.music.client.rendering.hud.GrooveDebugHud;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
 import tritium.music.client.rendering.hud.MusicSpectrumWidget;
+import tritium.music.client.rendering.hud.dance.DanceStyleRegistry;
 import tritium.music.client.rendering.shader.EffectPipelines;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.CloudMusic;
@@ -52,6 +54,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     private final MusicInfoWidget musicInfo = new MusicInfoWidget();
     private final MusicLyricsWidget musicLyrics = new MusicLyricsWidget();
     private final MusicSpectrumWidget musicSpectrum = new MusicSpectrumWidget();
+    private final DanceWidget musicDance = new DanceWidget();
     private final GrooveDebugHud grooveDebug = new GrooveDebugHud();
 
     @Override
@@ -79,6 +82,8 @@ public class TritiumMusicMod implements ClientModInitializer {
             }
             try {
                 WidgetConfig.get();
+                DanceStyleRegistry.refresh();
+                DanceStyleRegistry.writeReadme();
                 AssetBootstrap.start();
                 AsyncUtil.runAsync(CloudMusic::initNCM);
             } catch (Throwable throwable) {
@@ -117,6 +122,7 @@ public class TritiumMusicMod implements ClientModInitializer {
         registerWidget("music_info", musicInfo);
         registerWidget("music_lyrics", musicLyrics);
         registerWidget("music_spectrum", musicSpectrum);
+        registerWidget("music_dance", musicDance);
         registerWidget("groove_debug", grooveDebug);
     }
 
@@ -131,7 +137,7 @@ public class TritiumMusicMod implements ClientModInitializer {
                 return;
             }
 
-            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::onRender);
+            HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::render);
         });
     }
 
