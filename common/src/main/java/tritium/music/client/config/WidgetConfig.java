@@ -1,9 +1,11 @@
 package tritium.music.client.config;
 
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
+import tritium.music.client.util.ClientSettings;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.audio.AutoMixTempoPolicy;
+import tritium.music.core.audio.MusicBeatTracker;
 import tritium.music.core.model.Quality;
 import tritium.music.core.util.JsonUtils;
 import tritium.music.platform.Platform;
@@ -40,6 +42,12 @@ public class WidgetConfig {
     public Quality quality = Quality.STANDARD;
     public boolean autoMix = false;
     public boolean autoMixTuneWheneverPossible = false;
+    public boolean songGroove = false;
+    public Groove groove = new Groove();
+    public boolean showWidgetBoundary = false;
+    public boolean debugMode = false;
+    public boolean grooveInfo = false;
+    public boolean grooveMarkers = false;
     public PlaylistViewMode playlistViewMode = PlaylistViewMode.GRID;
     public MusicToastMode musicToastMode = MusicToastMode.ON;
 
@@ -52,6 +60,51 @@ public class WidgetConfig {
         ON,
         OFF,
         FOLLOW_GAME
+    }
+
+    public static class Groove {
+
+        public static final double MIN_STRENGTH = 0.005;
+        public static final double MAX_STRENGTH = 0.08;
+        public static final double DEFAULT_STRENGTH = 0.03;
+        public static final double DEFAULT_GLOW_STRENGTH = 0.08;
+        public static final double DEFAULT_LIFT_STRENGTH = 0.06;
+        public static final double DEFAULT_AURORA_STRENGTH = 0.5;
+        public static final double DEFAULT_DOT_STRENGTH = 0.35;
+        public static final int MIN_BEAT_SHIFT = -8;
+        public static final int MAX_BEAT_SHIFT = 8;
+
+        public boolean cover = true;
+        public double coverStrength = DEFAULT_STRENGTH;
+        public boolean coverGlow = true;
+        public double coverGlowStrength = DEFAULT_GLOW_STRENGTH;
+        public boolean lyricLift = true;
+        public double lyricLiftStrength = DEFAULT_LIFT_STRENGTH;
+        public boolean auroraPulse = true;
+        public double auroraPulseStrength = DEFAULT_AURORA_STRENGTH;
+        public boolean breakDots = true;
+        public double breakDotsStrength = DEFAULT_DOT_STRENGTH;
+        public int beatShift = 0;
+
+        public boolean anyEnabled() {
+            return cover || coverGlow || lyricLift || auroraPulse || breakDots;
+        }
+
+        public void sanitize() {
+            coverStrength = strength(coverStrength, DEFAULT_STRENGTH);
+            coverGlowStrength = strength(coverGlowStrength, DEFAULT_GLOW_STRENGTH);
+            lyricLiftStrength = strength(lyricLiftStrength, DEFAULT_LIFT_STRENGTH);
+            auroraPulseStrength = strength(auroraPulseStrength, DEFAULT_AURORA_STRENGTH);
+            breakDotsStrength = strength(breakDotsStrength, DEFAULT_DOT_STRENGTH);
+            beatShift = Math.max(MIN_BEAT_SHIFT, Math.min(MAX_BEAT_SHIFT, beatShift));
+        }
+
+        private static double strength(double value, double fallback) {
+            if (!Double.isFinite(value)) {
+                return fallback;
+            }
+            return Math.max(0, Math.min(1, value));
+        }
     }
 
     public static class WidgetSettings {
@@ -162,6 +215,8 @@ public class WidgetConfig {
         if (quality == null) quality = Quality.STANDARD;
         if (playlistViewMode == null) playlistViewMode = PlaylistViewMode.GRID;
         if (musicToastMode == null) musicToastMode = MusicToastMode.ON;
+        if (groove == null) groove = new Groove();
+        groove.sanitize();
     }
 
     public void applyToState() {
@@ -172,5 +227,8 @@ public class WidgetConfig {
         CloudMusic.quality = quality;
         CloudMusic.autoMixEnabled = autoMix;
         AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE = autoMixTuneWheneverPossible ? 10.0 : 0.1;
+        MusicBeatTracker.setEnabled(songGroove && groove.anyEnabled());
+        ClientSettings.SHOW_WIDGET_BOUNDARY.setValue(showWidgetBoundary);
+        ClientSettings.DEBUG_MODE.setValue(debugMode);
     }
 }

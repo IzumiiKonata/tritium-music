@@ -1167,6 +1167,7 @@ public class CloudMusic {
             currentlyPlaying = session.song();
             player = session.player();
             player.activateSpectrum();
+            MusicBeatTracker.onSongStarted(session.song(), session.player());
             loadMusicCover(session.song());
             loadLyric(session.song());
             for (MusicListener listener : listeners) {
