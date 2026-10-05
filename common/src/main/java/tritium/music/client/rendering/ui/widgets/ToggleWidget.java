@@ -26,8 +26,8 @@ public class ToggleWidget extends AbstractWidget<ToggleWidget> {
         double inset = 3;
         double knob = getHeight() - inset * 2;
         double knobX = getX() + inset + (getWidth() - knob - inset * 2) * animation;
-        roundedRect(getX(), getY(), getWidth(), getHeight(), 7, reAlpha(background, getAlpha()));
-        roundedRect(knobX, getY() + inset, knob, knob, 4, reAlpha(0xFFFFFFFF, getAlpha()));
+        roundedRect(getX(), getY(), getWidth(), getHeight(), 6, reAlpha(background, getAlpha()));
+        roundedRect(knobX, getY() + inset, knob, knob, 3, reAlpha(0xFFFFFFFF, getAlpha()));
     }
 
     @Override

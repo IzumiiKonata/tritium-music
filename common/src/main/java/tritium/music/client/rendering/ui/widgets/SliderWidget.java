@@ -73,12 +73,6 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
                     reAlpha(0xFFFFFFFF, getAlpha()));
         }
 
-        double knob = 5 + hoverAnimation * 2;
-        double knobX = trackX + trackWidth * progress - knob * 0.5;
-        double knobY = getY() + (getHeight() - knob) * 0.5;
-        roundedRect(knobX, knobY, knob, knob, knob * 0.5,
-                reAlpha(0xFFF2F3F5, getAlpha() * Math.max(0.35f, hoverAnimation)));
-
         String label = formatter.apply(getter.getAsDouble());
         double textY = getY() + (getHeight() - font.getStringHeight(label)) * 0.5;
         font.drawCenteredString(label, getX() + getWidth() - LABEL_WIDTH * 0.5 - 4, textY,
