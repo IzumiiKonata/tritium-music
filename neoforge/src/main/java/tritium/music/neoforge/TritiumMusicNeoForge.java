@@ -147,7 +147,7 @@ public final class TritiumMusicNeoForge {
     private static void registerWidgetBelow(RegisterGuiLayersEvent event, Identifier anchor, Identifier id, HudWidget widget) {
         event.registerBelow(anchor, id, (graphics, deltaTracker) -> {
             updateSpectrumSettings();
-            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || HudWidget.hudHidden() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
             HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::render);
@@ -157,7 +157,7 @@ public final class TritiumMusicNeoForge {
     private static void registerWidgetAbove(RegisterGuiLayersEvent event, Identifier anchor, Identifier id, HudWidget widget) {
         event.registerAbove(anchor, id, (graphics, deltaTracker) -> {
             updateSpectrumSettings();
-            if (!widget.isEnabled() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
+            if (!widget.isEnabled() || HudWidget.hudHidden() || Minecraft.getInstance().gui.screen() instanceof tritium.music.client.screens.WidgetEditorScreen) {
                 return;
             }
             HudWidget.renderInFrame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false), widget::render);

@@ -1,6 +1,7 @@
 package tritium.music.client.screens.ncm.panels;
 
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.util.Util;
 import tritium.music.client.config.FontConfig;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.font.CFontRenderer;
@@ -17,7 +18,6 @@ import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.platform.Platform;
 
 import java.awt.Color;
-import java.awt.Desktop;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -584,10 +584,7 @@ public class FontSettingsPage extends NCMPanel {
     private void openFontFolder() {
         File dir = FontCatalog.userFontDir();
         try {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
-                Desktop.getDesktop().open(dir);
-                return;
-            }
+            Util.getPlatform().openUri(dir.toURI());
         } catch (Throwable throwable) {
             throwable.printStackTrace();
         }

@@ -34,6 +34,10 @@ public abstract class HudWidget implements SharedRenderingConstants {
         }
     }
 
+    public static boolean hudHidden() {
+        return Minecraft.getInstance().gui.hud.isHidden();
+    }
+
     private final String nameKey;
 
     @Setter
