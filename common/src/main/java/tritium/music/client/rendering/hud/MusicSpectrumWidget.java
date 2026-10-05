@@ -11,6 +11,8 @@ import tritium.music.core.audio.AudioPlayer;
 
 public class MusicSpectrumWidget extends HudWidget {
 
+    public static final double HEIGHT_RATIO = 0.33;
+
     private static final float REFERENCE_SMOOTHING = 0.55f;
     private static final float REFERENCE_RISE_SECONDS = 0.0123f;
     private static final float REFERENCE_FALL_SECONDS = 0.0253f;
@@ -38,17 +40,20 @@ public class MusicSpectrumWidget extends HudWidget {
     public void onRender() {
         boolean editorPreview = editorOrPreview();
 
+        if (CloudMusic.player == null && !editorPreview) {
+            return;
+        }
+
+        this.setWidth(RenderSystem.getWidth());
+        this.setHeight(RenderSystem.getHeight() * HEIGHT_RATIO);
+
         if (CloudMusic.player != null) {
             this.updateSpectrum();
-            this.drawBars();
-            this.setWidth(RenderSystem.getWidth());
-            this.setHeight(RenderSystem.getHeight() * 0.33);
-        } else if (editorPreview) {
+        } else {
             updateEditorSpectrum();
-            drawBars();
-            this.setWidth(RenderSystem.getWidth());
-            this.setHeight(RenderSystem.getHeight() * 0.33);
         }
+
+        this.drawBars();
     }
 
     private void updateEditorSpectrum() {
@@ -137,12 +142,14 @@ public class MusicSpectrumWidget extends HudWidget {
             return;
         }
 
-        double regionX, regionW, baseY, maxH;
+        double regionX = getX();
+        double regionW = getWidth();
+        double baseY = getY() + getHeight();
+        double maxH = getHeight();
 
-        regionX = 0;
-        regionW = RenderSystem.getWidth();
-        baseY = RenderSystem.getHeight();
-        maxH = RenderSystem.getHeight() * 0.33;
+        if (regionW <= 0 || maxH <= 0) {
+            return;
+        }
 
         double mult = cfg().multiplier;
         double pitch = regionW / n;

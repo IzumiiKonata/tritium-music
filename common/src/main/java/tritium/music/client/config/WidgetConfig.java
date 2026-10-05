@@ -1,6 +1,7 @@
 package tritium.music.client.config;
 
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
+import tritium.music.client.rendering.hud.MusicSpectrumWidget;
 import tritium.music.client.util.ClientSettings;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
@@ -16,6 +17,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 public class WidgetConfig {
+
+    private static final int SPECTRUM_PLACEMENT_VERSION = 2;
+    private static final double SPECTRUM_ANCHOR_Y = 1 - MusicSpectrumWidget.HEIGHT_RATIO;
 
     private static volatile WidgetConfig instance;
 
@@ -33,7 +37,7 @@ public class WidgetConfig {
 
     public WidgetSettings musicInfo = new WidgetSettings(8f / 1920f, 8f / 1080f, 1.0, true);
     public WidgetSettings musicLyrics = new WidgetSettings(0.5f - 225f / 1920f, 1f - 140f / 1080f, 1.0, false);
-    public WidgetSettings musicSpectrum = new WidgetSettings(0f, 0f, 1.0, false);
+    public WidgetSettings musicSpectrum = new WidgetSettings(0, SPECTRUM_ANCHOR_Y, 1.0, false);
     public WidgetSettings musicDance = new WidgetSettings(0.5f - 102f / 1920f, 1f - 250f / 1080f, 1.0, false);
 
     public Lyrics lyrics = new Lyrics();
@@ -51,6 +55,7 @@ public class WidgetConfig {
     public boolean grooveInfo = false;
     public boolean grooveMarkers = false;
     public PlaylistViewMode playlistViewMode = PlaylistViewMode.GRID;
+    public int configVersion = 0;
 
     public enum PlaylistViewMode {
         LIST,
@@ -235,8 +240,13 @@ public class WidgetConfig {
     private void normalize() {
         if (musicInfo == null) musicInfo = new WidgetSettings(8f / 1920f, 8f / 1080f, 1.0, true);
         if (musicLyrics == null) musicLyrics = new WidgetSettings(0.5f - 225f / 1920f, 1f - 140f / 1080f, 1.0, false);
-        if (musicSpectrum == null) musicSpectrum = new WidgetSettings(0f, 0f, 1.0, false);
+        if (musicSpectrum == null) musicSpectrum = new WidgetSettings(0, SPECTRUM_ANCHOR_Y, 1.0, false);
         if (musicDance == null) musicDance = new WidgetSettings(0.5f - 102f / 1920f, 1f - 250f / 1080f, 1.0, false);
+        if (configVersion < SPECTRUM_PLACEMENT_VERSION) {
+            configVersion = SPECTRUM_PLACEMENT_VERSION;
+            musicSpectrum.x = 0;
+            musicSpectrum.y = SPECTRUM_ANCHOR_Y;
+        }
         if (lyrics == null) lyrics = new Lyrics();
         lyrics.sanitize();
         if (spectrum == null) spectrum = new Spectrum();

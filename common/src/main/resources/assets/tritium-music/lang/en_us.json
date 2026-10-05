@@ -182,7 +182,7 @@
   "tritium-music.ui.settings.groove_info.title": "Beat Info",
   "tritium-music.ui.settings.groove_info.description": "Show BPM, meter, phase, confidence and grid state of the current song",
   "tritium-music.ui.settings.groove_markers.title": "Groove Markers",
-  "tritium-music.ui.settings.groove_markers.description": "Draw detected beats and downbeats around the screen centre line",
+  "tritium-music.ui.settings.groove_markers.description": "Show the bar's beat circles, an arrow pointing at the current beat and the detected beat positions in a compact panel",
   "tritium-music.ui.settings.section.beat_cache": "Beat Cache",
   "tritium-music.ui.settings.beat_cache.title": "Analysed beat data",
   "tritium-music.ui.settings.beat_cache.description": "Finished beat grids are saved locally and reused the next time the same song plays",
@@ -306,6 +306,5 @@
   "tritium-music.ui.settings.dance.rescan.title": "Rescan Styles",
   "tritium-music.ui.settings.dance.rescan.description": "Re-read the dance folder after adding or editing styles",
   "tritium-music.ui.settings.dance.rescan": "Rescan",
-  "tritium-music.ui.settings.preview": "Preview",
-  "tritium-music.ui.settings.preview.hint": "The hovered widget redraws with your current settings"
+  "tritium-music.ui.settings.preview": "Preview"
 }
