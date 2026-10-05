@@ -197,7 +197,7 @@ public class MusicInfoWidget extends HudWidget {
             if (CloudMusic.player != null || editorPreview) {
                 final double playbackProgress = CloudMusic.player != null ? playbackRatio() : 0.42;
                 StencilClipManager.beginClip(() -> Rect.draw(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth * playbackProgress, 6, -1));
-                this.roundedRect(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth, 5, 1, 233, 233, 233, (int) (alpha * 255));
+                this.roundedRect(imgX + imgSize + imgSpacing, progressBarOffsetY, progressBarWidth, 5, 1.5, 233, 233, 233, (int) (alpha * 255));
                 StencilClipManager.endClip();
 
                 double currentSeconds = CloudMusic.player != null ? CloudMusic.player.getCurrentTimeSeconds() : 87;
