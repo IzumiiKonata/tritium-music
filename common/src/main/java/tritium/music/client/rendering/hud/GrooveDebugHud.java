@@ -35,6 +35,20 @@ public class GrooveDebugHud extends HudWidget {
         super("tritium-music.ui.widget.groove_debug");
     }
 
+    public static double stackedHeight(WidgetConfig config) {
+        if (FontManager.pf14bold == null) {
+            return 0;
+        }
+        double height = 0;
+        if (config.grooveInfo) {
+            height += (FontManager.pf14bold.getStringHeight("A") + 4) * 7 + 10 + BOX_GAP;
+        }
+        if (config.grooveMarkers) {
+            height += MARKER_BOX_HEIGHT;
+        }
+        return height;
+    }
+
     @Override
     public WidgetConfig.WidgetSettings settings() {
         return PLACEMENT;
@@ -86,7 +100,7 @@ public class GrooveDebugHud extends HudWidget {
         font.drawString(I18n.get("tritium-music.ui.groove.info.tempo",
                 String.format(Locale.ROOT, "%.1f", grid.bpm()),
                 grid.beatsPerBar(),
-                String.format(Locale.ROOT, "%.2f", grid.confidence())), (float) x, (float) y, -1);
+                String.format(Locale.ROOT, "%.2f", grid.confidence() * 100)), (float) x, (float) y, -1);
         y += lineHeight;
 
         font.drawString(I18n.get("tritium-music.ui.groove.info.phase",
@@ -160,7 +174,7 @@ public class GrooveDebugHud extends HudWidget {
         if (grid == null || grid.beatCount() == 0 || grid.beatsPerBar() <= 0) {
             CFontRenderer font = FontManager.pf14bold;
             font.drawString(I18n.get("tritium-music.ui.groove.info.hint"), (float) (BOX_LEFT + BOX_PADDING),
-                    (float) (top + MARKER_CIRCLE_Y - font.getStringHeight("A") * 0.5), -1);
+                    (float) (top + BOX_PADDING), -1);
             return;
         }
 
@@ -173,7 +187,7 @@ public class GrooveDebugHud extends HudWidget {
         double circleCenterY = top + MARKER_CIRCLE_Y;
 
         renderBeatCircles(circleCenterY, beatsPerBar, beatInBar);
-        drawBeatArrow(BOX_LEFT + BOX_PADDING + MARKER_CIRCLE_RADIUS + beatInBar * MARKER_CIRCLE_SPACING,
+        drawBeatArrow(BOX_LEFT + BOX_PADDING + MARKER_CIRCLE_RADIUS + beatInBar * MARKER_CIRCLE_SPACING + 6,
                 circleCenterY - MARKER_CIRCLE_RADIUS - 2, accent, pulse, onDownbeat);
         renderTimeline(grid, position, top, currentBeat);
 
@@ -185,7 +199,7 @@ public class GrooveDebugHud extends HudWidget {
 
     private void renderBeatCircles(double centerY, int beatsPerBar, int currentBeatInBar) {
         CFontRenderer font = FontManager.pf12bold;
-        double startX = BOX_LEFT + BOX_PADDING + MARKER_CIRCLE_RADIUS;
+        double startX = BOX_LEFT + BOX_PADDING + MARKER_CIRCLE_RADIUS + 6;
 
         for (int index = 0; index < beatsPerBar; index++) {
             double centerX = startX + index * MARKER_CIRCLE_SPACING;
