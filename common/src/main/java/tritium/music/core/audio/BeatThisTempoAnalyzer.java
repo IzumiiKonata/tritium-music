@@ -34,7 +34,11 @@ final class BeatThisTempoAnalyzer {
     private float sampleRate;
 
     private static float[] resample(float[] source, double sourceRate, double targetRate) {
-        int outputLength = Math.max(1, (int) Math.round(source.length * targetRate / sourceRate));
+        return resample(source, source.length, sourceRate, targetRate);
+    }
+
+    private static float[] resample(float[] source, int length, double sourceRate, double targetRate) {
+        int outputLength = Math.max(1, (int) Math.round(length * targetRate / sourceRate));
         float[] output = new float[outputLength];
         double ratio = sourceRate / targetRate;
         double cutoff = Math.min(1, targetRate / sourceRate) * 0.94;
@@ -48,7 +52,7 @@ final class BeatThisTempoAnalyzer {
             double weight = 0;
             for (int tap = 0; tap < RESAMPLE_TAPS; tap++) {
                 int sourceIndex = center + tap - left;
-                if (sourceIndex >= 0 && sourceIndex < source.length) {
+                if (sourceIndex >= 0 && sourceIndex < length) {
                     double coefficient = kernels[phase][tap];
                     sum += source[sourceIndex] * coefficient;
                     weight += coefficient;
@@ -137,8 +141,9 @@ final class BeatThisTempoAnalyzer {
             return null;
         }
         ensureModelsAvailable();
-        float[] mono = Arrays.copyOf(samples, sampleCount);
-        float[] resampled = Math.abs(sampleRate - TARGET_RATE) < 0.5 ? mono : resample(mono, sampleRate, TARGET_RATE);
+        float[] resampled = Math.abs(sampleRate - TARGET_RATE) < 0.5
+                ? Arrays.copyOf(samples, sampleCount)
+                : resample(samples, sampleCount, sampleRate, TARGET_RATE);
         BeatGrid beatGrid = Models.INSTANCE.analyze(resampled, timelineOffsetMillis);
         return beatGrid == null ? null : new AudioAnalysis(beatGrid, resampled);
     }
@@ -147,8 +152,9 @@ final class BeatThisTempoAnalyzer {
         if (sampleRate <= 0 || sampleCount == 0) {
             return new float[0];
         }
-        float[] mono = Arrays.copyOf(samples, sampleCount);
-        return Math.abs(sampleRate - TARGET_RATE) < 0.5 ? mono : resample(mono, sampleRate, TARGET_RATE);
+        return Math.abs(sampleRate - TARGET_RATE) < 0.5
+                ? Arrays.copyOf(samples, sampleCount)
+                : resample(samples, sampleCount, sampleRate, TARGET_RATE);
     }
 
     private void ensureCapacity(int capacity) {

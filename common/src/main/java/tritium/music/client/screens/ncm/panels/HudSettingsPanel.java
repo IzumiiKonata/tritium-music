@@ -18,7 +18,11 @@ import tritium.music.client.screens.widget.ColorPickerWidget;
 import tritium.music.core.audio.AutoMixSupport;
 import tritium.music.core.audio.AutoMixTempoPolicy;
 import tritium.music.core.model.Quality;
+import tritium.music.platform.Platform;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.function.*;
 
 public class HudSettingsPanel extends NCMPanel {
@@ -66,12 +70,17 @@ public class HudSettingsPanel extends NCMPanel {
         });
         addChild(layoutTab);
 
-        for (int index = 0; index < Page.values().length; index++) {
-            Page target = Page.values()[index];
+        List<Page> pages = tabs();
+        if (!pages.contains(page)) {
+            page = Page.GENERAL;
+        }
+
+        for (int index = 0; index < pages.size(); index++) {
+            Page target = pages.get(index);
+            int tabIndex = index;
             RoundedButtonWidget tab = new RoundedButtonWidget(target.label(), FontManager.pf14bold);
             tab.setRadius(5);
             tab.setBounds(tabWidth, 26);
-            int tabIndex = index;
             tab.setBeforeRenderCallback(() -> {
                 tab.setPosition(24 + (tabIndex + 1) * (tabWidth + tabSpacing), tabRowY);
                 tab.setColor(page == target ? 0xFFC30218 : getColor(NCMScreen.ColorType.ELEMENT_HOVER));
@@ -139,8 +148,28 @@ public class HudSettingsPanel extends NCMPanel {
             case GENERAL -> buildGeneralPage();
             case LYRICS -> buildLyricsPage();
             case SPECTRUM -> buildSpectrumPage();
+            case MYSTERY -> buildMysteryPage();
             default -> {
             }
+        }
+    }
+
+    private static List<Page> tabs() {
+        List<Page> pages = new ArrayList<>();
+        for (Page candidate : Page.values()) {
+            if (candidate == Page.MYSTERY && !chineseLanguage()) {
+                continue;
+            }
+            pages.add(candidate);
+        }
+        return pages;
+    }
+
+    private static boolean chineseLanguage() {
+        try {
+            return Platform.gameLanguage().toLowerCase(Locale.ROOT).startsWith("zh");
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -274,8 +303,59 @@ public class HudSettingsPanel extends NCMPanel {
                 colorPicker(() -> spectrum.rectColor, value -> spectrum.rectColor = value, true)));
     }
 
+    private void buildMysteryPage() {
+        WidgetConfig config = WidgetConfig.get();
+        WidgetConfig.Groove groove = config.groove;
+
+        content.addChild(new SectionRow(text("section.groove")));
+        content.addChild(row(text("groove.title"), text("groove.description"),
+                toggle(() -> config.songGroove, value -> config.songGroove = value)));
+        content.addChild(subRow(text("groove.cover.title"), text("groove.cover.description"),
+                toggle(() -> groove.cover, value -> groove.cover = value)));
+        content.addChild(subRow(text("groove.cover_strength.title"), text("groove.cover_strength.description"),
+                slider(() -> groove.coverStrength, value -> groove.coverStrength = value,
+                        WidgetConfig.Groove.MIN_STRENGTH, WidgetConfig.Groove.MAX_STRENGTH, 0.005, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.cover_glow.title"), text("groove.cover_glow.description"),
+                toggle(() -> groove.coverGlow, value -> groove.coverGlow = value)));
+        content.addChild(subRow(text("groove.cover_glow_strength.title"), text("groove.cover_glow_strength.description"),
+                slider(() -> groove.coverGlowStrength, value -> groove.coverGlowStrength = value,
+                        0.01, 0.3, 0.01, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.lyric_lift.title"), text("groove.lyric_lift.description"),
+                toggle(() -> groove.lyricLift, value -> groove.lyricLift = value)));
+        content.addChild(subRow(text("groove.lyric_lift_strength.title"), text("groove.lyric_lift_strength.description"),
+                slider(() -> groove.lyricLiftStrength, value -> groove.lyricLiftStrength = value,
+                        0.01, 0.25, 0.01, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.aurora.title"), text("groove.aurora.description"),
+                toggle(() -> groove.auroraPulse, value -> groove.auroraPulse = value)));
+        content.addChild(subRow(text("groove.aurora_strength.title"), text("groove.aurora_strength.description"),
+                slider(() -> groove.auroraPulseStrength, value -> groove.auroraPulseStrength = value,
+                        0.1, 1, 0.05, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.dots.title"), text("groove.dots.description"),
+                toggle(() -> groove.breakDots, value -> groove.breakDots = value)));
+        content.addChild(subRow(text("groove.dots_strength.title"), text("groove.dots_strength.description"),
+                slider(() -> groove.breakDotsStrength, value -> groove.breakDotsStrength = value,
+                        0.05, 0.8, 0.05, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.beat_shift.title"), text("groove.beat_shift.description"),
+                slider(() -> groove.beatShift, value -> groove.beatShift = (int) Math.round(value),
+                        WidgetConfig.Groove.MIN_BEAT_SHIFT, WidgetConfig.Groove.MAX_BEAT_SHIFT, 1, HudSettingsPanel::beats)));
+
+        content.addChild(new SectionRow(text("section.debug")));
+        content.addChild(row(text("widget_boundary.title"), text("widget_boundary.description"),
+                toggle(() -> config.showWidgetBoundary, value -> config.showWidgetBoundary = value)));
+        content.addChild(row(text("debug_mode.title"), text("debug_mode.description"),
+                toggle(() -> config.debugMode, value -> config.debugMode = value)));
+        content.addChild(row(text("groove_info.title"), text("groove_info.description"),
+                toggle(() -> config.grooveInfo, value -> config.grooveInfo = value)));
+        content.addChild(row(text("groove_markers.title"), text("groove_markers.description"),
+                toggle(() -> config.grooveMarkers, value -> config.grooveMarkers = value)));
+    }
+
     private SettingRow row(String title, String description, AbstractWidget<?> control) {
-        return new SettingRow(title, description, control);
+        return new SettingRow(title, description, control, 0);
+    }
+
+    private SettingRow subRow(String title, String description, AbstractWidget<?> control) {
+        return new SettingRow(title, description, control, 18);
     }
 
     private ToggleWidget toggle(BooleanSupplier getter, Consumer<Boolean> setter) {
@@ -358,6 +438,14 @@ public class HudSettingsPanel extends NCMPanel {
                 config.musicSpectrum = new WidgetConfig.WidgetSettings(0, 0, 1, false);
                 config.spectrum = new WidgetConfig.Spectrum();
             }
+            case MYSTERY -> {
+                config.songGroove = false;
+                config.groove = new WidgetConfig.Groove();
+                config.showWidgetBoundary = false;
+                config.debugMode = false;
+                config.grooveInfo = false;
+                config.grooveMarkers = false;
+            }
             case FONT -> {
                 fontPage.resetToDefault();
                 return;
@@ -376,12 +464,14 @@ public class HudSettingsPanel extends NCMPanel {
         private final LabelWidget title;
         private final LabelWidget description;
         private final AbstractWidget<?> control;
+        private final int indent;
         private float hoverAnimation;
 
-        private SettingRow(String titleText, String descriptionText, AbstractWidget<?> control) {
+        private SettingRow(String titleText, String descriptionText, AbstractWidget<?> control, int indent) {
             this.title = new LabelWidget(titleText, FontManager.pf14bold);
             this.description = new LabelWidget(descriptionText, FontManager.pf12);
             this.control = control;
+            this.indent = indent;
             setBounds(720, 40);
 
             title.setColor(HudSettingsPanel.this.getColor(NCMScreen.ColorType.PRIMARY_TEXT));
@@ -398,7 +488,7 @@ public class HudSettingsPanel extends NCMPanel {
                 double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
 //                double descriptionHeight = FontManager.pf12.getStringHeight(description.getLabel());
                 double blockHeight = titleHeight + 2;
-                title.setPosition(16, (40 - blockHeight) * 0.5 + .5);
+                title.setPosition(16 + indent, (40 - blockHeight) * 0.5 + .5);
             });
 //            description.setBeforeRenderCallback(() -> {
 //                double titleHeight = FontManager.pf14bold.getStringHeight(title.getLabel());
@@ -425,6 +515,10 @@ public class HudSettingsPanel extends NCMPanel {
                         reAlpha(
                                 HudSettingsPanel.this.getColor(NCMScreen.ColorType.ELEMENT_HOVER),
                                 getAlpha() * hoverAnimation));
+            }
+            if (indent > 0) {
+                Rect.draw(getX() + indent * 0.5, getY() + getHeight() * 0.5 - 7, 1, 14,
+                        reAlpha(0xFFFFFFFF, getAlpha() * 0.08f));
             }
         }
     }
@@ -503,6 +597,10 @@ public class HudSettingsPanel extends NCMPanel {
         return I18n.get("tritium-music.ui.unit.lines", Math.round(value));
     }
 
+    private static String beats(double value) {
+        return I18n.get("tritium-music.ui.unit.beats", Math.round(value));
+    }
+
     private static String format(double value, int digits) {
         return String.format("%." + digits + "f", value);
     }
@@ -515,7 +613,8 @@ public class HudSettingsPanel extends NCMPanel {
         GENERAL("page.general"),
         LYRICS("page.lyrics"),
         SPECTRUM("page.spectrum"),
-        FONT("page.font");
+        FONT("page.font"),
+        MYSTERY("page.mystery");
 
         private final String labelKey;
 
