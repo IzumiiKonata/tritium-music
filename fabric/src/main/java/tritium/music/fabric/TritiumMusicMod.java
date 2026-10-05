@@ -16,11 +16,13 @@ import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
+import tritium.music.client.rendering.hud.DanceWidget;
 import tritium.music.client.rendering.hud.GrooveDebugHud;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
 import tritium.music.client.rendering.hud.MusicSpectrumWidget;
+import tritium.music.client.rendering.hud.dance.DanceStyleRegistry;
 import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.screens.ncm.NCMScreen;
 import tritium.music.core.CloudMusic;
@@ -43,6 +45,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
+    private static final DanceWidget MUSIC_DANCE = new DanceWidget();
     private static final GrooveDebugHud GROOVE_DEBUG = new GrooveDebugHud();
 
     @Override
@@ -63,6 +66,8 @@ public class TritiumMusicMod implements ClientModInitializer {
             }
             try {
                 WidgetConfig.get();
+                DanceStyleRegistry.refresh();
+                DanceStyleRegistry.writeReadme();
                 AssetBootstrap.start();
                 AsyncUtil.runAsync(CloudMusic::initNCM);
             } catch (Throwable throwable) {
@@ -99,6 +104,7 @@ public static void renderHudWidgets(GuiGraphics graphics, float partialTick) {
         renderWidget(graphics, partialTick, MUSIC_SPECTRUM);
         renderWidget(graphics, partialTick, MUSIC_LYRICS);
         renderWidget(graphics, partialTick, MUSIC_INFO);
+        renderWidget(graphics, partialTick, MUSIC_DANCE);
         renderWidget(graphics, partialTick, GROOVE_DEBUG);
     }
 
@@ -115,7 +121,7 @@ public static void renderHudWidgets(GuiGraphics graphics, float partialTick) {
             return;
         }
 
-        HudWidget.renderInFrame(graphics, partialTick, widget::onRender);
+        HudWidget.renderInFrame(graphics, partialTick, widget::render);
     }
 
     private void onClientTick(Minecraft client) {

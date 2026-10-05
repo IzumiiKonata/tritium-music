@@ -47,11 +47,14 @@ public final class MusicBeatGrid {
     private final int downbeatPhase;
     private final long coverageEndMillis;
     private final boolean reliable;
+    private final boolean complete;
     private final String rejection;
 
     private MusicBeatGrid(List<Long> beats, List<Long> downbeats, double[] beatAccents, double[] barAccents,
                           int[] beatsSinceDownbeat, double beatIntervalMillis, double confidence, int beatsPerBar,
-                          int downbeatPhase, long coverageEndMillis, boolean reliable, String rejection) {
+                          int downbeatPhase, long coverageEndMillis, boolean reliable, boolean complete,
+                          String rejection) {
+        this.complete = complete;
         this.beats = beats;
         this.downbeats = downbeats;
         this.beatAccents = beatAccents;
@@ -66,23 +69,23 @@ public final class MusicBeatGrid {
         this.rejection = rejection;
     }
 
-    static MusicBeatGrid build(BeatThisTempoAnalyzer.BeatGrid grid, float[] audio, long coverageEndMillis) {
+    static MusicBeatGrid build(BeatThisTempoAnalyzer.BeatGrid grid, float[] audio, long coverageEndMillis, boolean complete) {
         if (grid == null || grid.beatTimesMillis().size() < MINIMUM_BEATS) {
-            return rejected("too few beats", coverageEndMillis);
+            return rejected("too few beats", coverageEndMillis, complete);
         }
         double interval = grid.intervalMillis();
         if (!(interval >= MINIMUM_INTERVAL_MILLIS && interval <= MAXIMUM_INTERVAL_MILLIS)) {
-            return rejected("implausible tempo", coverageEndMillis);
+            return rejected("implausible tempo", coverageEndMillis, complete);
         }
         if (grid.confidence() < MINIMUM_CONFIDENCE) {
-            return rejected("low beat confidence", coverageEndMillis);
+            return rejected("low beat confidence", coverageEndMillis, complete);
         }
         List<Long> beats = repairBeats(grid.beatTimesMillis(), interval);
         if (beats.size() < MINIMUM_BEATS) {
-            return rejected("too few beats", coverageEndMillis);
+            return rejected("too few beats", coverageEndMillis, complete);
         }
         if (jitterRatio(beats) > MAXIMUM_JITTER_RATIO) {
-            return rejected("unstable tempo", coverageEndMillis, beats, interval, grid.confidence());
+            return rejected("unstable tempo", coverageEndMillis, complete, beats, interval, grid.confidence());
         }
 
         BeatAccentAnalyzer.Accents accents = BeatAccentAnalyzer.measure(audio, 0, beats);
@@ -100,7 +103,7 @@ public final class MusicBeatGrid {
         if (phase < 0) {
             AccentMeter accentMeter = accentMeter(accents, meter);
             if (accentMeter == null) {
-                return rejected("unknown downbeat", coverageEndMillis, beats, interval, grid.confidence());
+                return rejected("unknown downbeat", coverageEndMillis, complete, beats, interval, grid.confidence());
             }
             meter = accentMeter.meter();
             phase = accentMeter.phase();
@@ -112,23 +115,23 @@ public final class MusicBeatGrid {
         }
         double[] barAccents = barAccents(accents.wideband(), beatsSinceDownbeat, meter);
         if (barAccents == null) {
-            return rejected("no usable strong beat", coverageEndMillis, beats, interval, grid.confidence());
+            return rejected("no usable strong beat", coverageEndMillis, complete, beats, interval, grid.confidence());
         }
 
         long coverageEnd = Math.min(coverageEndMillis, beats.get(beats.size() - 1) + Math.round(interval));
         return new MusicBeatGrid(beats, downbeatsAt(beats, beatsSinceDownbeat), accents.wideband(), barAccents,
-                beatsSinceDownbeat, interval, grid.confidence(), meter, phase, coverageEnd, true, null);
+                beatsSinceDownbeat, interval, grid.confidence(), meter, phase, coverageEnd, true, complete, null);
     }
 
-    private static MusicBeatGrid rejected(String reason, long coverageEndMillis) {
+    private static MusicBeatGrid rejected(String reason, long coverageEndMillis, boolean complete) {
         return new MusicBeatGrid(List.of(), List.of(), new double[0], new double[0], new int[0], 0, 0, 0, 0,
-                coverageEndMillis, false, reason);
+                coverageEndMillis, false, complete, reason);
     }
 
-    private static MusicBeatGrid rejected(String reason, long coverageEndMillis, List<Long> beats,
+    private static MusicBeatGrid rejected(String reason, long coverageEndMillis, boolean complete, List<Long> beats,
                                           double interval, double confidence) {
         return new MusicBeatGrid(beats, List.of(), new double[beats.size()], new double[0], new int[beats.size()],
-                interval, confidence, 0, 0, coverageEndMillis, false, reason);
+                interval, confidence, 0, 0, coverageEndMillis, false, complete, reason);
     }
 
     private static List<Long> downbeatsAt(List<Long> beats, int[] beatsSinceDownbeat) {
@@ -378,8 +381,58 @@ public final class MusicBeatGrid {
     private record AccentMeter(int meter, int phase, double margin) {
     }
 
+    public record Snapshot(boolean reliable, boolean complete, String rejection, double beatIntervalMillis,
+                           double confidence, int beatsPerBar, int downbeatPhase, long coverageEndMillis,
+                           long[] beats, double[] beatAccents, double[] barAccents) {
+    }
+
+    Snapshot snapshot() {
+        long[] times = new long[beats.size()];
+        for (int index = 0; index < times.length; index++) {
+            times[index] = beats.get(index);
+        }
+        return new Snapshot(reliable, complete, rejection, beatIntervalMillis, confidence, beatsPerBar, downbeatPhase,
+                coverageEndMillis, times, beatAccents, barAccents);
+    }
+
+    static MusicBeatGrid restore(Snapshot snapshot) {
+        if (snapshot == null || snapshot.beats() == null || snapshot.beatAccents() == null || snapshot.barAccents() == null) {
+            return null;
+        }
+        int count = snapshot.beats().length;
+        if (count != snapshot.beatAccents().length || !Double.isFinite(snapshot.beatIntervalMillis())) {
+            return null;
+        }
+        List<Long> times = new ArrayList<>(count);
+        for (long beat : snapshot.beats()) {
+            times.add(beat);
+        }
+        if (!snapshot.reliable()) {
+            return new MusicBeatGrid(times, List.of(), snapshot.beatAccents(), snapshot.barAccents(), new int[count],
+                    snapshot.beatIntervalMillis(), snapshot.confidence(), 0, 0, snapshot.coverageEndMillis(),
+                    false, snapshot.complete(), snapshot.rejection());
+        }
+        int meter = snapshot.beatsPerBar();
+        if (count < MINIMUM_BEATS || meter < MINIMUM_BEATS_PER_BAR || meter > MAXIMUM_BEATS_PER_BAR
+                || snapshot.barAccents().length != meter) {
+            return null;
+        }
+        int phase = Math.floorMod(snapshot.downbeatPhase(), meter);
+        int[] beatsSinceDownbeat = new int[count];
+        for (int index = 0; index < count; index++) {
+            beatsSinceDownbeat[index] = Math.floorMod(index - phase, meter);
+        }
+        return new MusicBeatGrid(times, downbeatsAt(times, beatsSinceDownbeat), snapshot.beatAccents(),
+                snapshot.barAccents(), beatsSinceDownbeat, snapshot.beatIntervalMillis(), snapshot.confidence(),
+                meter, phase, snapshot.coverageEndMillis(), true, snapshot.complete(), null);
+    }
+
     public boolean isReliable() {
         return reliable;
+    }
+
+    public boolean isComplete() {
+        return complete;
     }
 
     public String rejection() {

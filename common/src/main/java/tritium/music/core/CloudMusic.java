@@ -1068,6 +1068,22 @@ public class CloudMusic {
         }
     }
 
+    public static AudioPlayer createAnalysisPlayer(Music song) {
+        if (song == null) {
+            return null;
+        }
+        Pair<String, String> playUrl = song.getPlayUrl();
+        return playUrl == null ? null : createPlayer(playUrl.a(), playUrl.b(), song.getDuration());
+    }
+
+    public static AudioPlayer createPlayer(String url, String type, long durationMillis) {
+        String format = type.toLowerCase(Locale.ROOT);
+        if (!format.equals("flac") && !format.equals("wav") && !format.equals("mp3")) {
+            throw new IllegalArgumentException("Unsupported music format, url: " + url + ", type: " + type);
+        }
+        return new AudioPlayer(url, format, durationMillis);
+    }
+
     private static class PlayThread extends Thread {
         private static final long INTRO_ANALYSIS_MILLIS = 24_000;
         private static final long TAIL_ANALYSIS_MILLIS = 28_000;
@@ -1168,6 +1184,7 @@ public class CloudMusic {
             player = session.player();
             player.activateSpectrum();
             MusicBeatTracker.onSongStarted(session.song(), session.player());
+            MusicBeatTracker.prefetch(upcomingSong());
             loadMusicCover(session.song());
             loadLyric(session.song());
             for (MusicListener listener : listeners) {
@@ -1586,11 +1603,7 @@ public class CloudMusic {
         }
 
         private AudioPlayer createPlayer(Pair<String, String> playUrl, Music song) {
-            String type = playUrl.b().toLowerCase();
-            if (!type.equals("flac") && !type.equals("wav") && !type.equals("mp3")) {
-                throw new IllegalArgumentException("Unsupported music format, url: " + playUrl.a() + ", type: " + type);
-            }
-            AudioPlayer result = new AudioPlayer(playUrl.a(), type, song.getDuration());
+            AudioPlayer result = CloudMusic.createPlayer(playUrl.a(), playUrl.b(), song.getDuration());
             result.setVolume(MusicState.get().getVolume());
             return result;
         }
@@ -1604,6 +1617,15 @@ public class CloudMusic {
                 return next;
             }
             return playMode == PlayMode.LoopInList || playMode == PlayMode.Random ? 0 : -1;
+        }
+
+        private Music upcomingSong() {
+            int index = nextIndex();
+            if (index < 0 || index >= playList.size()) {
+                return null;
+            }
+            Music upcoming = playList.get(index);
+            return upcoming == currentlyPlaying ? null : upcoming;
         }
 
         private void closePreparationExcept(TrackSession retained) {

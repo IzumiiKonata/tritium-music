@@ -9,6 +9,7 @@ import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.font.FontManager;
+import tritium.music.client.rendering.hud.DanceWidget;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -22,7 +23,8 @@ public class WidgetEditorScreen extends BaseScreen {
     private final List<HudWidget> widgets = List.of(
             new MusicInfoWidget(),
             new MusicLyricsWidget(),
-            new MusicSpectrumWidget()
+            new MusicSpectrumWidget(),
+            new DanceWidget()
     );
 
     private final Screen parent;
@@ -50,7 +52,7 @@ public class WidgetEditorScreen extends BaseScreen {
         hovered = null;
         for (HudWidget widget : widgets) {
             boolean enabled = widget.isEnabled();
-            widget.onRender();
+            widget.render();
 
             double wx = widget.getX(), wy = widget.getY();
             double ww = widget.editorWidth();

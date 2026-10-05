@@ -272,12 +272,48 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
                 }
             }
 
-            if (child.isHovering() && child.isClickable() && child.onMouseClicked(mouseX - child.getX(), mouseY - child.getY(), mouseButton)) {
+            if (child.isHovering() && child.isClickable() && !child.dragOnPress()
+                    && child.onMouseClicked(mouseX - child.getX(), mouseY - child.getY(), mouseButton)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    protected boolean iterateChildrenMousePress(List<AbstractWidget<?>> children, double mouseX, double mouseY, int mouseButton) {
+        for (AbstractWidget<?> child : children) {
+            if (child.isHidden()) {
+                continue;
+            }
+
+            if (!child.shouldClickChildren(mouseX, mouseY))
+                continue;
+
+            if (!child.getChildren().isEmpty()) {
+                if (this.iterateChildrenMousePress(child.getChildren(), mouseX, mouseY, mouseButton)) {
+                    return true;
+                }
+            }
+
+            if (child.dragOnPress() && child.isHovering() && child.isClickable()
+                    && child.onMousePressed(mouseX - child.getX(), mouseY - child.getY(), mouseButton)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void onMousePressReceived(double mouseX, double mouseY, int mouseButton) {
+        if (!this.shouldClickChildren(mouseX, mouseY))
+            return;
+
+        if (!this.iterateChildrenMousePress(this.getChildren(), mouseX, mouseY, mouseButton)) {
+            if (!this.isHidden() && this.isHovering() && this.isClickable() && this.dragOnPress()) {
+                this.onMousePressed(mouseX - this.getX(), mouseY - this.getY(), mouseButton);
+            }
+        }
     }
 
     protected boolean iterateChildrenDWheel(List<AbstractWidget<?>> children, double mouseX, double mouseY, int dWheel) {
@@ -335,6 +371,13 @@ public abstract class AbstractWidget<SELF extends AbstractWidget<SELF>> implemen
 
     public boolean dragOnPress() {
         return false;
+    }
+
+    public boolean onMousePressed(double relativeX, double relativeY, int mouseButton) {
+        if (this.clickCallback == null) {
+            return false;
+        }
+        return this.clickCallback.onClick(relativeX, relativeY, mouseButton);
     }
 
     public boolean onMouseClicked(double relativeX, double relativeY, int mouseButton) {
