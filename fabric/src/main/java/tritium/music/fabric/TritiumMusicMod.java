@@ -16,6 +16,7 @@ import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
+import tritium.music.client.rendering.hud.GrooveDebugHud;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -42,6 +43,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
+    private static final GrooveDebugHud GROOVE_DEBUG = new GrooveDebugHud();
 
     @Override
     public void onInitializeClient() {
@@ -97,6 +99,7 @@ public static void renderHudWidgets(GuiGraphics graphics, float partialTick) {
         renderWidget(graphics, partialTick, MUSIC_SPECTRUM);
         renderWidget(graphics, partialTick, MUSIC_LYRICS);
         renderWidget(graphics, partialTick, MUSIC_INFO);
+        renderWidget(graphics, partialTick, GROOVE_DEBUG);
     }
 
     private static void updateSpectrumSettings() {

@@ -2,10 +2,12 @@ package tritium.music.client.rendering.hud;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
+import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
+import tritium.music.client.rendering.SongGroove;
 import tritium.music.client.rendering.StencilClipManager;
 import tritium.music.client.rendering.animation.Easing;
 import tritium.music.client.rendering.animation.Interpolations;
@@ -61,6 +63,8 @@ public class MusicLyricsWidget extends HudWidget {
 
     private double auroraEnergy = 0;
     private boolean karaokeRightAligned;
+    private final SongGroove lyricGroove = new SongGroove();
+    private final SongGroove dotGroove = new SongGroove();
 
     public MusicLyricsWidget() {
         super("tritium-music.ui.widget.music_lyrics");
@@ -144,6 +148,10 @@ public class MusicLyricsWidget extends HudWidget {
         this.setWidth(REGION_WIDTH);
         this.setHeight(regionHeight(this.lyricH, hasSecondary));
 
+        WidgetConfig.Groove groove = WidgetConfig.get().groove;
+        this.lyricGroove.update(groove.lyricLift || groove.auroraPulse, .6f);
+        this.dotGroove.update(groove.breakDots, .6f);
+
         float songProgress = CloudMusic.player.getCurrentTimeMillisInterpolated();
 
         boolean shouldNotDisplayOtherLyrics = cfg().singleLine();
@@ -157,6 +165,27 @@ public class MusicLyricsWidget extends HudWidget {
         renderAllLyrics(shouldNotDisplayOtherLyrics, songProgress);
 
         StencilClipManager.endClip();
+
+        if (ClientSettings.DEBUG_MODE.getValue()) {
+            LyricLine currentLine = currentLyric();
+            if (currentLine != null && !CloudMusic.haveNoWords) {
+                WordInfo wordInfo = calculateCurrentWordInfo(currentLine, songProgress);
+
+                LyricLine.Word current = currentLine.words.get(wordInfo.currentIndex);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.current_word", current.word), 100, 100, -1);
+                double value = (songProgress - current.timestamp) / (double) (current.duration);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.percentage", value), 100, 120, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.duration", current.duration), 100, 140, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.position", songProgress - current.timestamp), 100, 160, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.word_index",
+                        wordInfo.currentIndex, currentLine.words.size()), 100, 180, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.line_index",
+                        CloudMusic.lyrics.indexOf(currentLine), CloudMusic.lyrics.size()), 100, 200, -1);
+                FontManager.pf28bold.drawStringWithShadow(I18n.get("tritium-music.ui.debug.groove",
+                        String.format(java.util.Locale.ROOT, "%.3f", lyricGroove.value()),
+                        String.format(java.util.Locale.ROOT, "%.3f", dotGroove.value())), 100, 220, -1);
+            }
+        }
     }
 
     private boolean shouldRender() {
@@ -374,9 +403,14 @@ public class MusicLyricsWidget extends HudWidget {
                         renderLyricLine(line, renderInfo, i, indexOf, songProgress);
                     } else {
                         double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
+                        boolean currentLine = i == indexOf;
 
                         RenderContext.graphics().pose().pushPose();
-                        scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+                        if (currentLine) {
+                            RenderContext.graphics().pose().translate(0, -lyricGrooveLift(), 0);
+                        }
+                        scaleAtPos(pivotX, renderInfo.yPosition + fontH * 0.5,
+                                1.0 + focus * 0.05 + (currentLine ? lyricGrooveScale() : 0));
                         renderLyricLine(line, renderInfo, i, indexOf, songProgress);
                         RenderContext.graphics().pose().popPose();
                     }
@@ -411,12 +445,15 @@ public class MusicLyricsWidget extends HudWidget {
         double dotWidth = width / text.length();
         double x = calculateAlignmentX(text, cfg().alignMode);
 
+        WidgetConfig.Groove groove = WidgetConfig.get().groove;
+        double beatBounce = groove.breakDots ? fontH * groove.breakDotsStrength * dotGroove.value() : 0;
+
         for (int i = 0; i < text.length(); i++) {
             float pulse = CloudMusic.breakDotPulse(breakLine, i);
             float dotAlpha = (float) (renderInfo.fade * breakLine.intensity * Mth.limit(.18 + .82 * pulse, 0, 1));
             if (dotAlpha <= 0.004f) continue;
 
-            bigFrString(String.valueOf(text.charAt(i)), x, renderInfo.yPosition - pulse * 2f,
+            bigFrString(String.valueOf(text.charAt(i)), x, renderInfo.yPosition - pulse * 2f - beatBounce,
                     RGBA.color(255, 255, 255, (int) (dotAlpha * 255)));
             x += dotWidth;
         }
@@ -491,9 +528,10 @@ public class MusicLyricsWidget extends HudWidget {
                                           boolean onLeft, String secondaryLyric, boolean singleLineMode) {
         double pivotX = onLeft ? getX() : getX() + getWidth();
         RenderContext.graphics().pose().pushPose();
+        RenderContext.graphics().pose().translate(0, -lyricGrooveLift(), 0);
         if (!singleLineMode) {
             double focus = Math.max(0f, line.lineAlpha - 0.25f) / 0.75;
-            scaleAtPos(pivotX, info.yPosition + fontH * 0.5, 1.0 + focus * 0.05);
+            scaleAtPos(pivotX, info.yPosition + fontH * 0.5, 1.0 + focus * 0.05 + lyricGrooveScale());
         }
         updateAuroraLinger(line, info, true);
         renderKaraokeLine(line, info, onLeft, true, secondaryLyric);
@@ -547,6 +585,16 @@ public class MusicLyricsWidget extends HudWidget {
             case Center -> this.getX() + this.getWidth() / 2.0;
             case Right -> this.getX() + this.getWidth();
         };
+    }
+
+    private double lyricGrooveLift() {
+        WidgetConfig.Groove groove = WidgetConfig.get().groove;
+        return groove.lyricLift ? fontH * groove.lyricLiftStrength * lyricGroove.value() : 0;
+    }
+
+    private double lyricGrooveScale() {
+        WidgetConfig.Groove groove = WidgetConfig.get().groove;
+        return groove.lyricLift ? groove.lyricLiftStrength * lyricGroove.value() : 0;
     }
 
     private double computeEdgeFade(double yPosition) {
@@ -799,6 +847,11 @@ public class MusicLyricsWidget extends HudWidget {
         double rawEnergy = cfg().audioReactive ? lowFrequencyEnergy() : 0.0;
         auroraEnergy = Interpolations.interpolate(auroraEnergy, rawEnergy, 0.25);
         double beat = auroraEnergy;
+
+        WidgetConfig.Groove groove = WidgetConfig.get().groove;
+        if (groove.auroraPulse) {
+            beat = Math.min(1.0, beat + lyricGroove.value() * groove.auroraPulseStrength);
+        }
 
         double liftAmount = fontH * (0.10 + beat * 0.05);
         double waveSigma = Math.max(10.0, fontH * 1.1);

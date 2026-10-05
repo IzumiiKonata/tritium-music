@@ -22,6 +22,7 @@ import tritium.music.client.platform.MinecraftMusicPlatform;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
+import tritium.music.client.rendering.hud.GrooveDebugHud;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -47,6 +48,7 @@ public final class TritiumMusicForge {
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
+    private static final GrooveDebugHud GROOVE_DEBUG = new GrooveDebugHud();
 
     public TritiumMusicForge() {
         Platform.set(new MinecraftMusicPlatform());
@@ -83,6 +85,7 @@ public final class TritiumMusicForge {
         event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "music_spectrum", (gui, graphics, partialTick, width, height) -> renderWidget(graphics, partialTick, MUSIC_SPECTRUM));
         event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "music_lyrics", (gui, graphics, partialTick, width, height) -> renderWidget(graphics, partialTick, MUSIC_LYRICS));
         event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "music_info", (gui, graphics, partialTick, width, height) -> renderWidget(graphics, partialTick, MUSIC_INFO));
+        event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "groove_debug", (gui, graphics, partialTick, width, height) -> renderWidget(graphics, partialTick, GROOVE_DEBUG));
     }
 
     @SubscribeEvent

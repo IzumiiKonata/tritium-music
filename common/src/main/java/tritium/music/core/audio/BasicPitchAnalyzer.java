@@ -80,28 +80,10 @@ final class BasicPitchAnalyzer {
     }
 
     private static List<MusicalTimeline.BeatAccent> beatAccents(float[] audio, long timelineOffsetMillis, List<Long> beats) {
-        double[] raw = new double[beats.size()];
-        double[] sorted = new double[beats.size()];
-        for (int beat = 0; beat < beats.size(); beat++) {
-            int center = (int) Math.round((beats.get(beat) - timelineOffsetMillis) * SAMPLE_RATE / 1_000.0);
-            int start = Math.max(1, center - SAMPLE_RATE / 100);
-            int end = Math.min(audio.length, center + SAMPLE_RATE * 9 / 100);
-            double energy = 0;
-            double transientEnergy = 0;
-            for (int sample = start; sample < end; sample++) {
-                energy += audio[sample] * audio[sample];
-                double difference = audio[sample] - audio[sample - 1];
-                transientEnergy += difference * difference;
-            }
-            int count = Math.max(1, end - start);
-            raw[beat] = Math.sqrt(energy / count) + Math.sqrt(transientEnergy / count) * 2.4;
-            sorted[beat] = raw[beat];
-        }
-        Arrays.sort(sorted);
-        double reference = sorted.length == 0 ? 1 : Math.max(1.0e-6, sorted[(int) Math.floor((sorted.length - 1) * 0.72)]);
+        double[] accents = BeatAccentAnalyzer.accents(audio, timelineOffsetMillis, beats);
         List<MusicalTimeline.BeatAccent> result = new ArrayList<>(beats.size());
         for (int beat = 0; beat < beats.size(); beat++) {
-            result.add(new MusicalTimeline.BeatAccent(beats.get(beat), clamp(raw[beat] / reference)));
+            result.add(new MusicalTimeline.BeatAccent(beats.get(beat), accents[beat]));
         }
         return result;
     }
