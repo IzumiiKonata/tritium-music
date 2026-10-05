@@ -17,6 +17,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 final class StreamingSoundPlayer {
     private static final int MAX_STREAM_RETRIES = 3;
@@ -25,7 +26,10 @@ final class StreamingSoundPlayer {
     private static final int TRANSFORM_UPDATE_MILLIS = 20;
     private static final int OUTPUT_BUFFER_MILLIS = 100;
     private static final int PREFETCH_BUFFER_BYTES = 8 * 1024 * 1024;
+    private static final long BEAT_GRID_FIRST_PUBLISH_MILLIS = 45_000;
+    private static final long BEAT_GRID_MAXIMUM_ANALYSIS_MILLIS = 300_000;
     private static final AtomicBoolean BEAT_THIS_FAILURE_LOGGED = new AtomicBoolean();
+    private static final AtomicBoolean BEAT_GRID_FAILURE_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean BASIC_PITCH_FAILURE_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean JAVA_SOUND_FALLBACK_LOGGED = new AtomicBoolean();
     private static final Semaphore AUTO_MIX_ANALYSIS_SLOT = new Semaphore(1);
@@ -41,6 +45,7 @@ final class StreamingSoundPlayer {
     private final CountDownLatch preparedLatch = new CountDownLatch(1);
     private volatile PcmOutput line;
     private volatile InputStream input;
+    private volatile InputStream beatGridInput;
     private volatile Thread worker;
     private volatile boolean closed;
     private volatile boolean paused = true;
@@ -330,6 +335,85 @@ final class StreamingSoundPlayer {
         return analysis;
     }
 
+    void analyzeBeatGrid(Consumer<MusicBeatGrid> listener) throws IOException {
+        long firstPublishMillis = Math.min(BEAT_GRID_FIRST_PUBLISH_MILLIS, durationMillis);
+        long analysisLimitMillis = Math.min(durationMillis, BEAT_GRID_MAXIMUM_ANALYSIS_MILLIS);
+        boolean published = false;
+        BeatThisTempoAnalyzer tempoAnalyzer = new BeatThisTempoAnalyzer();
+        try (InputStream opened = streamFactory.open(); InputStream buffered = new BufferedInputStream(opened); PcmStream decoded = openPcmStream(buffered, type)) {
+            beatGridInput = buffered;
+            PcmStream pcm = decoded;
+            if (!Pcm16Stream.supports(pcm.format()) && pcm.format().getSampleSizeInBits() > 32) {
+                return;
+            }
+            AudioFormat format = pcm.format();
+            int frameSize = format.getFrameSize();
+            float frameRate = format.getFrameRate();
+            if (frameSize <= 0 || frameRate <= 0) {
+                return;
+            }
+            byte[] buffer = new byte[32 * 1024];
+            long decodedMillis = 0;
+            int read;
+            while (decodedMillis < analysisLimitMillis && !Thread.currentThread().isInterrupted() && (read = pcm.read(buffer)) >= 0) {
+                if (read == 0) {
+                    continue;
+                }
+                tempoAnalyzer.accept(buffer, 0, read, format);
+                decodedMillis += Math.round(read * 1000.0 / frameSize / frameRate);
+                if (!published && decodedMillis >= firstPublishMillis && decodedMillis < analysisLimitMillis) {
+                    published = true;
+                    if (!publishBeatGrid(tempoAnalyzer, listener, decodedMillis)) {
+                        return;
+                    }
+                }
+            }
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            publishBeatGrid(tempoAnalyzer, listener, Math.min(analysisLimitMillis, decodedMillis));
+        } finally {
+            beatGridInput = null;
+        }
+    }
+
+    void cancelBeatGridAnalysis() {
+        InputStream stream = beatGridInput;
+        if (stream == null) {
+            return;
+        }
+        try {
+            stream.close();
+        } catch (IOException ignored) {
+        }
+    }
+
+    private boolean publishBeatGrid(BeatThisTempoAnalyzer tempoAnalyzer, Consumer<MusicBeatGrid> listener, long coverageMillis) {
+        boolean acquired = false;
+        try {
+            AUTO_MIX_ANALYSIS_SLOT.acquire();
+            acquired = true;
+            BeatThisTempoAnalyzer.AudioAnalysis analysis = tempoAnalyzer.analyzeDetailed(0);
+            if (analysis == null || analysis.beatGrid() == null) {
+                return true;
+            }
+            listener.accept(MusicBeatGrid.build(analysis.beatGrid(), analysis.audio(), coverageMillis));
+            return true;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (Throwable throwable) {
+            if (BEAT_GRID_FAILURE_LOGGED.compareAndSet(false, true)) {
+                Platform.log("[NCM] Beat grid analysis unavailable: " + throwable);
+            }
+            return false;
+        } finally {
+            if (acquired) {
+                AUTO_MIX_ANALYSIS_SLOT.release();
+            }
+        }
+    }
+
     private synchronized void startWorker() {
         if (worker != null && worker.isAlive()) {
             return;
@@ -366,6 +450,7 @@ final class StreamingSoundPlayer {
     }
 
     void close() {
+        cancelBeatGridAnalysis();
         synchronized (playbackClockLock) {
             long now = System.nanoTime();
             playbackClockPositionMillis = positionMillisAt(now);
@@ -972,3 +1057,4 @@ final class StreamingSoundPlayer {
         }
     }
 }
+

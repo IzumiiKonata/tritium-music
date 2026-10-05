@@ -29,6 +29,7 @@ import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
+import tritium.music.client.rendering.hud.GrooveDebugHud;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -54,6 +55,7 @@ public final class TritiumMusicNeoForge {
     private static final MusicInfoWidget MUSIC_INFO = new MusicInfoWidget();
     private static final MusicLyricsWidget MUSIC_LYRICS = new MusicLyricsWidget();
     private static final MusicSpectrumWidget MUSIC_SPECTRUM = new MusicSpectrumWidget();
+    private static final GrooveDebugHud GROOVE_DEBUG = new GrooveDebugHud();
 
     public TritiumMusicNeoForge(ModContainer modContainer) {
         EffectPipelines.initialize();
@@ -99,9 +101,11 @@ public final class TritiumMusicNeoForge {
         Identifier infoId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_info");
         Identifier lyricsId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_lyrics");
         Identifier spectrumId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "music_spectrum");
+        Identifier grooveId = Identifier.fromNamespaceAndPath(ASSET_NAMESPACE, "groove_debug");
         registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, spectrumId, MUSIC_SPECTRUM);
         registerWidgetAbove(event, spectrumId, lyricsId, MUSIC_LYRICS);
         registerWidgetAbove(event, lyricsId, infoId, MUSIC_INFO);
+        registerWidgetAbove(event, infoId, grooveId, GROOVE_DEBUG);
 //        registerWidgetBelow(event, VanillaGuiLayers.HOTBAR, infoId, MUSIC_INFO);
 //        registerWidgetAbove(event, infoId, lyricsId, MUSIC_LYRICS);
 //        registerWidgetAbove(event, lyricsId, spectrumId, MUSIC_SPECTRUM);

@@ -25,6 +25,7 @@ import tritium.music.client.rendering.StencilCompositePipeline;
 import tritium.music.client.rendering.font.FontCatalog;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.SystemFontIndex;
+import tritium.music.client.rendering.hud.GrooveDebugHud;
 import tritium.music.client.rendering.hud.HudWidget;
 import tritium.music.client.rendering.hud.MusicInfoWidget;
 import tritium.music.client.rendering.hud.MusicLyricsWidget;
@@ -50,6 +51,7 @@ public class TritiumMusicMod implements ClientModInitializer {
     private final MusicInfoWidget musicInfo = new MusicInfoWidget();
     private final MusicLyricsWidget musicLyrics = new MusicLyricsWidget();
     private final MusicSpectrumWidget musicSpectrum = new MusicSpectrumWidget();
+    private final GrooveDebugHud grooveDebug = new GrooveDebugHud();
 
     @Override
     public void onInitializeClient() {
@@ -114,6 +116,7 @@ public class TritiumMusicMod implements ClientModInitializer {
         registerWidget("music_info", musicInfo);
         registerWidget("music_lyrics", musicLyrics);
         registerWidget("music_spectrum", musicSpectrum);
+        registerWidget("groove_debug", grooveDebug);
     }
 
     private void registerWidget(String id, HudWidget widget) {

@@ -20,6 +20,7 @@ import tritium.music.client.rendering.shader.Shaders;
 import tritium.music.client.rendering.shader.StencilShader;
 import tritium.music.client.rendering.ui.widgets.ContextMenuWidget;
 import tritium.music.client.rendering.ui.widgets.IconWidget;
+import tritium.music.client.util.ClientSettings;
 import tritium.music.client.util.CursorUtils;
 import tritium.music.client.util.MouseUtil;
 import tritium.music.client.util.Mth;
@@ -64,6 +65,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
     double coverFloatX = 0.5, coverFloatY = 0.5;
     double coverFloatTargetX = 0.5, coverFloatTargetY = 0.5;
     Timer coverFloatTimer = new Timer();
+
+    private final SongGroove coverGroove = new SongGroove();
 
     boolean progressBarDragging = false;
     double progressBarProgressOverride = 0;
@@ -326,6 +329,8 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         if (prevMouse && !MouseUtil.isLeftDown()) prevMouse = false;
 
         alpha = Interpolations.interpolate(alpha, closing ? 0.0f : 1f, 0.3f);
+
+        coverGroove.update(WidgetConfig.get().groove.cover, .65f);
 
         RenderContext.graphics().pose().pushMatrix();
         scaleAtPos(posX + width * .5, posY + height * .5, 1.1 - (alpha * 0.1));
@@ -621,6 +626,12 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
                                     renderX - shiftX * invScale, renderY - 2 - shiftY * invScale,
                                     fbWidth * invScale, fbHeight * invScale, uMax, 1.0, alpha);
 
+                            if (ClientSettings.DEBUG_MODE.getValue()) {
+                                this.renderWordWipeDebug(renderX - shiftX * invScale, renderY - 2 - shiftY * invScale,
+                                        fbWidth * invScale, fbHeight * invScale, renderTargetIndex, wordProgress,
+                                        progress, word.word, baseGlyphs.size(), sungW, gradW, stringWidthD);
+                            }
+
                         } else if (progress >= 1.0) {
                             for (int j = 0; j < fragmentLength; j++) {
                                 int charIndex = fragment.startInWord() + j;
@@ -784,6 +795,21 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         return getCoverSizeMax() * .8;
     }
 
+    private double coverBeatPulse() {
+        return coverGroove.value();
+    }
+
+    private void renderWordWipeDebug(double x, double y, double width, double height, int targetIndex,
+                                     double wordProgress, double fragmentProgress, String word, int glyphCount,
+                                     double sungWidth, double gradientWidth, double textWidth) {
+        this.roundedOutline(x, y, width, height, 2, 1, new Color(1f, .35f, .45f, .85f));
+        FontManager.pf12bold.drawString(String.format(Locale.ROOT,
+                        "wipe rt#%d %.0fx%.0f | word %s | wordP %.3f fragP %.3f | glyphs %d | sung %.1f grad %.1f text %.1f",
+                        targetIndex, width, height, word, wordProgress, fragmentProgress, glyphCount,
+                        sungWidth, gradientWidth, textWidth),
+                (float) x, (float) (y - 10), hexColor(1f, .45f, .5f, .95f));
+    }
+
     private void renderControlsPart(double mouseX, double mouseY, double posX, double posY, double width, double height, float alpha) {
         AudioPlayer player = CloudMusic.player;
 
@@ -797,16 +823,35 @@ public class MusicLyricsPanel implements SharedRenderingConstants {
         if (coverBloomShader == null)
             coverBloomShader = new BloomShader();
 
-        coverBloomShader.run(Collections.singletonList(() -> this.roundedRect(center - coverSize * .5 + xOffset, center - coverSize * .575, coverSize, coverSize, coverRadius * coverSizePerc, -.5, 0, 0, 0, alpha * .4f)));
+        double coverX = center - coverSize * .5 + xOffset;
+        double coverY = center - coverSize * .575;
+        double beatPulse = this.coverBeatPulse();
+        WidgetConfig.Groove groove = WidgetConfig.get().groove;
+        double pulseScale = 1 + groove.coverStrength * beatPulse;
 
-        if (CloudMusic.currentlyPlaying != null) {
-            TextureHandle musicCover = CloudMusic.currentlyPlaying.getCoverLocation();
-            if (Platform.hasTexture(musicCover)) {
-                coverAlpha = Interpolations.interpolate(coverAlpha, 1.0f, 0.2f);
-                RenderSystem.bindTexture(tritium.music.fabric.ui.Identifiers.of(musicCover));
-                this.roundedRectTextured(center - coverSize * .5 + xOffset, center - coverSize * .575, coverSize, coverSize, coverRadius * coverSizePerc, alpha * coverAlpha);
+        matrix(() -> {
+            scaleAtPos(coverX + coverSize * .5, coverY + coverSize * .5, pulseScale);
+
+            coverBloomShader.run(Collections.singletonList(() -> this.roundedRect(coverX, coverY, coverSize, coverSize, coverRadius * coverSizePerc, -.5, 0, 0, 0, alpha * .4f)));
+
+            if (CloudMusic.currentlyPlaying != null) {
+                TextureHandle musicCover = CloudMusic.currentlyPlaying.getCoverLocation();
+                if (Platform.hasTexture(musicCover)) {
+                    coverAlpha = Interpolations.interpolate(coverAlpha, 1.0f, 0.2f);
+                    RenderSystem.bindTexture(tritium.music.fabric.ui.Identifiers.of(musicCover));
+                    this.roundedRectTextured(coverX, coverY, coverSize, coverSize, coverRadius * coverSizePerc, alpha * coverAlpha);
+                }
             }
-        }
+
+            if (groove.coverGlow && beatPulse > 0.004) {
+                double expand = coverSize * groove.coverGlowStrength * beatPulse;
+                double radius = coverRadius * coverSizePerc + expand;
+                this.roundedOutline(coverX - expand, coverY - expand, coverSize + expand * 2, coverSize + expand * 2,
+                        radius, 1.5 + 2.5 * beatPulse, new Color(1f, 1f, 1f, (float) (alpha * .45 * beatPulse)));
+                this.roundedOutline(coverX, coverY, coverSize, coverSize, coverRadius * coverSizePerc,
+                        1 + beatPulse, new Color(1f, 1f, 1f, (float) (alpha * .25 * beatPulse)));
+            }
+        });
 
         double elementsXOffset = center - this.getCoverSizeMax() * .5 + xOffset;
         double elementsYOffset = center + this.getCoverSizeMax() * .45 + 8;

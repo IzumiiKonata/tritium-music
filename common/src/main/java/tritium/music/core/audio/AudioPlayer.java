@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 public class AudioPlayer {
 
@@ -285,6 +286,14 @@ public class AudioPlayer {
 
     public AutoMixProfile getAutoMixProfile() {
         return autoMixAnalyzer.snapshot();
+    }
+
+    public void analyzeBeatGrid(Consumer<MusicBeatGrid> listener) throws java.io.IOException {
+        this.player.analyzeBeatGrid(listener);
+    }
+
+    public void cancelBeatGridAnalysis() {
+        this.player.cancelBeatGridAnalysis();
     }
 
     public void setPlaybackTime(float millis) {
