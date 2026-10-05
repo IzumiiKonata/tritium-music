@@ -1,5 +1,6 @@
 package tritium.music.client.screens.ncm.panels;
 
+import com.mojang.blaze3d.Blaze3D;
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.FontConfig;
 import tritium.music.client.rendering.Rect;
@@ -584,10 +585,7 @@ public class FontSettingsPage extends NCMPanel {
     private void openFontFolder() {
         File dir = FontCatalog.userFontDir();
         try {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
-                Desktop.getDesktop().open(dir);
-                return;
-            }
+            Blaze3D.openUri(dir.toURI());
         } catch (Throwable throwable) {
             throwable.printStackTrace();
         }

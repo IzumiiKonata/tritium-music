@@ -1,6 +1,8 @@
 package tritium.music.client.screens.ncm.panels;
 
+import com.mojang.blaze3d.Blaze3D;
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.util.Util;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
 import tritium.music.client.rendering.Rect;
@@ -432,8 +434,6 @@ public class HudSettingsPanel extends NCMPanel {
         content.addChild(row(text("dance.pulse.title"), text("dance.pulse.description"),
                 slider(() -> dance.beatPulse, value -> dance.beatPulse = value,
                         0, WidgetConfig.Dance.MAX_PULSE, 0.01, HudSettingsPanel::percent), previewDance));
-        content.addChild(row(text("dance.shadow.title"), text("dance.shadow.description"),
-                toggle(() -> dance.shadow, value -> dance.shadow = value), previewDance));
         content.addChild(row(text("dance.mirror.title"), text("dance.mirror.description"),
                 toggle(() -> dance.mirror, value -> dance.mirror = value), previewDance));
         content.addChild(row(text("dance.opacity.title"), text("dance.opacity.description"),
@@ -487,10 +487,7 @@ public class HudSettingsPanel extends NCMPanel {
     private void openDanceFolder() {
         File directory = DanceStyleRegistry.directory();
         try {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
-                Desktop.getDesktop().open(directory);
-                return;
-            }
+            Blaze3D.openUri(directory.toURI());
         } catch (Throwable ignored) {
         }
         Platform.sendChatMessage("§a" + directory.getAbsolutePath());
