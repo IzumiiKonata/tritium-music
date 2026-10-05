@@ -421,8 +421,6 @@ public class HudSettingsPanel extends NCMPanel {
         content.addChild(row(text("dance.pulse.title"), text("dance.pulse.description"),
                 slider(() -> dance.beatPulse, value -> dance.beatPulse = value,
                         0, WidgetConfig.Dance.MAX_PULSE, 0.01, HudSettingsPanel::percent), previewDance));
-        content.addChild(row(text("dance.shadow.title"), text("dance.shadow.description"),
-                toggle(() -> dance.shadow, value -> dance.shadow = value), previewDance));
         content.addChild(row(text("dance.mirror.title"), text("dance.mirror.description"),
                 toggle(() -> dance.mirror, value -> dance.mirror = value), previewDance));
         content.addChild(row(text("dance.opacity.title"), text("dance.opacity.description"),

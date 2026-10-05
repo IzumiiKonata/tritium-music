@@ -180,7 +180,6 @@ public class WidgetConfig {
         public double speed = 1.0;
         public double frameDurationMs = 0;
         public double beatPulse = 0.12;
-        public boolean shadow = true;
         public boolean mirror = false;
         public double opacity = 1.0;
 

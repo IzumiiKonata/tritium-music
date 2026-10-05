@@ -60,15 +60,6 @@ public class DanceWidget extends HudWidget {
         double opacity = config.opacity * style.opacity();
         double pulseScale = 1 + smoothPulse * config.beatPulse;
 
-        if (config.shadow && style.shadowWidth() > 0) {
-            shadowScale = Interpolations.interpolate(shadowScale, pulseScale, 0.35f);
-            double shadowWidth = width * style.shadowWidth() * shadowScale;
-            double shadowHeight = Math.max(3, height * 0.035);
-            double shadowY = y + height * (1 + style.shadowOffsetY()) - shadowHeight * 0.5;
-            roundedRect(anchorX - shadowWidth * 0.5, shadowY, shadowWidth, shadowHeight, shadowHeight * 0.5,
-                    RGBA.color(0, 0, 0, (int) Math.round(90 * opacity)));
-        }
-
         TextureHandle frame = style.frame(frameIndex(config, style, position, grid));
         if (frame == null) {
             return;

@@ -26,9 +26,9 @@ public class GrooveDebugHud extends HudWidget {
     private static final double MARKER_BOX_HEIGHT = 112;
     private static final double MARKER_CIRCLE_RADIUS = 7;
     private static final double MARKER_CIRCLE_SPACING = 26;
-    private static final double MARKER_CIRCLE_Y = 44;
+    private static final double MARKER_CIRCLE_Y = 30;
     private static final double MARKER_TIMELINE_INSET = 10;
-    private static final double MARKER_TIMELINE_Y = 82;
+    private static final double MARKER_TIMELINE_Y = 74;
     private static final WidgetConfig.WidgetSettings PLACEMENT = new WidgetConfig.WidgetSettings(0, 0, 1, false);
 
     public GrooveDebugHud() {
@@ -203,7 +203,7 @@ public class GrooveDebugHud extends HudWidget {
                 textColor = RGBA.color(255, 255, 255, downbeat ? 190 : 140);
             }
 
-            roundedRect(centerX - radius, centerY - radius, radius * 2, radius * 2, radius, fill);
+            roundedRect(centerX - radius, centerY - radius, radius * 2, radius * 2, radius - 1, fill);
 
             String label = String.valueOf(index + 1);
             font.drawCenteredString(label, centerX, centerY - font.getStringHeight(label) * 0.5, textColor);
@@ -211,17 +211,17 @@ public class GrooveDebugHud extends HudWidget {
     }
 
     private void drawBeatArrow(double centerX, double tipY, double accent, double pulse, boolean downbeat) {
-        CFontRenderer font = FontManager.pf14bold;
+        CFontRenderer font = FontManager.pf28bold;
         String arrow = "↓";
         double strength = Math.min(1.0, 0.25 + 0.75 * Math.max(accent, pulse));
-        double scale = 0.85 + 0.8 * strength;
+//        double scale = 0.85 + 0.8 * strength;
         double x = centerX - font.getStringWidthD(arrow) * 0.5;
-        double y = tipY - font.getStringHeight(arrow) + 2;
+        double y = tipY - font.getStringHeight(arrow) - 2;
         int color = downbeat
                 ? RGBA.color(255, 96, 96, (int) (170 + 85 * strength))
                 : RGBA.color(255, 255, 255, (int) (170 + 85 * strength));
 
-        scaleAtPos(centerX, tipY, scale);
+//        scaleAtPos(centerX, tipY, scale);
         font.drawString(arrow, (float) x, (float) y, color);
     }
 
