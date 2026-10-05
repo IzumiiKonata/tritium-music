@@ -182,7 +182,7 @@
   "tritium-music.ui.settings.groove_info.title": "节拍信息",
   "tritium-music.ui.settings.groove_info.description": "在屏幕上显示当前歌曲的 BPM、拍号、相位、置信度与网格状态",
   "tritium-music.ui.settings.groove_markers.title": "律动调试可视化",
-  "tritium-music.ui.settings.groove_markers.description": "在屏幕中线附近按节拍网格绘制拍点与重拍标记",
+  "tritium-music.ui.settings.groove_markers.description": "在独立面板中显示每小节的拍号圆圈、指向当前拍的箭头与检测到的拍点分布",
   "tritium-music.ui.settings.section.beat_cache": "节拍缓存",
   "tritium-music.ui.settings.beat_cache.title": "已分析的节拍数据",
   "tritium-music.ui.settings.beat_cache.description": "分析完成的节拍网格会保存到本地，下次播放同一首歌直接复用，不再重复分析",
@@ -311,6 +311,5 @@
   "tritium-music.ui.settings.dance.rescan.title": "重新扫描样式",
   "tritium-music.ui.settings.dance.rescan.description": "添加或修改样式后重新读取舞蹈文件夹",
   "tritium-music.ui.settings.dance.rescan": "重新扫描",
-  "tritium-music.ui.settings.preview": "预览",
-  "tritium-music.ui.settings.preview.hint": "鼠标悬停的挂件会按当前设置实时重绘"
+  "tritium-music.ui.settings.preview": "预览"
 }

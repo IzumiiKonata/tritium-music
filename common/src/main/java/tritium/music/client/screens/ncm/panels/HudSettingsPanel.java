@@ -62,7 +62,6 @@ public class HudSettingsPanel extends NCMPanel {
 
     private Page page = Page.GENERAL;
     private HudWidget previewTarget;
-    private HudWidget previewCurrent;
     private HudWidget pagePreview;
     private boolean pageHasPreview;
 
@@ -632,7 +631,7 @@ public class HudSettingsPanel extends NCMPanel {
                 config.lyrics = new WidgetConfig.Lyrics();
             }
             case SPECTRUM -> {
-                config.musicSpectrum = new WidgetConfig.WidgetSettings(0, 0, 1, false);
+                config.musicSpectrum = new WidgetConfig.WidgetSettings(0, 1 - MusicSpectrumWidget.HEIGHT_RATIO, 1, false);
                 config.spectrum = new WidgetConfig.Spectrum();
             }
             case DANCE -> {
@@ -740,23 +739,13 @@ public class HudSettingsPanel extends NCMPanel {
 
         private static final double CARD_HEIGHT = 236;
         private static final double HEADER_HEIGHT = 26;
-        private static final double FOOTER_HEIGHT = 18;
         private static final double INNER_PADDING = 8;
-
-        private double measuredWidth = 320;
-        private double measuredHeight = 120;
 
         @Override
         public void onRender(double mouseX, double mouseY) {
             HudWidget target = previewEnabled() ? (previewTarget != null ? previewTarget : pagePreview) : null;
             if (target == null) {
-                previewCurrent = null;
                 return;
-            }
-            if (target != previewCurrent) {
-                previewCurrent = target;
-                measuredWidth = target.editorWidth() > 1 ? target.editorWidth() : 320;
-                measuredHeight = target.editorHeight() > 1 ? target.editorHeight() : 120;
             }
             double cardHeight = cardHeight();
             if (cardHeight <= HEADER_HEIGHT) {
@@ -786,25 +775,20 @@ public class HudSettingsPanel extends NCMPanel {
             double innerX = x + INNER_PADDING;
             double innerY = y + HEADER_HEIGHT;
             double innerWidth = getWidth() - INNER_PADDING * 2;
-            double innerHeight = height - HEADER_HEIGHT - FOOTER_HEIGHT;
+            double innerHeight = height - HEADER_HEIGHT - INNER_PADDING;
             if (innerHeight <= 1) {
                 return;
             }
             roundedRect(innerX, innerY, innerWidth, innerHeight, 6, reAlpha(0xFF07080A, alpha));
             Rect.draw(innerX, innerY + innerHeight * 0.5, innerWidth, 1, reAlpha(0xFFFFFFFF, alpha * 0.04f));
 
-            if (target.editorWidth() > 1 && target.editorHeight() > 1) {
-                measuredWidth = target.editorWidth();
-                measuredHeight = target.editorHeight();
-            }
-
-            double widgetWidth = Math.max(1, measuredWidth);
-            double widgetHeight = Math.max(1, measuredHeight);
+            double widgetWidth = Math.max(1, target.getWidth() > 1 ? target.getWidth() : 320);
+            double widgetHeight = Math.max(1, target.getHeight() > 1 ? target.getHeight() : 120);
             double scale = Math.min(1.0, Math.min(innerWidth / widgetWidth, innerHeight / widgetHeight));
             double centerX = innerX + innerWidth * 0.5;
             double centerY = innerY + innerHeight * 0.5;
-            double anchorX = target.getX() + widgetWidth * 0.5;
-            double anchorY = target.getY() + widgetHeight * 0.5;
+            double anchorX = target.getX() + widgetWidth * target.scaleFactor() * 0.5;
+            double anchorY = target.getY() + widgetHeight * target.scaleFactor() * 0.5;
 
             StencilClipManager.beginClip(innerX, innerY, innerWidth, innerHeight);
             var pose = RenderContext.graphics().pose();
@@ -820,11 +804,6 @@ public class HudSettingsPanel extends NCMPanel {
                 pose.popMatrix();
                 StencilClipManager.endClip();
             }
-
-            String hint = text("preview.hint");
-            FontManager.pf12.drawCenteredString(hint, x + getWidth() * 0.5,
-                    y + height - FOOTER_HEIGHT + (FOOTER_HEIGHT - FontManager.pf12.getStringHeight(hint)) * 0.5,
-                    reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT), alpha * 0.85f));
         }
     }
 
