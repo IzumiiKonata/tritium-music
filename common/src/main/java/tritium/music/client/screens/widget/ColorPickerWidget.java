@@ -17,11 +17,11 @@ import java.util.function.IntSupplier;
 
 public class ColorPickerWidget extends AbstractWidget<ColorPickerWidget> {
 
-    private static final double WIDTH = 280;
-    private static final double HEIGHT = 112;
-    private static final double STRIP_WIDTH = 14;
-    private static final double PREVIEW_WIDTH = 54;
-    private static final double GAP = 6;
+    private static final double WIDTH = 236;
+    private static final double HEIGHT = 92;
+    private static final double STRIP_WIDTH = 12;
+    private static final double PREVIEW_WIDTH = 44;
+    private static final double GAP = 5;
 
     private final IntSupplier getter;
     private final IntConsumer setter;
@@ -177,7 +177,7 @@ public class ColorPickerWidget extends AbstractWidget<ColorPickerWidget> {
     }
 
     @Override
-    public boolean onMouseClicked(double relativeX, double relativeY, int mouseButton) {
+    public boolean onMousePressed(double relativeX, double relativeY, int mouseButton) {
         if (mouseButton != 0) {
             return false;
         }

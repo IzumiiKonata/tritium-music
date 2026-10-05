@@ -13,6 +13,9 @@ import java.util.function.DoubleSupplier;
 
 public class SliderWidget extends AbstractWidget<SliderWidget> {
 
+    private static final double LABEL_WIDTH = 44;
+    private static final double TRACK_INSET = 8;
+
     private final DoubleSupplier getter;
     private final DoubleConsumer setter;
     private final double min;
@@ -36,7 +39,7 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
         this.max = max;
         this.step = step;
         this.formatter = formatter;
-        this.setBounds(156, 18);
+        this.setBounds(148, 16);
         this.setShouldOverrideMouseCursor(true);
     }
 
@@ -57,9 +60,8 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
                     reAlpha(0xFFFFFFFF, getAlpha() * hoverAnimation * 0.07f));
         }
 
-        double labelWidth = 46;
-        double trackX = getX() + 8;
-        double trackWidth = getWidth() - labelWidth - 16;
+        double trackX = getX() + TRACK_INSET;
+        double trackWidth = trackWidth();
         double trackHeight = 3 + hoverAnimation * 2;
         double trackY = getY() + (getHeight() - trackHeight) * 0.5;
         double progress = clamp((getter.getAsDouble() - min) / (max - min), 0, 1);
@@ -71,15 +73,16 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
                     reAlpha(0xFFFFFFFF, getAlpha()));
         }
 
-//        double knob = 6 + hoverAnimation * 2;
-//        double knobX = trackX + trackWidth * progress - knob * 0.5;
-//        double knobY = getY() + (getHeight() - knob) * 0.5;
-//        roundedRect(knobX, knobY, knob, knob, knob * 0.5,
-//                reAlpha(0xFFC30218, getAlpha()));
+        double knob = 5 + hoverAnimation * 2;
+        double knobX = trackX + trackWidth * progress - knob * 0.5;
+        double knobY = getY() + (getHeight() - knob) * 0.5;
+        roundedRect(knobX, knobY, knob, knob, knob * 0.5,
+                reAlpha(0xFFF2F3F5, getAlpha() * Math.max(0.35f, hoverAnimation)));
 
         String label = formatter.apply(getter.getAsDouble());
         double textY = getY() + (getHeight() - font.getStringHeight(label)) * 0.5;
-        font.drawCenteredString(label, getX() + getWidth() - labelWidth * 0.5 - 4, textY, reAlpha(0xFFF2F3F5, getAlpha()));
+        font.drawCenteredString(label, getX() + getWidth() - LABEL_WIDTH * 0.5 - 4, textY,
+                reAlpha(0xFFF2F3F5, getAlpha()));
     }
 
     @Override
@@ -88,7 +91,7 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
     }
 
     @Override
-    public boolean onMouseClicked(double relativeX, double relativeY, int mouseButton) {
+    public boolean onMousePressed(double relativeX, double relativeY, int mouseButton) {
         if (mouseButton != 0) {
             return false;
         }
@@ -97,11 +100,12 @@ public class SliderWidget extends AbstractWidget<SliderWidget> {
         return true;
     }
 
+    private double trackWidth() {
+        return Math.max(1, getWidth() - LABEL_WIDTH - TRACK_INSET * 2);
+    }
+
     private void update(double relativeX) {
-        double labelWidth = 46;
-        double trackX = 8;
-        double trackWidth = getWidth() - labelWidth - 16;
-        double normalized = clamp((relativeX - trackX) / trackWidth, 0, 1);
+        double normalized = clamp((relativeX - TRACK_INSET) / trackWidth(), 0, 1);
         double value = min + normalized * (max - min);
         double snapped = min + Math.round((value - min) / step) * step;
         setter.accept(clamp(snapped, min, max));

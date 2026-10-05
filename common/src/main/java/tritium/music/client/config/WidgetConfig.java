@@ -34,9 +34,11 @@ public class WidgetConfig {
     public WidgetSettings musicInfo = new WidgetSettings(8f / 1920f, 8f / 1080f, 1.0, true);
     public WidgetSettings musicLyrics = new WidgetSettings(0.5f - 225f / 1920f, 1f - 140f / 1080f, 1.0, false);
     public WidgetSettings musicSpectrum = new WidgetSettings(0f, 0f, 1.0, false);
+    public WidgetSettings musicDance = new WidgetSettings(0.5f - 102f / 1920f, 1f - 250f / 1080f, 1.0, false);
 
     public Lyrics lyrics = new Lyrics();
     public Spectrum spectrum = new Spectrum();
+    public Dance dance = new Dance();
 
     public double volume = 0.25;
     public Quality quality = Quality.STANDARD;
@@ -170,6 +172,39 @@ public class WidgetConfig {
         public int rectColor = new Color(125, 125, 125, 200).getRGB();
     }
 
+    public static class Dance {
+
+        public static final double MIN_SPEED = 0.25;
+        public static final double MAX_SPEED = 3.0;
+        public static final double MAX_PULSE = 0.3;
+
+        public String style = "";
+        public boolean beatSync = true;
+        public double speed = 1.0;
+        public double frameDurationMs = 0;
+        public double beatPulse = 0.12;
+        public boolean shadow = true;
+        public boolean mirror = false;
+        public double opacity = 1.0;
+
+        public void sanitize() {
+            if (style == null) {
+                style = "";
+            }
+            speed = limit(speed, 1.0, MIN_SPEED, MAX_SPEED);
+            frameDurationMs = limit(frameDurationMs, 0, 0, 2000);
+            beatPulse = limit(beatPulse, 0.12, 0, MAX_PULSE);
+            opacity = limit(opacity, 1.0, 0.05, 1.0);
+        }
+
+        private static double limit(double value, double fallback, double min, double max) {
+            if (!Double.isFinite(value)) {
+                return fallback;
+            }
+            return Math.max(min, Math.min(max, value));
+        }
+    }
+
     private static File file() {
         return new File(Platform.configDir(), "widgets.json");
     }
@@ -209,9 +244,12 @@ public class WidgetConfig {
         if (musicInfo == null) musicInfo = new WidgetSettings(8f / 1920f, 8f / 1080f, 1.0, true);
         if (musicLyrics == null) musicLyrics = new WidgetSettings(0.5f - 225f / 1920f, 1f - 140f / 1080f, 1.0, false);
         if (musicSpectrum == null) musicSpectrum = new WidgetSettings(0f, 0f, 1.0, false);
+        if (musicDance == null) musicDance = new WidgetSettings(0.5f - 102f / 1920f, 1f - 250f / 1080f, 1.0, false);
         if (lyrics == null) lyrics = new Lyrics();
         lyrics.sanitize();
         if (spectrum == null) spectrum = new Spectrum();
+        if (dance == null) dance = new Dance();
+        dance.sanitize();
         if (quality == null) quality = Quality.STANDARD;
         if (playlistViewMode == null) playlistViewMode = PlaylistViewMode.GRID;
         if (musicToastMode == null) musicToastMode = MusicToastMode.ON;

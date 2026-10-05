@@ -1,6 +1,5 @@
 package tritium.music.client.rendering.hud;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.config.WidgetConfig;
 import tritium.music.client.render.RenderContext;
@@ -18,7 +17,6 @@ import tritium.music.client.rendering.font.CharMetrics;
 import tritium.music.client.rendering.font.FontManager;
 import tritium.music.client.rendering.font.Glyph;
 import tritium.music.client.rendering.font.ShapedGlyph;
-import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.client.util.ClientSettings;
 import tritium.music.client.util.Mth;
 import tritium.music.core.CloudMusic;
@@ -135,7 +133,7 @@ public class MusicLyricsWidget extends HudWidget {
     public void onRender() {
 
         if (!shouldRender()) {
-            if (Minecraft.getInstance().screen instanceof WidgetEditorScreen) {
+            if (editorOrPreview()) {
                 renderEditorData();
             }
             return;

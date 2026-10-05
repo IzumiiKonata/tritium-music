@@ -1,12 +1,10 @@
 package tritium.music.client.rendering.hud;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
 import tritium.music.client.rendering.*;
 import tritium.music.client.rendering.animation.Interpolations;
 import tritium.music.client.rendering.font.CFontRenderer;
 import tritium.music.client.rendering.font.FontManager;
-import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.MusicState;
 import tritium.music.core.lyric.LyricLine;
@@ -51,7 +49,7 @@ public class MusicInfoWidget extends HudWidget {
         double height = 56;
 
         Music playingMusic = CloudMusic.currentlyPlaying;
-        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
+        boolean editorPreview = editorOrPreview();
         boolean realPlayback = playingMusic != null && CloudMusic.player != null && !CloudMusic.player.isFinished();
         boolean hasMusic = playingMusic != null;
 

@@ -5,7 +5,6 @@ import tritium.music.client.rendering.RGBA;
 import tritium.music.client.rendering.Rect;
 import tritium.music.client.rendering.RenderSystem;
 import tritium.music.client.rendering.animation.Interpolations;
-import tritium.music.client.screens.WidgetEditorScreen;
 import tritium.music.core.CloudMusic;
 import tritium.music.core.audio.AudioPlayer;
 
@@ -37,7 +36,7 @@ public class MusicSpectrumWidget extends HudWidget {
 
     @Override
     public void onRender() {
-        boolean editorPreview = Minecraft.getInstance().screen instanceof WidgetEditorScreen;
+        boolean editorPreview = editorOrPreview();
 
         if (CloudMusic.player != null) {
             this.updateSpectrum();

@@ -88,6 +88,9 @@ protected boolean clickOnPress() {
     public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
     }
 
+    public void mousePressed(double mouseX, double mouseY, int mouseButton) {
+    }
+
     public void mouseReleased(double mouseX, double mouseY, int mouseButton) {
     }
 
@@ -298,6 +301,8 @@ private void trackPress(double mouseX, double mouseY) {
         this.lastDragNanos = System.nanoTime();
 
         TextField.clearFocusOutside(mx, my);
+
+        this.mousePressed(mx, my, toLegacyButton(event.button()));
 
         if (clickOnPress()) {
             this.pressActive = false;
