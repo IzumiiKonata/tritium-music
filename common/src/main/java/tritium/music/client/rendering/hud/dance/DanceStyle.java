@@ -6,7 +6,7 @@ import tritium.music.platform.TextureHandle;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,7 +22,7 @@ public final class DanceStyle {
     private final String name;
     @Getter
     private final String pack;
-    private final File directory;
+    private final DanceFrameSource source;
     private final DanceStyleSpec spec;
 
     private final List<TextureHandle> textures = new ArrayList<>();
@@ -33,16 +33,16 @@ public final class DanceStyle {
     private int frameWidth;
     private int frameHeight;
 
-    DanceStyle(String id, File directory, DanceStyleSpec spec) {
+    DanceStyle(String id, DanceFrameSource source, DanceStyleSpec spec) {
         this.id = id;
-        this.directory = directory;
+        this.source = source;
         this.spec = spec;
         this.name = spec.name == null || spec.name.isBlank() ? id : spec.name;
         this.pack = spec.pack == null || spec.pack.isBlank() ? "" : spec.pack;
     }
 
     public String displayName() {
-        return pack.isEmpty() ? name : pack + " · " + name;
+        return pack.isEmpty() ? name : pack + "/" + name;
     }
 
     public boolean isLoaded() {
@@ -164,37 +164,31 @@ public final class DanceStyle {
         if (spec.atlas != null && spec.atlas.file != null && !spec.atlas.file.isBlank()) {
             return readAtlas(spec.atlas);
         }
-        if (spec.frames != null && !spec.frames.isEmpty()) {
-            List<BufferedImage> images = new ArrayList<>(spec.frames.size());
-            for (String frame : spec.frames) {
-                BufferedImage image = ImageIO.read(new File(directory, frame));
-                if (image == null) {
-                    continue;
-                }
-                images.add(toArgb(image));
-            }
-            if (images.isEmpty()) {
-                throw new IllegalStateException("no readable frames");
-            }
-            return images;
+        List<String> names = spec.frames != null && !spec.frames.isEmpty() ? spec.frames : source.frames();
+        if (names.isEmpty()) {
+            throw new IllegalStateException("no frames found for " + id);
         }
-        File[] files = directory.listFiles((dir, fileName) -> fileName.toLowerCase().endsWith(".png"));
-        if (files == null || files.length == 0) {
-            throw new IllegalStateException("no frames found in " + directory);
-        }
-        List<File> sorted = new ArrayList<>(List.of(files));
-        sorted.sort((left, right) -> left.getName().compareToIgnoreCase(right.getName()));
-        List<BufferedImage> images = new ArrayList<>(sorted.size());
-        for (File file : sorted) {
-            BufferedImage image = ImageIO.read(file);
+        List<BufferedImage> images = new ArrayList<>(names.size());
+        for (String name : names) {
+            BufferedImage image = read(name);
             if (image != null) {
-                images.add(toArgb(image));
+                images.add(image);
             }
         }
         if (images.isEmpty()) {
-            throw new IllegalStateException("no readable frames");
+            throw new IllegalStateException("no readable frames for " + id);
         }
         return images;
+    }
+
+    private BufferedImage read(String name) throws Exception {
+        try (InputStream stream = source.open(name)) {
+            if (stream == null) {
+                return null;
+            }
+            BufferedImage image = ImageIO.read(stream);
+            return image == null ? null : toArgb(image);
+        }
     }
 
     private List<BufferedImage> readAtlas(DanceStyleSpec.Atlas atlas) throws Exception {
@@ -203,7 +197,7 @@ public final class DanceStyle {
         int row = atlas.row == null ? 0 : Math.max(0, Math.min(rows - 1, atlas.row));
         int column = atlas.column == null ? 0 : atlas.column;
 
-        BufferedImage sheet = ImageIO.read(new File(directory, atlas.file));
+        BufferedImage sheet = read(atlas.file);
         if (sheet == null) {
             throw new IllegalStateException("unreadable atlas " + atlas.file);
         }

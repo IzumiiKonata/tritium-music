@@ -45,6 +45,11 @@ public class HudSettingsPanel extends NCMPanel {
     private static final double TAB_SPACING = 6;
     private static final double TAB_ROW_Y = 52;
     private static final double CONTENT_TOP = 86;
+    private static final double PANEL_INSET = 24;
+    private static final double PREVIEW_MAX_WIDTH = 360;
+    private static final double PREVIEW_MIN_WIDTH = 200;
+    private static final double PREVIEW_GAP = 12;
+    private static final double CONTENT_MIN_WIDTH = 400;
 
     private final ScrollPanel content = new ScrollPanel();
     private final FontSettingsPage fontPage = new FontSettingsPage();
@@ -58,6 +63,8 @@ public class HudSettingsPanel extends NCMPanel {
     private Page page = Page.GENERAL;
     private HudWidget previewTarget;
     private HudWidget previewCurrent;
+    private HudWidget pagePreview;
+    private boolean pageHasPreview;
 
     @Override
     public void onInit() {
@@ -131,9 +138,9 @@ public class HudSettingsPanel extends NCMPanel {
 
         content.setSpacing(2);
         content.setBeforeRenderCallback(() -> content.setBounds(
-                24,
+                PANEL_INSET,
                 CONTENT_TOP,
-                content.getParentWidth() - 48,
+                content.getParentWidth() - PANEL_INSET * 2 - previewReserve(),
                 content.getParentHeight() - CONTENT_TOP - 36));
         addChild(content);
 
@@ -141,15 +148,37 @@ public class HudSettingsPanel extends NCMPanel {
         addChild(fontPage);
 
         preview.setClickable(false);
+        preview.setBeforeRenderCallback(() -> preview.setBounds(
+                preview.getParentWidth() - PANEL_INSET - previewWidth(),
+                CONTENT_TOP,
+                previewWidth(),
+                Math.max(0, preview.getParentHeight() - CONTENT_TOP - 36)));
         addChild(preview);
 
         rebuildContent();
     }
 
+    private double previewWidth() {
+        if (!pageHasPreview) {
+            return 0;
+        }
+        double available = getWidth() - PANEL_INSET * 2 - PREVIEW_GAP - CONTENT_MIN_WIDTH;
+        return available < PREVIEW_MIN_WIDTH ? 0 : Math.min(PREVIEW_MAX_WIDTH, available);
+    }
+
+    private double previewReserve() {
+        double width = previewWidth();
+        return width <= 0 ? 0 : width + PREVIEW_GAP;
+    }
+
+    private boolean previewEnabled() {
+        return previewWidth() > 0;
+    }
+
     @Override
     public void onRender(double mouseX, double mouseY) {
         previewTarget = null;
-        if (page == Page.SPECTRUM || page == Page.LYRICS) {
+        if (pageHasPreview) {
             AudioPlayer.spectrumEnabled = true;
             AudioPlayer.spectrumTilt = (float) WidgetConfig.get().spectrum.spectrumTilt;
             AudioPlayer.absoluteVolume = WidgetConfig.get().spectrum.absVol;
@@ -160,6 +189,8 @@ public class HudSettingsPanel extends NCMPanel {
         content.getChildren().clear();
         content.actualScrollOffset = 0;
         content.targetScrollOffset = 0;
+        pageHasPreview = false;
+        pagePreview = null;
 
         boolean fontPageVisible = page == Page.FONT;
         content.setHidden(fontPageVisible);
@@ -209,6 +240,7 @@ public class HudSettingsPanel extends NCMPanel {
 
     private void buildGeneralPage() {
         WidgetConfig config = WidgetConfig.get();
+        WidgetConfig.Groove groove = config.groove;
         boolean autoMixAvailable = AutoMixSupport.isAvailable();
         content.addChild(new SectionRow(text("section.playback")));
         content.addChild(row(
@@ -232,6 +264,38 @@ public class HudSettingsPanel extends NCMPanel {
                         Quality.values(),
                         HudSettingsPanel::qualityName),
                 null));
+
+        content.addChild(new SectionRow(text("section.groove")));
+        content.addChild(row(text("groove.title"), text("groove.description"),
+                toggle(() -> config.songGroove, value -> config.songGroove = value), previewLyrics));
+        content.addChild(subRow(text("groove.cover.title"), text("groove.cover.description"),
+                toggle(() -> groove.cover, value -> groove.cover = value)));
+        content.addChild(subRow(text("groove.cover_strength.title"), text("groove.cover_strength.description"),
+                slider(() -> groove.coverStrength, value -> groove.coverStrength = value,
+                        WidgetConfig.Groove.MIN_STRENGTH, WidgetConfig.Groove.MAX_STRENGTH, 0.005, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.cover_glow.title"), text("groove.cover_glow.description"),
+                toggle(() -> groove.coverGlow, value -> groove.coverGlow = value)));
+        content.addChild(subRow(text("groove.cover_glow_strength.title"), text("groove.cover_glow_strength.description"),
+                slider(() -> groove.coverGlowStrength, value -> groove.coverGlowStrength = value,
+                        0.01, 0.3, 0.01, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.lyric_lift.title"), text("groove.lyric_lift.description"),
+                toggle(() -> groove.lyricLift, value -> groove.lyricLift = value)));
+        content.addChild(subRow(text("groove.lyric_lift_strength.title"), text("groove.lyric_lift_strength.description"),
+                slider(() -> groove.lyricLiftStrength, value -> groove.lyricLiftStrength = value,
+                        0.01, 0.25, 0.01, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.aurora.title"), text("groove.aurora.description"),
+                toggle(() -> groove.auroraPulse, value -> groove.auroraPulse = value)));
+        content.addChild(subRow(text("groove.aurora_strength.title"), text("groove.aurora_strength.description"),
+                slider(() -> groove.auroraPulseStrength, value -> groove.auroraPulseStrength = value,
+                        0.1, 1, 0.05, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.dots.title"), text("groove.dots.description"),
+                toggle(() -> groove.breakDots, value -> groove.breakDots = value)));
+        content.addChild(subRow(text("groove.dots_strength.title"), text("groove.dots_strength.description"),
+                slider(() -> groove.breakDotsStrength, value -> groove.breakDotsStrength = value,
+                        0.05, 0.8, 0.05, HudSettingsPanel::percent)));
+        content.addChild(subRow(text("groove.beat_shift.title"), text("groove.beat_shift.description"),
+                slider(() -> groove.beatShift, value -> groove.beatShift = (int) Math.round(value),
+                        WidgetConfig.Groove.MIN_BEAT_SHIFT, WidgetConfig.Groove.MAX_BEAT_SHIFT, 1, HudSettingsPanel::beats)));
 
         content.addChild(new SectionRow(text("section.music_info")));
         content.addChild(row(
@@ -424,39 +488,6 @@ public class HudSettingsPanel extends NCMPanel {
 
     private void buildMysteryPage() {
         WidgetConfig config = WidgetConfig.get();
-        WidgetConfig.Groove groove = config.groove;
-
-        content.addChild(new SectionRow(text("section.groove")));
-        content.addChild(row(text("groove.title"), text("groove.description"),
-                toggle(() -> config.songGroove, value -> config.songGroove = value), previewLyrics));
-        content.addChild(subRow(text("groove.cover.title"), text("groove.cover.description"),
-                toggle(() -> groove.cover, value -> groove.cover = value)));
-        content.addChild(subRow(text("groove.cover_strength.title"), text("groove.cover_strength.description"),
-                slider(() -> groove.coverStrength, value -> groove.coverStrength = value,
-                        WidgetConfig.Groove.MIN_STRENGTH, WidgetConfig.Groove.MAX_STRENGTH, 0.005, HudSettingsPanel::percent)));
-        content.addChild(subRow(text("groove.cover_glow.title"), text("groove.cover_glow.description"),
-                toggle(() -> groove.coverGlow, value -> groove.coverGlow = value)));
-        content.addChild(subRow(text("groove.cover_glow_strength.title"), text("groove.cover_glow_strength.description"),
-                slider(() -> groove.coverGlowStrength, value -> groove.coverGlowStrength = value,
-                        0.01, 0.3, 0.01, HudSettingsPanel::percent)));
-        content.addChild(subRow(text("groove.lyric_lift.title"), text("groove.lyric_lift.description"),
-                toggle(() -> groove.lyricLift, value -> groove.lyricLift = value)));
-        content.addChild(subRow(text("groove.lyric_lift_strength.title"), text("groove.lyric_lift_strength.description"),
-                slider(() -> groove.lyricLiftStrength, value -> groove.lyricLiftStrength = value,
-                        0.01, 0.25, 0.01, HudSettingsPanel::percent)));
-        content.addChild(subRow(text("groove.aurora.title"), text("groove.aurora.description"),
-                toggle(() -> groove.auroraPulse, value -> groove.auroraPulse = value)));
-        content.addChild(subRow(text("groove.aurora_strength.title"), text("groove.aurora_strength.description"),
-                slider(() -> groove.auroraPulseStrength, value -> groove.auroraPulseStrength = value,
-                        0.1, 1, 0.05, HudSettingsPanel::percent)));
-        content.addChild(subRow(text("groove.dots.title"), text("groove.dots.description"),
-                toggle(() -> groove.breakDots, value -> groove.breakDots = value)));
-        content.addChild(subRow(text("groove.dots_strength.title"), text("groove.dots_strength.description"),
-                slider(() -> groove.breakDotsStrength, value -> groove.breakDotsStrength = value,
-                        0.05, 0.8, 0.05, HudSettingsPanel::percent)));
-        content.addChild(subRow(text("groove.beat_shift.title"), text("groove.beat_shift.description"),
-                slider(() -> groove.beatShift, value -> groove.beatShift = (int) Math.round(value),
-                        WidgetConfig.Groove.MIN_BEAT_SHIFT, WidgetConfig.Groove.MAX_BEAT_SHIFT, 1, HudSettingsPanel::beats)));
 
         content.addChild(new SectionRow(text("section.debug")));
         content.addChild(row(text("widget_boundary.title"), text("widget_boundary.description"),
@@ -500,6 +531,12 @@ public class HudSettingsPanel extends NCMPanel {
     }
 
     private SettingRow row(String title, String description, AbstractWidget<?> control, HudWidget preview) {
+        if (preview != null) {
+            pageHasPreview = true;
+            if (pagePreview == null) {
+                pagePreview = preview;
+            }
+        }
         return new SettingRow(title, description, control, 0, preview);
     }
 
@@ -614,7 +651,6 @@ public class HudSettingsPanel extends NCMPanel {
     private final class SettingRow extends Panel {
 
         private final LabelWidget title;
-        private final AbstractWidget<?> control;
         private final HudWidget previewWidget;
         private final int indent;
         private float hoverAnimation;
@@ -622,7 +658,6 @@ public class HudSettingsPanel extends NCMPanel {
         private SettingRow(String titleText, String descriptionText, AbstractWidget<?> control, int indent,
                            HudWidget previewWidget) {
             this.title = new LabelWidget(titleText, FontManager.pf14bold);
-            this.control = control;
             this.previewWidget = previewWidget;
             this.indent = indent;
             setBounds(720, ROW_HEIGHT);
@@ -691,77 +726,58 @@ public class HudSettingsPanel extends NCMPanel {
 
     private final class PreviewPanel extends Panel {
 
-        private static final double CARD_WIDTH = 360;
         private static final double CARD_HEIGHT = 236;
         private static final double HEADER_HEIGHT = 26;
         private static final double FOOTER_HEIGHT = 18;
         private static final double INNER_PADDING = 8;
 
-        private float fade;
         private double measuredWidth = 320;
         private double measuredHeight = 120;
-        private double lastX;
-        private double lastY;
 
         @Override
         public void onRender(double mouseX, double mouseY) {
-            HudWidget target = previewTarget;
-            if (target != null && target != previewCurrent) {
+            HudWidget target = previewEnabled() ? (previewTarget != null ? previewTarget : pagePreview) : null;
+            if (target == null) {
+                previewCurrent = null;
+                return;
+            }
+            if (target != previewCurrent) {
                 previewCurrent = target;
                 measuredWidth = target.editorWidth() > 1 ? target.editorWidth() : 320;
                 measuredHeight = target.editorHeight() > 1 ? target.editorHeight() : 120;
             }
-
-            fade = Interpolations.interpolate(fade, target != null ? 1f : 0f, 0.3f);
-            HudWidget shown = target != null ? target : previewCurrent;
-            if (shown == null) {
+            double cardHeight = cardHeight();
+            if (cardHeight <= HEADER_HEIGHT) {
                 return;
             }
-            if (fade < 0.02f) {
-                previewCurrent = null;
-                return;
-            }
-
-            if (target != null) {
-                lastX = cardX(mouseX);
-                lastY = cardY(mouseY);
-            }
-            drawCard(lastX, lastY, shown, fade);
+            drawCard(getX(), getY(), cardHeight, target);
         }
 
-        private double cardX(double mouseX) {
-            double min = getX() + 12;
-            double max = getX() + getWidth() - CARD_WIDTH - 12;
-            double x = mouseX + 22;
-            if (x > max) {
-                x = mouseX - CARD_WIDTH - 22;
-            }
-            return Math.max(min, Math.min(Math.max(min, max), x));
+        private double cardHeight() {
+            return Math.min(CARD_HEIGHT, getHeight());
         }
 
-        private double cardY(double mouseY) {
-            double min = getY() + 12;
-            double max = getY() + getHeight() - CARD_HEIGHT - 12;
-            return Math.max(min, Math.min(Math.max(min, max), mouseY + 18));
-        }
-
-        private void drawCard(double x, double y, HudWidget target, float alpha) {
-            roundedRect(x - 1, y - 1, CARD_WIDTH + 2, CARD_HEIGHT + 2, 10, reAlpha(0xFFFFFFFF, alpha * 0.08f));
-            roundedRect(x, y, CARD_WIDTH, CARD_HEIGHT, 9, reAlpha(0xF0121316, alpha));
+        private void drawCard(double x, double y, double height, HudWidget target) {
+            float alpha = getAlpha();
+            roundedRect(x - 1, y - 1, getWidth() + 2, height + 2, 10, reAlpha(0xFFFFFFFF, alpha * 0.08f));
+            roundedRect(x, y, getWidth(), height, 9, reAlpha(0xF0121316, alpha));
 
             CFontRenderer font = FontManager.pf14bold;
             font.drawString(target.getName(), x + 12,
                     y + (HEADER_HEIGHT - font.getStringHeight(target.getName())) * 0.5 - 1,
                     reAlpha(0xFFF2F3F5, alpha));
             String label = text("preview");
-            font.drawString(label, x + CARD_WIDTH - 12 - font.getStringWidthD(label),
+            font.drawString(label, x + getWidth() - 12 - font.getStringWidthD(label),
                     y + (HEADER_HEIGHT - font.getStringHeight(label)) * 0.5 - 1,
                     reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT), alpha));
 
             double innerX = x + INNER_PADDING;
             double innerY = y + HEADER_HEIGHT;
-            double innerWidth = CARD_WIDTH - INNER_PADDING * 2;
-            double innerHeight = CARD_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT;
+            double innerWidth = getWidth() - INNER_PADDING * 2;
+            double innerHeight = height - HEADER_HEIGHT - FOOTER_HEIGHT;
+            if (innerHeight <= 1) {
+                return;
+            }
             roundedRect(innerX, innerY, innerWidth, innerHeight, 6, reAlpha(0xFF07080A, alpha));
             Rect.draw(innerX, innerY + innerHeight * 0.5, innerWidth, 1, reAlpha(0xFFFFFFFF, alpha * 0.04f));
 
@@ -794,8 +810,8 @@ public class HudSettingsPanel extends NCMPanel {
             }
 
             String hint = text("preview.hint");
-            FontManager.pf12.drawCenteredString(hint, x + CARD_WIDTH * 0.5,
-                    y + CARD_HEIGHT - FOOTER_HEIGHT + (FOOTER_HEIGHT - FontManager.pf12.getStringHeight(hint)) * 0.5,
+            FontManager.pf12.drawCenteredString(hint, x + getWidth() * 0.5,
+                    y + height - FOOTER_HEIGHT + (FOOTER_HEIGHT - FontManager.pf12.getStringHeight(hint)) * 0.5,
                     reAlpha(HudSettingsPanel.this.getColor(NCMScreen.ColorType.SECONDARY_TEXT), alpha * 0.85f));
         }
     }
