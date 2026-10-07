@@ -22,7 +22,7 @@ if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
 
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 Get-ChildItem -LiteralPath $outputPath -File -ErrorAction SilentlyContinue |
-	Where-Object { $_.Name -like "tritium-music-fabric-*.jar" -or $_.Name -like "tritium-music-forge-*.jar" -or $_.Name -like "tritium-music-neoforge-*.jar" -or $_.Name -eq "manifest.json" } |
+	Where-Object { $_.Name -like "tritium-music-fabric-*.jar" -or $_.Name -like "tritium-music-forge-*.jar" -or $_.Name -like "tritium-music-neoforge-*.jar" -or $_.Name -like "tritium-music-universal-*.jar" -or $_.Name -eq "manifest.json" } |
 	Remove-Item -Force
 
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("tmb-" + [System.Guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -59,7 +59,7 @@ try {
 			throw "No loader modules found for $($branch.Name)"
 		}
 
-		$tasks = $loaders | ForEach-Object { ":$($_):build" }
+		$tasks = @($loaders | ForEach-Object { ":$($_):build" }) + @(":universalJar")
 		& $gradleWrapper -p $worktreePath @tasks --no-daemon
 		if ($LASTEXITCODE -ne 0) {
 			throw "Gradle build failed for $($branch.Name)"
@@ -89,6 +89,24 @@ try {
 				file = $artifacts[0].Name
 				sha256 = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant()
 			}
+		}
+
+		$universalArtifacts = @(Get-ChildItem -LiteralPath (Join-Path $worktreePath "build/libs") -File -Filter "tritium-music-universal-*.jar")
+		if ($universalArtifacts.Count -ne 1) {
+			throw "Expected one universal artifact for $($branch.Name), found $($universalArtifacts.Count)"
+		}
+
+		$universalDestination = Join-Path $outputPath $universalArtifacts[0].Name
+		Copy-Item -LiteralPath $universalArtifacts[0].FullName -Destination $universalDestination -Force
+		$manifest += [pscustomobject]@{
+			branch = $branch.Name
+			commit = $commit
+			minecraftVersion = $minecraftVersion
+			modVersion = $modVersion
+			loader = "universal"
+			loaders = @($loaders)
+			file = $universalArtifacts[0].Name
+			sha256 = (Get-FileHash -LiteralPath $universalDestination -Algorithm SHA256).Hash.ToLowerInvariant()
 		}
 	}
 

@@ -1,4 +1,5 @@
 plugins {
+	id 'base'
 	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
 	id 'net.neoforged.moddev.legacyforge' version "${moddev_version}" apply false
 }
@@ -76,4 +77,10 @@ allprojects {
 			}
 		}
 	}
+}
+
+apply from: 'gradle/universal-jar.gradle'
+
+tasks.named('assemble') {
+	dependsOn tasks.named('universalJar')
 }
