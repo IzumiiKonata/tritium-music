@@ -73,6 +73,9 @@ public class CloudMusic {
     });
     private static final Set<tritium.music.platform.TextureHandle> LOADING_COVERS = ConcurrentHashMap.newKeySet();
     private static final Kernel GAUSSIAN_KERNEL = new Kernel(41, 41, GaussianKernel.generate(41));
+    private static final Object PLAY_ORDER_LOCK = new Object();
+    private static final List<Music> orderedPlayback = new ArrayList<>();
+    private static PlayMode orderedPlaybackMode = PlayMode.Sequential;
     public static AudioPlayer player;
     public static List<Music> playList = new ArrayList<>();
     public static volatile int curIdx = 0;
@@ -663,6 +666,7 @@ public class CloudMusic {
     }
 
     public static void prev() {
+        syncPlayOrder();
         updatePlayCountIfNeeded();
 
         if (!canPlayPrevious()) {
@@ -693,6 +697,8 @@ public class CloudMusic {
     }
 
     public static void next() {
+        syncPlayOrder();
+
         if (!canPlayNext()) {
             return;
         }
@@ -713,7 +719,9 @@ public class CloudMusic {
         }
         int nextIndex = Math.min(curIdx + 1, playList.size());
         playList.add(nextIndex, music);
+        rememberQueuedSong(nextIndex);
         loadMusicCover(music);
+        prefetchUpcoming();
     }
 
     private static boolean canPlayNext() {
@@ -750,6 +758,12 @@ public class CloudMusic {
 
         stopExistingPlayThread();
 
+        synchronized (PLAY_ORDER_LOCK) {
+            orderedPlayback.clear();
+            orderedPlayback.addAll(safeSongList);
+            orderedPlaybackMode = playMode;
+        }
+
         if (playMode == PlayMode.Random) {
             startIdx = handleRandomPlayMode(safeSongList, startIdx);
         }
@@ -784,6 +798,135 @@ public class CloudMusic {
 
     private static int normalizeStartIndex(int startIdx) {
         return startIdx == -1 ? 0 : startIdx;
+    }
+
+    public static void setPlayMode(PlayMode mode) {
+        if (mode == null || mode == playMode) {
+            return;
+        }
+
+        playMode = mode;
+        syncPlayOrder();
+    }
+
+    private static void syncPlayOrder() {
+        if (applyPlayOrder()) {
+            prefetchUpcoming();
+        }
+    }
+
+    private static boolean applyPlayOrder() {
+        synchronized (PLAY_ORDER_LOCK) {
+            if (orderedPlaybackMode == playMode || playList.isEmpty() || orderedPlayback.isEmpty()) {
+                orderedPlaybackMode = playMode;
+                return false;
+            }
+
+            Music anchor = curIdx >= 0 && curIdx < playList.size() ? playList.get(curIdx) : currentlyPlaying;
+
+            if (playMode == PlayMode.Random) {
+                Collections.shuffle(playList);
+            } else {
+                restoreOriginalOrder(playList);
+            }
+
+            orderedPlaybackMode = playMode;
+
+            if (anchor != null) {
+                int index = playList.indexOf(anchor);
+                if (index >= 0) {
+                    curIdx = index;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    private static void restoreOriginalOrder(List<Music> target) {
+        Map<Long, Integer> expected = new HashMap<>();
+        for (Music music : orderedPlayback) {
+            expected.merge(music.getId(), 1, Integer::sum);
+        }
+
+        List<Music> queued = new ArrayList<>();
+        for (Music music : target) {
+            Integer count = expected.get(music.getId());
+            if (count != null && count > 0) {
+                expected.put(music.getId(), count - 1);
+            } else {
+                queued.add(music);
+            }
+        }
+
+        List<Music> restored = new ArrayList<>(orderedPlayback.size() + queued.size());
+        restored.addAll(orderedPlayback);
+        restored.addAll(queued);
+
+        int shared = Math.min(restored.size(), target.size());
+        for (int i = 0; i < shared; i++) {
+            target.set(i, restored.get(i));
+        }
+        while (target.size() > restored.size()) {
+            target.remove(target.size() - 1);
+        }
+        while (target.size() < restored.size()) {
+            target.add(restored.get(target.size()));
+        }
+    }
+
+    private static void rememberQueuedSong(int activeIndex) {
+        if (activeIndex <= 0) {
+            return;
+        }
+
+        synchronized (PLAY_ORDER_LOCK) {
+            if (orderedPlayback.isEmpty()) {
+                return;
+            }
+
+            Music previous = playList.get(activeIndex - 1);
+            int index = orderedPlayback.indexOf(previous);
+            orderedPlayback.add(index >= 0 ? index + 1 : orderedPlayback.size(), playList.get(activeIndex));
+        }
+    }
+
+    private static void prefetchUpcoming() {
+        Music upcoming = upcomingSong();
+        if (upcoming == null) {
+            return;
+        }
+
+        loadMusicCover(upcoming);
+        LyricsFetcher.getDefault().prefetch(lyricsQuery(upcoming));
+        MusicBeatTracker.prefetch(upcoming);
+    }
+
+    private static int nextPlaybackIndex() {
+        if (playMode == PlayMode.LoopSingle) {
+            return curIdx;
+        }
+
+        int next = curIdx + 1;
+        if (next < playList.size()) {
+            return next;
+        }
+
+        return playMode == PlayMode.LoopInList || playMode == PlayMode.Random ? 0 : -1;
+    }
+
+    private static int prepareIndex() {
+        return playMode == PlayMode.LoopSingle ? -1 : nextPlaybackIndex();
+    }
+
+    private static Music upcomingSong() {
+        int index = nextPlaybackIndex();
+        if (index < 0 || index >= playList.size()) {
+            return null;
+        }
+
+        Music upcoming = playList.get(index);
+        return upcoming == currentlyPlaying ? null : upcoming;
     }
 
     private static void startNewPlayThread(List<Music> songs, int startIdx) {
@@ -1273,7 +1416,7 @@ public class CloudMusic {
             if (playMode == PlayMode.LoopSingle || playMode != lastMode) {
                 return null;
             }
-            int nextIndex = nextIndex();
+            int nextIndex = prepareIndex();
             if (nextIndex < 0 || nextIndex >= playList.size()) {
                 return null;
             }
@@ -1289,7 +1432,7 @@ public class CloudMusic {
         }
 
         private boolean validPreparedTrack(PreparedTrack prepared) {
-            int expectedIndex = dontAdd ? curIdx : nextIndex();
+            int expectedIndex = dontAdd ? curIdx : prepareIndex();
             return playMode == lastMode && prepared.index() == expectedIndex && prepared.index() >= 0 && prepared.index() < playList.size() && playList.get(prepared.index()).equals(prepared.song());
         }
 
@@ -1608,26 +1751,6 @@ public class CloudMusic {
             return result;
         }
 
-        private int nextIndex() {
-            if (playMode == PlayMode.LoopSingle) {
-                return -1;
-            }
-            int next = curIdx + 1;
-            if (next < playList.size()) {
-                return next;
-            }
-            return playMode == PlayMode.LoopInList || playMode == PlayMode.Random ? 0 : -1;
-        }
-
-        private Music upcomingSong() {
-            int index = nextIndex();
-            if (index < 0 || index >= playList.size()) {
-                return null;
-            }
-            Music upcoming = playList.get(index);
-            return upcoming == currentlyPlaying ? null : upcoming;
-        }
-
         private void closePreparationExcept(TrackSession retained) {
             if (preparation == null) {
                 return;
@@ -1650,13 +1773,9 @@ public class CloudMusic {
         }
 
         private void updateCurIdx() {
-            if (lastMode != playMode) {
-                if (playMode == PlayMode.Random) {
-                    Collections.shuffle(songs);
-                    playList = songs;
-                }
-                lastMode = playMode;
-            }
+            syncPlayOrder();
+            lastMode = playMode;
+
             if (playMode == PlayMode.LoopSingle) {
                 if (dontAdd) {
                     dontAdd = false;

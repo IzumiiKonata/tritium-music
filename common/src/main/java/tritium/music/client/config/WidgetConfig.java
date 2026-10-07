@@ -265,7 +265,7 @@ public class WidgetConfig {
         state.setShowRoman(lyrics.showRoman);
         state.setVolume((float) volume);
         CloudMusic.quality = quality;
-        CloudMusic.playMode = playMode;
+        CloudMusic.setPlayMode(playMode);
         CloudMusic.autoMixEnabled = autoMix;
         AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE = autoMixTuneWheneverPossible ? 10.0 : 0.1;
         MusicBeatTracker.setEnabled(songGroove && groove.anyEnabled());
