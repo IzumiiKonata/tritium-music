@@ -20,7 +20,6 @@ import tritium.music.platform.Platform;
 import tritium.music.platform.TextureHandle;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class PlaylistPanel extends NCMPanel {
@@ -82,28 +81,6 @@ public class PlaylistPanel extends NCMPanel {
                 return true;
             });
 
-            RoundedButtonWidget btnPlayRandomOrder = new RoundedButtonWidget(I18n.get("tritium-music.ui.playlist.shuffle"), FontManager.pf16bold);
-            this.addChild(btnPlayRandomOrder);
-
-            btnPlayRandomOrder.setBeforeRenderCallback(() -> {
-                btnPlayRandomOrder.setBounds(Math.max(57, FontManager.pf16bold.getStringWidthD(I18n.get("tritium-music.ui.playlist.shuffle")) + 12), 17);
-                btnPlayRandomOrder.setPosition(cover.getRelativeX() + cover.getWidth() + 12 + btnPlay.getWidth() + 8, cover.getRelativeY() + cover.getHeight() - btnPlayRandomOrder.getHeight());
-                btnPlayRandomOrder.setRadius(3);
-                btnPlayRandomOrder.setColor(0xFFd60017);
-                btnPlayRandomOrder.setTextColor(NCMScreen.getColor(NCMScreen.ColorType.PRIMARY_TEXT));
-            });
-
-            btnPlayRandomOrder.setOnClickCallback((relativeX, relativeY, mouseButton) -> {
-                if (mouseButton == 0) {
-                    playList.loadMusicsWithCallback(musics -> {
-                        ArrayList<Music> music = new ArrayList<>(musics);
-                        Collections.shuffle(music);
-                        CloudMusic.play(music, 0);
-                    });
-                }
-                return true;
-            });
-
             RoundedRectWidget searchBar = new RoundedRectWidget();
             this.addChild(searchBar);
 
@@ -126,9 +103,9 @@ public class PlaylistPanel extends NCMPanel {
                                 .setAlpha(1f)
                                 .setColor(0xFF5E5E5E)
                                 .setWidth(tfOpenAnimation)
-                                .setHeight(btnPlayRandomOrder.getHeight())
+                                .setHeight(btnPlay.getHeight())
                                 .setRadius(7)
-                                .setPosition(btnPlayRandomOrder.getRelativeX() + btnPlayRandomOrder.getWidth() + 8, btnPlayRandomOrder.getRelativeY());
+                                .setPosition(btnPlay.getRelativeX() + btnPlay.getWidth() + 8, btnPlay.getRelativeY());
                     });
 
             RoundedRectWidget searchBarBg = new RoundedRectWidget();
@@ -181,7 +158,7 @@ public class PlaylistPanel extends NCMPanel {
                 tfSearch.setDisabledTextColor(RenderSystem.reAlpha(this.getColor(NCMScreen.ColorType.PRIMARY_TEXT), .4f));
             });
 
-            addViewModeControls(btnPlayRandomOrder);
+            addViewModeControls(btnPlay);
 
             RoundedImageWidget creatorAvatar = new RoundedImageWidget(this.playList.getCreator().getAvatarLocation(), 0, 0, 0, 0);
             this.addChild(creatorAvatar);
