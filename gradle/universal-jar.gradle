@@ -29,9 +29,16 @@ def universalLoaderProject = rootProject.project(":${universalLoaderName}")
 // and on 1.20.1 the Forge jar in build/libs only becomes the SRG reobfuscated one after `reobfJar`
 // ran. Reading the published path after `assemble` therefore merges exactly the files the release
 // pipeline publishes instead of a development jar.
-def universalArtifactFile = { Project owner, String loaderName ->
-	def artifact = new File(owner.projectDir,
+// The artifact paths are plain computations: Gradle resolves declared input files while it builds the
+// task graph, long before `assemble` has produced anything, so they must never fail on a fresh
+// checkout. The existence check therefore lives in universalArtifact, which only runs at execution
+// time.
+def universalArtifactPath = { Project owner, String loaderName ->
+	new File(owner.projectDir,
 			"build/libs/${rootProject.name}-${loaderName}-${project.minecraft_version}-${project.version}.jar")
+}
+def universalArtifactFile = { Project owner, String loaderName ->
+	def artifact = universalArtifactPath(owner, loaderName)
 	if (!artifact.isFile()) {
 		throw new GradleException("Missing ${loaderName} artifact ${artifact}; run :${owner.name}:assemble first")
 	}
@@ -48,8 +55,8 @@ def universalJar = rootProject.tasks.register('universalJar') {
 	dependsOn { universalPackaging(universalFabricProject) }
 	dependsOn { universalPackaging(universalLoaderProject) }
 	dependsOn { universalFabricFinalizer() }
-	inputs.files({ universalArtifactFile(universalFabricProject, 'fabric') },
-			{ universalArtifactFile(universalLoaderProject, universalLoaderName) })
+	inputs.files({ universalArtifactPath(universalFabricProject, 'fabric') },
+			{ universalArtifactPath(universalLoaderProject, universalLoaderName) })
 	outputs.file(universalOutputFile)
 	doLast {
 		def fabricJar = universalArtifactFile(universalFabricProject, 'fabric')
