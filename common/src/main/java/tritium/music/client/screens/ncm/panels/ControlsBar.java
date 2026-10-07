@@ -316,7 +316,7 @@ public class ControlsBar extends NCMPanel {
         int step = mouseButton == 1 ? -1 : 1;
         int ordinal = (CloudMusic.playMode.ordinal() + step + modes.length) % modes.length;
 
-        CloudMusic.playMode = modes[ordinal];
+        CloudMusic.setPlayMode(modes[ordinal]);
 
         WidgetConfig config = WidgetConfig.get();
         config.playMode = CloudMusic.playMode;
