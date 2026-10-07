@@ -96,7 +96,6 @@
   "tritium-music.ui.navigation.subscribed_playlists": "Subscribed Playlists",
   "tritium-music.ui.account.not_logged_in": "Not logged in",
   "tritium-music.ui.playlist.play": "Play Playlist",
-  "tritium-music.ui.playlist.shuffle": "Shuffle Playlist",
   "tritium-music.ui.playlist.list_view": "List",
   "tritium-music.ui.playlist.grid_view": "Grid",
   "tritium-music.ui.playlist.song_count": "%s songs",

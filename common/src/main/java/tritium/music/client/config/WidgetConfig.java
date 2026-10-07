@@ -55,6 +55,7 @@ public class WidgetConfig {
     public boolean grooveInfo = false;
     public boolean grooveMarkers = false;
     public PlaylistViewMode playlistViewMode = PlaylistViewMode.GRID;
+    public CloudMusic.PlayMode playMode = CloudMusic.PlayMode.Sequential;
     public int configVersion = 0;
 
     public enum PlaylistViewMode {
@@ -253,6 +254,7 @@ public class WidgetConfig {
         dance.sanitize();
         if (quality == null) quality = Quality.STANDARD;
         if (playlistViewMode == null) playlistViewMode = PlaylistViewMode.GRID;
+        if (playMode == null) playMode = CloudMusic.PlayMode.Sequential;
         if (groove == null) groove = new Groove();
         groove.sanitize();
     }
@@ -263,6 +265,7 @@ public class WidgetConfig {
         state.setShowRoman(lyrics.showRoman);
         state.setVolume((float) volume);
         CloudMusic.quality = quality;
+        CloudMusic.playMode = playMode;
         CloudMusic.autoMixEnabled = autoMix;
         AutoMixTempoPolicy.MAX_TEMPO_MATCH_CHANGE = autoMixTuneWheneverPossible ? 10.0 : 0.1;
         MusicBeatTracker.setEnabled(songGroove && groove.anyEnabled());
