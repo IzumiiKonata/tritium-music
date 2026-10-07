@@ -95,7 +95,6 @@
   "tritium-music.ui.navigation.subscribed_playlists": "收藏歌单",
   "tritium-music.ui.account.not_logged_in": "未登录",
   "tritium-music.ui.playlist.play": "播放歌单",
-  "tritium-music.ui.playlist.shuffle": "乱序播放歌单",
   "tritium-music.ui.playlist.list_view": "列表",
   "tritium-music.ui.playlist.grid_view": "平铺",
   "tritium-music.ui.playlist.song_count": "%s 首歌曲",
