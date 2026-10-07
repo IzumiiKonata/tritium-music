@@ -122,6 +122,20 @@ public class ControlsBar extends NCMPanel {
                         .setPosition(next.getRelativeX() + next.getWidth() * .5 + 20, next.getRelativeY() + buttonsYOffset)
                         .setColor(NCMScreen.getColor(NCMScreen.ColorType.PRIMARY_TEXT)));
 
+        IconWidget playModeIcon = new IconWidget(CloudMusic.playMode.getIcon(), FontManager.icon30, 0, 0, 20, 20);
+        this.addChild(playModeIcon);
+
+        playModeIcon
+                .setOnClickCallback((x, y, mouseButton) -> {
+                    cyclePlayMode(mouseButton);
+                    return true;
+                })
+                .setBeforeRenderCallback(() -> playModeIcon
+                        .center()
+                        .setIcon(CloudMusic.playMode.getIcon())
+                        .setPosition(prev.getRelativeX() - 20 - playModeIcon.getWidth() * .5, playModeIcon.getRelativeY() + buttonsYOffset)
+                        .setColor(NCMScreen.getColor(NCMScreen.ColorType.PRIMARY_TEXT)));
+
         RoundedRectWidget progressBarBg = new RoundedRectWidget() {
 
             boolean prevMouse = false;
@@ -295,6 +309,18 @@ public class ControlsBar extends NCMPanel {
                         .setMargin(0)
                         .setWidth(volumeBarBg.getWidth() * MusicState.get().getVolume())
                         .setRadius(1.5));
+    }
+
+    private static void cyclePlayMode(int mouseButton) {
+        CloudMusic.PlayMode[] modes = CloudMusic.PlayMode.values();
+        int step = mouseButton == 1 ? -1 : 1;
+        int ordinal = (CloudMusic.playMode.ordinal() + step + modes.length) % modes.length;
+
+        CloudMusic.playMode = modes[ordinal];
+
+        WidgetConfig config = WidgetConfig.get();
+        config.playMode = CloudMusic.playMode;
+        config.save();
     }
 
     private String formatDuration(float totalMillis) {
