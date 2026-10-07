@@ -1,0 +1,651 @@
+// Merges the Fabric jar and the NeoForge/Forge jar of this branch into one universal jar.
+//
+// Both loaders only read the metadata they know about, so a single file can carry
+// fabric.mod.json and META-INF/neoforge.mods.toml (or META-INF/mods.toml) at once, together
+// with both loaders' nested dependency jars (META-INF/jars for Fabric, META-INF/jarjar for
+// NeoForge/Forge). Fabric ignores everything it does not declare, and the other loader never
+// looks at META-INF/jars or fabric.mod.json.
+//
+// The two jars are not always identical: when Fabric is built against intermediary names and
+// the other loader against SRG names (1.20.1, 1.21.11), the shared classes carry different
+// member references and cannot be merged entry by entry. In that case every class of the
+// second loader is relocated into its own package prefix (constant pool rewrite, no external
+// tooling), its mixin configuration and refmaps are renamed and its metadata is rewritten, so
+// both variants coexist in one jar without sharing a single class file.
+
+import java.util.jar.Attributes
+import java.util.jar.Manifest
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+
+def universalFabricProject = rootProject.project(':fabric')
+def universalLoaderName = rootProject.findProject(':neoforge') != null ? 'neoforge' : 'forge'
+def universalLoaderProject = rootProject.project(":${universalLoaderName}")
+// Resolved lazily: the loader projects are configured after the root project.
+//
+// The shippable artifacts always land in <module>/build/libs with a fixed name, while development
+// jars are kept aside: Loom and ModDevGradle legacy Forge both write them to <module>/build/devlibs,
+// and on 1.20.1 the Forge jar in build/libs only becomes the SRG reobfuscated one after `reobfJar`
+// ran. Reading the published path after `assemble` therefore merges exactly the files the release
+// pipeline publishes instead of a development jar.
+def universalArtifactFile = { Project owner, String loaderName ->
+	def artifact = new File(owner.projectDir,
+			"build/libs/${rootProject.name}-${loaderName}-${project.minecraft_version}-${project.version}.jar")
+	if (!artifact.isFile()) {
+		throw new GradleException("Missing ${loaderName} artifact ${artifact}; run :${owner.name}:assemble first")
+	}
+	return artifact
+}
+def universalPackaging = { Project owner -> owner.tasks.matching { it.name == 'assemble' } }
+def universalFabricFinalizer = { universalFabricProject.tasks.matching { it.name == 'stripOnnxRuntimeNatives' } }
+def universalOutputFile = rootProject.layout.buildDirectory.file(
+		"libs/${rootProject.name}-universal-${project.minecraft_version}-${project.version}.jar")
+
+def universalJar = rootProject.tasks.register('universalJar') {
+	group = 'build'
+	description = "Merges the Fabric and ${universalLoaderName} jars into one universal jar"
+	dependsOn { universalPackaging(universalFabricProject) }
+	dependsOn { universalPackaging(universalLoaderProject) }
+	dependsOn { universalFabricFinalizer() }
+	inputs.files({ universalArtifactFile(universalFabricProject, 'fabric') },
+			{ universalArtifactFile(universalLoaderProject, universalLoaderName) })
+	outputs.file(universalOutputFile)
+	doLast {
+		def fabricJar = universalArtifactFile(universalFabricProject, 'fabric')
+		def loaderJar = universalArtifactFile(universalLoaderProject, universalLoaderName)
+		def target = universalOutputFile.get().asFile
+		logger.lifecycle("Universal jar: merging ${fabricJar.name} and ${loaderJar.name}")
+		target.parentFile.mkdirs()
+		universalMergeJars(fabricJar, loaderJar, target, universalLoaderName, logger)
+	}
+}
+
+ext.universalJarTask = universalJar
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+def universalMergeJars(File fabricFile, File loaderFile, File target, String loaderName, def logger) {
+	String sourcePrefix = 'tritium/music/'
+	String shadedPrefix = "tritium/music/embedded/${loaderName}/"
+	String sourceNamespace = 'tritium.music.'
+	String shadedNamespace = "tritium.music.embedded.${loaderName}."
+
+	def fabric = universalReadZip(fabricFile)
+	def loader = universalReadZip(loaderFile)
+
+	def classConflicts = loader.findAll { name, bytes ->
+		name.endsWith('.class') && fabric.containsKey(name) && !Arrays.equals(bytes, fabric[name])
+	}.keySet().sort()
+	boolean relocating = !classConflicts.isEmpty()
+
+	if (relocating) {
+		logger.lifecycle("Universal jar: ${classConflicts.size()} class(es) differ between the two jars, " +
+				"relocating every ${loaderName} class to ${shadedPrefix}")
+	} else {
+		logger.lifecycle("Universal jar: both jars share the same class files, merging without relocation")
+	}
+
+	// Mixin configurations and refmaps must be renamed whenever their content cannot be shared
+	// with the Fabric variant (a relocation always changes the mixin package).
+	def renamed = [:]
+	loader.each { name, bytes ->
+		if (!universalIsMixinMetadata(name)) {
+			return
+		}
+		def rewritten = relocating ? universalRewriteText(bytes, sourcePrefix, shadedPrefix, sourceNamespace, shadedNamespace) : bytes
+		def fabricBytes = fabric[name]
+		if (fabricBytes == null || Arrays.equals(fabricBytes, rewritten)) {
+			return
+		}
+		renamed[name] = universalAddFileNameSuffix(name, "-${loaderName}")
+	}
+
+	// Legacy Forge (META-INF/mods.toml) obfuscates its members to SRG names and keeps the development
+	// jar in build/devlibs, so a jar without a single SRG reference is the wrong variant.
+	if (loader.containsKey('META-INF/mods.toml') &&
+			!loader.any { name, bytes -> name.endsWith('.class') && universalHasSrgReference(bytes) }) {
+		throw new GradleException("The ${loaderName} jar has no SRG member references, so it is the development " +
+				"jar instead of the reobfuscated artifact in build/libs")
+	}
+
+	def manifest = universalMergeManifests(fabric, loader)
+	def merged = new LinkedHashMap<String, byte[]>()
+	merged['META-INF/MANIFEST.MF'] = manifest
+
+	int shared = 0
+	int copied = 0
+	int keptFabricCopy = 0
+	List<String> unmergeable = []
+
+	fabric.each { name, bytes ->
+		if (name != 'META-INF/MANIFEST.MF') {
+			merged[name] = bytes
+		}
+	}
+
+	loader.each { name, bytes ->
+		if (name == 'META-INF/MANIFEST.MF') {
+			return
+		}
+		if (name == 'fabric.mod.json') {
+			logger.warn("Universal jar: ignoring the Fabric metadata found in the ${loaderName} jar")
+			return
+		}
+		if (name.endsWith('.accesswidener')) {
+			// Only Fabric reads an access widener, and it needs the remapped copy.
+			if (merged.containsKey(name)) {
+				keptFabricCopy++
+			} else {
+				merged[name] = bytes
+				copied++
+			}
+			return
+		}
+		if (name.endsWith('.class')) {
+			if (relocating) {
+				merged[universalRewritePath(name, sourcePrefix, shadedPrefix)] =
+						universalRelocateClass(bytes, sourcePrefix, shadedPrefix)
+				copied++
+			} else if (!merged.containsKey(name)) {
+				merged[name] = bytes
+				copied++
+			} else {
+				shared++
+			}
+			return
+		}
+		if (universalIsMixinMetadata(name)) {
+			def newName = renamed[name] ?: name
+			def rewritten = relocating
+					? universalRewriteText(bytes, sourcePrefix, shadedPrefix, sourceNamespace, shadedNamespace)
+					: bytes
+			if (!renamed.containsKey(name) && merged.containsKey(name)) {
+				if (Arrays.equals(merged[name], rewritten)) {
+					shared++
+					return
+				}
+				unmergeable << name
+				return
+			}
+			// Mixin configurations reference their refmap by file name.
+			renamed.each { oldName, newName2 ->
+				rewritten = universalReplaceBytes(rewritten, oldName.getBytes('ISO-8859-1'), newName2.getBytes('ISO-8859-1'))
+			}
+			merged[newName] = rewritten
+			copied++
+			return
+		}
+		if (name == 'META-INF/neoforge.mods.toml' || name == 'META-INF/mods.toml') {
+			def text = new String(bytes, 'UTF-8')
+			renamed.each { oldName, newName2 -> text = text.replace(oldName, newName2) }
+			merged[name] = text.getBytes('UTF-8')
+			copied++
+			return
+		}
+		if (name.startsWith('META-INF/services/')) {
+			def existing = merged[name]
+			if (existing == null) {
+				merged[name] = bytes
+				copied++
+				return
+			}
+			def lines = new LinkedHashSet<String>()
+			lines.addAll(new String(existing, 'UTF-8').readLines())
+			def rewritten = relocating
+					? universalRewriteText(bytes, sourcePrefix, shadedPrefix, sourceNamespace, shadedNamespace)
+					: bytes
+			lines.addAll(new String(rewritten, 'UTF-8').readLines())
+			merged[name] = (lines.findAll { !it.trim().isEmpty() }.join('\n') + '\n').getBytes('UTF-8')
+			copied++
+			return
+		}
+		if (relocating && name.startsWith(sourcePrefix) && !name.endsWith('/')) {
+			merged[universalRewritePath(name, sourcePrefix, shadedPrefix)] =
+					universalRewriteText(bytes, sourcePrefix, shadedPrefix, sourceNamespace, shadedNamespace)
+			copied++
+			return
+		}
+		if (!merged.containsKey(name)) {
+			merged[name] = bytes
+			copied++
+			return
+		}
+		if (Arrays.equals(merged[name], bytes)) {
+			shared++
+			return
+		}
+		unmergeable << name
+		keptFabricCopy++
+	}
+
+	universalWriteZip(target, merged)
+
+	if (!unmergeable.isEmpty()) {
+		logger.warn("Universal jar: kept the Fabric copy of ${unmergeable.size()} resource(s) that also exist " +
+				"in the ${loaderName} jar with different content: ${unmergeable.join(', ')}")
+	}
+	logger.lifecycle("Universal jar: ${merged.size()} entries (${copied} from the ${loaderName} jar, " +
+			"${shared} shared, ${keptFabricCopy} reused Fabric copy)")
+	universalVerifyJar(target, loaderName, relocating, sourcePrefix, shadedPrefix, logger)
+}
+
+def universalIsMixinMetadata(String name) {
+	return name.endsWith('.mixins.json') || name.toLowerCase().contains('refmap')
+}
+
+def universalHasSrgReference(byte[] data) {
+	return (new String(data, 'ISO-8859-1') =~ /[mf]_\d+_/).find()
+}
+
+def universalAddFileNameSuffix(String name, String suffix) {
+	if (name.endsWith('.mixins.json')) {
+		return name.substring(0, name.length() - '.mixins.json'.length()) + suffix + '.mixins.json'
+	}
+	if (name.endsWith('refmap.json')) {
+		return name.substring(0, name.length() - 'refmap.json'.length()) + suffix + 'refmap.json'
+	}
+	int dot = name.lastIndexOf('.')
+	if (dot < 0) {
+		return name + suffix
+	}
+	return name.substring(0, dot) + suffix + name.substring(dot)
+}
+
+def universalRewritePath(String name, String from, String to) {
+	return name.startsWith(from) ? to + name.substring(from.length()) : name
+}
+
+def universalRewriteText(byte[] data, String fromSlash, String toSlash, String fromDotted, String toDotted) {
+	String text = new String(data, 'UTF-8')
+	text = text.replace(fromSlash, toSlash).replace(fromDotted, toDotted)
+	return text.getBytes('UTF-8')
+}
+
+// Renames every class reference inside a class file by rewriting the string constants of its
+// constant pool. Internal names, descriptors and signatures all live in CONSTANT_Utf8 entries
+// and are pure ASCII, so a byte level replacement is exact and keeps every index valid.
+def universalRelocateClass(byte[] data, String from, String to) {
+	byte[] fromBytes = from.getBytes('ISO-8859-1')
+	byte[] toBytes = to.getBytes('ISO-8859-1')
+	def input = new DataInputStream(new ByteArrayInputStream(data))
+	def buffer = new ByteArrayOutputStream(data.length + 1024)
+	def output = new DataOutputStream(buffer)
+
+	output.writeInt(input.readInt())
+	output.writeShort(input.readUnsignedShort())
+	output.writeShort(input.readUnsignedShort())
+	int poolCount = input.readUnsignedShort()
+	output.writeShort(poolCount)
+
+	for (int index = 1; index < poolCount; index++) {
+		int tag = input.readUnsignedByte()
+		output.writeByte(tag)
+		switch (tag) {
+			case 1:
+				byte[] value = new byte[input.readUnsignedShort()]
+				input.readFully(value)
+				byte[] replaced = universalReplaceBytes(value, fromBytes, toBytes)
+				output.writeShort(replaced.length)
+				output.write(replaced)
+				break
+			case 7:
+			case 8:
+			case 16:
+			case 19:
+			case 20:
+				output.writeShort(input.readUnsignedShort())
+				break
+			case 15:
+				output.writeByte(input.readUnsignedByte())
+				output.writeShort(input.readUnsignedShort())
+				break
+			case 3:
+			case 4:
+			case 9:
+			case 10:
+			case 11:
+			case 12:
+			case 17:
+			case 18:
+				output.writeInt(input.readInt())
+				break
+			case 5:
+			case 6:
+				output.writeLong(input.readLong())
+				index++
+				break
+			default:
+				throw new GradleException("Unsupported constant pool tag ${tag} while relocating classes")
+		}
+	}
+
+	output.write(input.readAllBytes())
+	output.flush()
+	return buffer.toByteArray()
+}
+
+def universalReplaceBytes(byte[] data, byte[] from, byte[] to) {
+	int first = universalIndexOf(data, from, 0)
+	if (first < 0) {
+		return data
+	}
+	def buffer = new ByteArrayOutputStream(data.length + to.length)
+	int position = 0
+	while (first >= 0) {
+		buffer.write(data, position, first - position)
+		buffer.write(to)
+		position = first + from.length
+		first = universalIndexOf(data, from, position)
+	}
+	buffer.write(data, position, data.length - position)
+	return buffer.toByteArray()
+}
+
+def universalIndexOf(byte[] data, byte[] pattern, int from) {
+	if (pattern.length == 0 || data.length < pattern.length) {
+		return -1
+	}
+	for (int i = Math.max(from, 0); i <= data.length - pattern.length; i++) {
+		boolean matches = true
+		for (int j = 0; j < pattern.length && matches; j++) {
+			matches = data[i + j] == pattern[j]
+		}
+		if (matches) {
+			return i
+		}
+	}
+	return -1
+}
+
+def universalReadZip(File file) {
+	def entries = new LinkedHashMap<String, byte[]>()
+	new ZipFile(file).withCloseable { zip ->
+		zip.entries().each { entry ->
+			if (!entry.directory) {
+				entries[entry.name] = zip.getInputStream(entry).bytes
+			}
+		}
+	}
+	return entries
+}
+
+def universalWriteZip(File target, Map<String, byte[]> entries) {
+	// A fixed timestamp keeps the merged jar reproducible.
+	long timestamp = 318211200000L
+	new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(target))).withCloseable { zip ->
+		entries.each { name, bytes ->
+			def entry = new ZipEntry(name)
+			entry.time = timestamp
+			zip.putNextEntry(entry)
+			zip.write(bytes)
+			zip.closeEntry()
+		}
+	}
+}
+
+def universalMergeManifests(Map<String, byte[]> fabric, Map<String, byte[]> loader) {
+	def attributes = new LinkedHashMap<String, String>()
+	attributes['Manifest-Version'] = '1.0'
+	universalManifestAttributes(fabric['META-INF/MANIFEST.MF']).each { name, value ->
+		if (!universalSkipManifestAttribute(name)) {
+			attributes[name] = value
+		}
+	}
+	universalManifestAttributes(loader['META-INF/MANIFEST.MF']).each { name, value ->
+		if (!universalSkipManifestAttribute(name) && !attributes.containsKey(name)) {
+			attributes[name] = value
+		}
+	}
+	return universalWriteManifest(attributes)
+}
+
+def universalSkipManifestAttribute(String name) {
+	// A shared MixinConfigs attribute would make both loaders apply the same mixin
+	// configuration; every loader declares its mixins in its own metadata instead.
+	return name.equalsIgnoreCase('MixinConfigs') ||
+			name.toLowerCase().startsWith('mixin-') ||
+			name.equalsIgnoreCase('Class-Path')
+}
+
+def universalManifestAttributes(byte[] data) {
+	def attributes = new LinkedHashMap<String, String>()
+	if (data == null) {
+		return attributes
+	}
+	def manifest = new Manifest(new ByteArrayInputStream(data))
+	manifest.mainAttributes.each { key, value ->
+		attributes[((Attributes.Name) key).toString()] = value.toString()
+	}
+	return attributes
+}
+
+def universalWriteManifest(Map<String, String> attributes) {
+	def builder = new StringBuilder()
+	attributes.each { name, value ->
+		def line = "${name}: ${value}".toString()
+		byte[] bytes = line.getBytes('UTF-8')
+		int position = 0
+		boolean first = true
+		while (position < bytes.length) {
+			int limit = first ? 72 : 71
+			int length = Math.min(limit, bytes.length - position)
+			if (!first) {
+				builder.append(' ')
+			}
+			builder.append(new String(bytes, position, length, 'UTF-8'))
+			builder.append('\r\n')
+			position += length
+			first = false
+		}
+	}
+	return builder.toString().getBytes('UTF-8')
+}
+
+// ---------------------------------------------------------------------------
+// verification
+// ---------------------------------------------------------------------------
+
+def universalVerifyJar(File jar, String loaderName, boolean relocating, String sourcePrefix, String shadedPrefix, def logger) {
+	def entries = universalReadZip(jar)
+	List<String> problems = []
+
+	def fabricMetadataFile = entries['fabric.mod.json']
+	if (fabricMetadataFile == null) {
+		problems << 'fabric.mod.json is missing'
+	} else {
+		def metadata = new groovy.json.JsonSlurper().parse(fabricMetadataFile)
+		def entrypoints = metadata.entrypoints
+		if (entrypoints instanceof Map) {
+			entrypoints.each { kind, classes ->
+				classes.each { className -> universalRequireClass(entries, problems, className.toString(), "Fabric ${kind} entrypoint") }
+			}
+		}
+		if (metadata.accessWidener != null && !(metadata.accessWidener instanceof Boolean)) {
+			def path = metadata.accessWidener.toString()
+			if (!entries.containsKey(path)) {
+				problems << "access widener ${path} is missing"
+			}
+		}
+		def mixins = metadata.mixins
+		if (mixins instanceof List) {
+			mixins.each { config -> universalVerifyMixinConfig(entries, problems, config.toString(), 'Fabric mixin config') }
+		}
+		def nested = metadata.jars
+		if (nested instanceof List) {
+			nested.each { nestedJar ->
+				def path = nestedJar.file?.toString()
+				if (path != null && !entries.containsKey(path)) {
+					problems << "nested jar ${path} is missing"
+				}
+			}
+		}
+	}
+
+	def loaderMetadataPath = entries.containsKey('META-INF/neoforge.mods.toml') ? 'META-INF/neoforge.mods.toml' : 'META-INF/mods.toml'
+	def loaderMetadataFile = entries[loaderMetadataPath]
+	if (loaderMetadataFile == null) {
+		problems << "neither META-INF/neoforge.mods.toml nor META-INF/mods.toml is present"
+	} else {
+		def text = new String(loaderMetadataFile, 'UTF-8')
+		(text =~ /(?m)^\s*config\s*=\s*"([^"]+)"/).each { match ->
+			universalVerifyMixinConfig(entries, problems, match[1], "${loaderName} mixin config")
+		}
+		(text =~ /(?m)^\s*file\s*=\s*"([^"]+)"/).each { match ->
+			if (!entries.containsKey(match[1]) && match[1].endsWith('.cfg')) {
+				problems << "access transformer ${match[1]} is missing"
+			}
+		}
+		def modIds = (text =~ /(?m)^\s*modId\s*=\s*"([^"]+)"/).collect { it[1] }
+		if (modIds.isEmpty()) {
+			problems << 'the loader metadata declares no mod id'
+		} else {
+			universalVerifyModAnnotation(entries, problems, modIds.first(), loaderMetadataPath)
+		}
+	}
+
+	def jarJarMetadata = entries['META-INF/jarjar/metadata.json']
+	if (jarJarMetadata != null) {
+		def metadata = new groovy.json.JsonSlurper().parse(jarJarMetadata)
+		(metadata.jars ?: []).each { nestedJar ->
+			def path = nestedJar.path?.toString()
+			if (path != null && !entries.containsKey(path)) {
+				problems << "jar-in-jar ${path} is missing"
+			}
+		}
+	}
+
+	if (relocating) {
+		int relocatedClasses = 0
+		int references = 0
+		entries.each { name, bytes ->
+			if (!name.startsWith(shadedPrefix) || !name.endsWith('.class')) {
+				return
+			}
+			relocatedClasses++
+			universalClassReferences(bytes).each { referenced ->
+				String className = referenced
+				if (className.startsWith('[')) {
+					int end = className.indexOf(';')
+					className = end < 0 ? className : className.substring(className.indexOf('L') + 1, end)
+				}
+				if (className.startsWith(sourcePrefix) && !className.startsWith(shadedPrefix)) {
+					problems << "${name} still references the unrelocated class ${className}"
+				} else if (className.startsWith(shadedPrefix)) {
+					references++
+					if (!entries.containsKey(className + '.class')) {
+						problems << "${name} references the missing class ${className}"
+					}
+				}
+			}
+		}
+		if (relocatedClasses == 0) {
+			problems << "no class was relocated into ${shadedPrefix}"
+		}
+		logger.lifecycle("Universal jar: verified ${relocatedClasses} relocated class(es) and ${references} internal reference(s)")
+	}
+
+	if (!problems.isEmpty()) {
+		throw new GradleException("Universal jar verification failed:\n  - " + problems.unique().join('\n  - '))
+	}
+}
+
+def universalVerifyMixinConfig(Map<String, byte[]> entries, List<String> problems, String configPath, String origin) {
+	def configFile = entries[configPath]
+	if (configFile == null) {
+		problems << "${origin} ${configPath} is missing"
+		return
+	}
+	def config
+	try {
+		config = new groovy.json.JsonSlurper().parse(configFile)
+	} catch (Exception exception) {
+		problems << "${origin} ${configPath} is not valid JSON: ${exception.message}"
+		return
+	}
+	String packageName = config['package']?.toString()
+	if (packageName == null) {
+		problems << "${origin} ${configPath} has no package"
+		return
+	}
+	if (config.refmap != null && !entries.containsKey(config.refmap.toString())) {
+		problems << "${origin} ${configPath} references the missing refmap ${config.refmap}"
+	}
+	['client', 'server', 'mixins'].each { section ->
+		def classes = config[section]
+		if (classes instanceof List) {
+			classes.each { mixin ->
+				universalRequireClass(entries, problems, "${packageName}.${mixin}", "${origin} ${configPath}")
+			}
+		}
+	}
+}
+
+def universalRequireClass(Map<String, byte[]> entries, List<String> problems, String className, String origin) {
+	if (!entries.containsKey(className.replace('.', '/') + '.class')) {
+		problems << "${origin} references the missing class ${className}"
+	}
+}
+
+def universalVerifyModAnnotation(Map<String, byte[]> entries, List<String> problems, String modId, String origin) {
+	def found = entries.any { name, bytes ->
+		name.endsWith('.class') && bytes.length > 2 && new String(bytes, 'ISO-8859-1').contains(modId)
+	}
+	if (!found) {
+		problems << "${origin} declares mod id ${modId} but no class in the jar mentions it"
+	}
+}
+
+// Reads the CONSTANT_Class entries (tag 7) of a class file.
+def universalClassReferences(byte[] data) {
+	def strings = [:]
+	def classIndexes = []
+	def input = new DataInputStream(new ByteArrayInputStream(data))
+	input.readInt()
+	input.readUnsignedShort()
+	input.readUnsignedShort()
+	int poolCount = input.readUnsignedShort()
+	for (int index = 1; index < poolCount; index++) {
+		int tag = input.readUnsignedByte()
+		switch (tag) {
+			case 1:
+				byte[] value = new byte[input.readUnsignedShort()]
+				input.readFully(value)
+				strings[index] = new String(value, 'UTF-8')
+				break
+			case 7:
+				classIndexes << input.readUnsignedShort()
+				break
+			case 8:
+			case 16:
+			case 19:
+			case 20:
+				input.readUnsignedShort()
+				break
+			case 15:
+				input.readUnsignedByte()
+				input.readUnsignedShort()
+				break
+			case 3:
+			case 4:
+			case 9:
+			case 10:
+			case 11:
+			case 12:
+			case 17:
+			case 18:
+				input.readInt()
+				break
+			case 5:
+			case 6:
+				input.readLong()
+				index++
+				break
+			default:
+				throw new GradleException("Unsupported constant pool tag ${tag} while reading class references")
+		}
+	}
+	return classIndexes.collect { strings[it] }
+}

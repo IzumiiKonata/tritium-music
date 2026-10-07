@@ -234,7 +234,7 @@ $buildJob = {
 		throw "No loader modules found for $BranchName in $WorktreePath"
 	}
 
-	$buildTasks = @($loaders | ForEach-Object { ":$($_):build" })
+	$buildTasks = @($loaders | ForEach-Object { ":$($_):build" }) + @(":universalJar")
 
 	$start = Get-Date
 	Write-Host "[$BranchName] Build started"
@@ -318,6 +318,25 @@ $buildJob = {
 			log = $LogPath
 			durationSeconds = [math]::Round(((Get-Date) - $start).TotalSeconds, 1)
 		}
+	}
+
+	$universalArtifacts = @(Get-ChildItem -LiteralPath (Join-Path $WorktreePath "build/libs") -File -Filter "tritium-music-universal-*.jar")
+
+	if ($universalArtifacts.Count -ne 1) {
+		throw "Expected one universal artifact for $BranchName, found $($universalArtifacts.Count). Log: $LogPath"
+	}
+
+	$results += [pscustomobject]@{
+		branch = $BranchName
+		commit = $commit
+		minecraftVersion = $minecraftVersion
+		modVersion = $modVersion
+		loader = "universal"
+		loaders = @($loaders)
+		file = $universalArtifacts[0].Name
+		source = $universalArtifacts[0].FullName
+		log = $LogPath
+		durationSeconds = [math]::Round(((Get-Date) - $start).TotalSeconds, 1)
 	}
 
 	Write-Host "[$BranchName] Build completed"
@@ -506,7 +525,7 @@ try {
 				$_.Name -like "tritium-music-fabric-*.jar" -or
 						$_.Name -like "tritium-music-neoforge-*.jar" -or
 						$_.Name -like "tritium-music-forge-*.jar" -or
-						$_.Name -eq "manifest.json"
+						$_.Name -like "tritium-music-universal-*.jar" -or $_.Name -eq "manifest.json"
 			} |
 			Remove-Item -Force
 
